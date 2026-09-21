@@ -87,9 +87,21 @@ export async function resetEmpty() {
   }
 }
 
-// Empties the scratch database and rebuilds the same household through the
-// app's own API. Refuses to touch anything that is not a scratch database.
-export async function resetAndSeed() {
+// The same household without the variable (freelance) source: its income is
+// complete, so being over budget is a real error rather than "deposits not
+// recorded yet" (spec 010). The seeded budget already exceeds it by 100.00.
+export const FIXED_ONLY = {
+  incomeCents: 500000,
+  overAllocatedCents: 10000,
+  leftAfterBillsCents: 500000 - 194599,
+};
+
+export const resetAndSeed = () => seedHousehold(true);
+export const resetAndSeedFixedOnly = () => seedHousehold(false);
+
+// Empties the scratch database and rebuilds the household through the app's
+// own API. Refuses to touch anything that is not a scratch database.
+async function seedHousehold(withVariable: boolean) {
   const { e2eUrl, dbName } = e2eDb();
   assertScratch(dbName);
   const sql = postgres(e2eUrl, { max: 1, onnotice: () => {} });
@@ -122,13 +134,15 @@ export async function resetAndSeed() {
 
     const salary = (await (await ok(await owner.post("/api/income/sources", { data: { name: "Salary", kind: "fixed" } }), "salary")).json()) as { source: { id: string } };
     await ok(await owner.put(`/api/income/${M}/sources/${salary.source.id}`, { data: { amountCents: SEED.salaryCents } }), "salary amount");
-    const freelance = (await (await ok(await member.post("/api/income/sources", { data: { name: "Freelance", kind: "variable" } }), "freelance")).json()) as { source: { id: string } };
-    await ok(
-      await member.post(`/api/income/sources/${freelance.source.id}/deposits`, {
-        data: { receivedOn: `${M}-01`, amountCents: SEED.freelanceCents, note: "Logo job" },
-      }),
-      "deposit",
-    );
+    if (withVariable) {
+      const freelance = (await (await ok(await member.post("/api/income/sources", { data: { name: "Freelance", kind: "variable" } }), "freelance")).json()) as { source: { id: string } };
+      await ok(
+        await member.post(`/api/income/sources/${freelance.source.id}/deposits`, {
+          data: { receivedOn: `${M}-01`, amountCents: SEED.freelanceCents, note: "Logo job" },
+        }),
+        "deposit",
+      );
+    }
 
     for (const [name, amountCents] of Object.entries(SEED.budgets)) {
       await ok(await owner.put(`/api/budgets/${M}/allocations/${category(name)}`, { data: { amountCents } }), `budget ${name}`);

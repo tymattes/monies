@@ -13,6 +13,7 @@ const base = {
   month: "2026-09",
   currency: "USD",
   editable: true,
+  incomeProvisional: false,
   incomeCents: 927200,
   budgetedCents: 760000,
   billsCents: 271735,
@@ -61,6 +62,36 @@ describe("PlanSummary", () => {
     expect(html).toContain("$728.00");
     expect(html).toContain("text-danger");
     expect(html).not.toContain(">Unallocated<");
+  });
+
+  describe("provisional income (variable income may still arrive)", () => {
+    const provisional = { ...base, incomeProvisional: true };
+
+    it("notes that variable income counts once recorded", () => {
+      const html = renderToStaticMarkup(<PlanSummary {...provisional} assign="link" />);
+      expect(html).toContain("Variable income counts once you record it.");
+      expect(renderToStaticMarkup(<PlanSummary {...base} assign="link" />)).not.toContain("Variable income counts");
+    });
+
+    it("shows being above income plainly, not as an error", () => {
+      const html = renderToStaticMarkup(<PlanSummary {...provisional} budgetedCents={1000000} assign="link" />);
+      expect(html).toContain("Over recorded income by");
+      expect(html).toContain("$728.00");
+      expect(html).not.toContain("Over-allocated");
+      expect(html).not.toContain("text-danger");
+    });
+
+    it("is still an error when the income is final", () => {
+      const html = renderToStaticMarkup(<PlanSummary {...base} budgetedCents={1000000} assign="link" />);
+      expect(html).toContain("Over-allocated by");
+      expect(html).toContain("text-danger");
+      expect(html).not.toContain("Over recorded income");
+    });
+
+    it("keeps Assign hidden when over, and shown when money is left", () => {
+      expect(renderToStaticMarkup(<PlanSummary {...provisional} budgetedCents={1000000} assign="link" />)).not.toContain(">Assign<");
+      expect(renderToStaticMarkup(<PlanSummary {...provisional} assign="link" />)).toContain(">Assign<");
+    });
   });
 
   it("does not use the error color when within income", () => {

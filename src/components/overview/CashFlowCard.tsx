@@ -6,11 +6,13 @@ import { buttonCls } from "../ui";
 function Stat({
   label,
   value,
+  note,
   danger,
   children,
 }: {
   label: string;
   value: string;
+  note?: string;
   danger?: boolean;
   children?: React.ReactNode;
 }) {
@@ -20,6 +22,7 @@ function Stat({
       <p className={`text-xl font-semibold tabular-nums ${danger ? "text-danger" : ""}`}>
         {value}
       </p>
+      {note && <p className="text-balance text-xs text-muted">{note}</p>}
       {children}
     </div>
   );
@@ -34,23 +37,28 @@ export default function CashFlowCard({
   monthName,
   assignHref,
 }: {
-  overview: Pick<Overview, "cashFlow" | "currency" | "editable">;
+  overview: Pick<Overview, "cashFlow" | "currency" | "editable" | "incomeProvisional">;
   billsTotalCents: number;
   monthName: string;
   assignHref: string;
 }) {
-  const { cashFlow: cf, currency, editable } = overview;
+  const { cashFlow: cf, currency, editable, incomeProvisional } = overview;
   const money = (c: number) => formatMoney(c, currency);
   const budgeted = cf.billsWithinBudgetCents + cf.restOfBudgetCents;
   const scale = Math.max(cf.incomeCents, budgeted, 1);
   const pct = (c: number) => `${(c / scale) * 100}%`;
   const over = cf.overAllocatedCents > 0;
   const billsExceedIncome = cf.leftAfterBillsCents < 0;
+  // Variable income may still arrive, so a shortfall is shown plainly rather
+  // than as an error (spec 010).
+  const overIsError = over && !incomeProvisional;
+  const billsIsError = billsExceedIncome && !incomeProvisional;
+  const overWord = incomeProvisional ? "above recorded income" : "over-allocated";
 
   const summary =
     `Income ${money(cf.incomeCents)}: ${money(cf.billsWithinBudgetCents)} bills within budget, ` +
     `${money(cf.restOfBudgetCents)} rest of budget, ${money(cf.unallocatedCents)} unallocated` +
-    (over ? `, over-allocated by ${money(cf.overAllocatedCents)}` : "");
+    (over ? `, ${overWord} by ${money(cf.overAllocatedCents)}` : "");
 
   return (
     <section aria-labelledby="cash-flow-heading" className="space-y-4 rounded-lg border border-border p-4">
@@ -59,17 +67,33 @@ export default function CashFlowCard({
       </h2>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Stat label="Income (take-home)" value={money(cf.incomeCents)} />
+        <Stat
+          label="Income (take-home)"
+          value={money(cf.incomeCents)}
+          note={incomeProvisional ? "Variable income counts once you record it." : undefined}
+        />
         <Stat label="Bills" value={money(billsTotalCents)} />
         <Stat
-          label={billsExceedIncome ? "Bills exceed income by" : "Left after bills"}
+          label={
+            billsExceedIncome
+              ? incomeProvisional
+                ? "Bills exceed recorded income by"
+                : "Bills exceed income by"
+              : "Left after bills"
+          }
           value={money(Math.abs(cf.leftAfterBillsCents))}
-          danger={billsExceedIncome}
+          danger={billsIsError}
         />
         <Stat
-          label={over ? "Over-allocated by" : "Unallocated"}
+          label={
+            over
+              ? incomeProvisional
+                ? "Over recorded income by"
+                : "Over-allocated by"
+              : "Unallocated"
+          }
           value={money(over ? cf.overAllocatedCents : cf.unallocatedCents)}
-          danger={over}
+          danger={overIsError}
         >
           {editable && cf.unallocatedCents > 0 && (
             <Link href={assignHref} className={`${buttonCls} mt-2 inline-block`}>
@@ -102,7 +126,7 @@ export default function CashFlowCard({
         />
         {over && (
           <div
-            className="absolute inset-y-0 w-0.5 bg-danger"
+            className={`absolute inset-y-0 w-0.5 ${overIsError ? "bg-danger" : "bg-foreground"}`}
             style={{ left: pct(cf.incomeCents) }}
           />
         )}
@@ -138,10 +162,17 @@ export default function CashFlowCard({
           </span>
         </li>
         {over && (
-          <li className="flex items-start gap-2 text-danger sm:col-span-3">
-            <span aria-hidden="true" className="mt-1 h-3 w-0.5 shrink-0 bg-danger" />
+          <li className={`flex items-start gap-2 sm:col-span-3 ${overIsError ? "text-danger" : ""}`}>
+            <span
+              aria-hidden="true"
+              className={`mt-1 h-3 w-0.5 shrink-0 ${overIsError ? "bg-danger" : "bg-foreground"}`}
+            />
             <span>
-              <span className="block">Over-allocated (past the income line)</span>
+              <span className="block">
+                {incomeProvisional
+                  ? "Above recorded income (past the income line)"
+                  : "Over-allocated (past the income line)"}
+              </span>
               <span className="block font-medium tabular-nums">{money(cf.overAllocatedCents)}</span>
             </span>
           </li>

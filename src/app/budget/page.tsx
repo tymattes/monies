@@ -38,6 +38,7 @@ export default async function BudgetPage(props: PageProps<"/budget">) {
           editable={budget.editable}
           lines={budget.categories}
           incomeCents={budget.incomeCents}
+          incomeProvisional={budget.incomeProvisional}
           billsTotalCents={budget.billsTotalCents}
         />
       </section>
