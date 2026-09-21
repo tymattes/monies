@@ -13,7 +13,9 @@ export default function AuthCard({
       {description && (
         <p className="mt-2 text-sm text-muted">{description}</p>
       )}
-      <div className="mt-6">{children}</div>
+      <div className="mt-6 rounded-xl border border-border bg-background p-5 shadow-sm">
+        {children}
+      </div>
     </main>
   );
 }

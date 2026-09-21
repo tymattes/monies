@@ -1,6 +1,6 @@
 # 011: UI polish: separate the panes and tables
 
-**Status:** approved
+**Status:** implemented
 
 ## Goal
 Panels (the Overview's cards, the Plan pages' lists and forms) and tables currently blend into the page and into each other, in both themes. Cards use the same color as the page background and are outlined only by a 1px border that is about 1.5:1 against it; tables have no header fill, dividers as faint as the outline, and rows that read as one flat block. This spec gives the interface a clear layering so each pane and table reads as its own object, without adding noise.
@@ -40,14 +40,14 @@ Supports `brief.md`: modern, mobile-first UX.
 New components or layout changes, typography changes, animation, changing colors beyond the surface system and the one red adjustment, row hover states, and any change to spacing between sections.
 
 ## Acceptance criteria
-- [ ] The theme tokens exist for both themes (`--page`, `--surface-subtle`, updated `--surface`, `--border`, light `--danger`), are mapped into Tailwind, and pass the contrast tests.
-- [ ] In both themes the card color differs from the page color and the border is distinguishable from both (asserted in the theme test and in the browser).
-- [ ] Every panel, list, table, form and empty state listed above uses the card style.
-- [ ] Table headers use the subtle fill and totals use the surface fill on the Overview and the Budget page.
-- [ ] The header sits above the page; the page background is the deeper color on every page, including sign-in.
-- [ ] The axe scans pass on every page in both themes at both sizes, and the phone layout tests pass.
-- [ ] Screenshots for every page in both themes at desktop and phone size were reviewed.
-- [ ] Documentation updated; `npm run lint`, `npm test`, `npm run build` and `npm run test:e2e` pass.
+- [x] The theme tokens exist for both themes (`--page`, `--surface-subtle`, updated `--surface`, `--border`, light `--danger`), are mapped into Tailwind, and pass the contrast tests.
+- [x] In both themes the card color differs from the page color and the border is distinguishable from both (asserted in the theme test and in the browser).
+- [x] Every panel, list, table, form and empty state listed above uses the card style.
+- [x] Table headers use the subtle fill and totals use the surface fill on the Overview and the Budget page.
+- [x] The header sits above the page; the page background is the deeper color on every page, including sign-in.
+- [x] The axe scans pass on every page in both themes at both sizes, and the phone layout tests pass.
+- [x] Screenshots for every page in both themes at desktop and phone size were reviewed.
+- [x] Documentation updated; `npm run lint`, `npm test`, `npm run build` and `npm run test:e2e` pass.
 
 ## Technical notes
 - New tokens go in `globals.css` (`:root` and `:root.dark`) and into the `@theme inline` block as `--color-page` and `--color-surface-subtle`; `body` and `html` use `var(--page)`. Update `tests/theme.test.ts` (token set, contrast on page and subtle, card versus page, border visibility) and the palette expectations.
@@ -64,3 +64,14 @@ New components or layout changes, typography changes, animation, changing colors
 
 ## Verification
 Look at every page in both themes and at phone width: panels should read as raised cards on a deeper page, tables should have a distinct header and a distinct total row, and nothing should look heavier or noisier than before. Run the tests, lint, build and browser suite.
+
+## Implementation notes
+- **Tokens** (`globals.css`, mapped in `@theme inline`): `--page` (canvas, `body` and `html`), `--background` (cards), new `--surface-subtle` (table header rows), `--surface` (total rows). Dark uses the official Dracula layers (`#21222C`, `#282A36`, `#343746`, `#424450`). Light uses derived cream tones (`#F2EFE4`, `#FFFBEB`, `#F7F4E8`, `#EBE8DC`) with borders darkened to `#D3CDB0`. Light `--danger` is `#C8371F` (Alucard's `#CB3A2A` was 4.37:1 on the new page, below AA).
+- **Cards:** `rounded-xl border border-border bg-background shadow-sm` (exported as `cardCls` from `ui.ts`) replaced the old `rounded-lg border border-border` in 13 files; lists and tables also get `overflow-hidden` so fills follow the corners. Sign-in, setup and join forms sit in a card (`AuthCard`), and the header bar is a card-colored bar with its bottom border and a light shadow.
+- **Tables:** header rows use `bg-surface-subtle` with a divider (Overview categories, Budget table); totals keep `bg-surface`.
+- **Tests:** `tests/theme.test.ts` now also checks that all four text tokens hold 4.5:1 on the page, that foreground, muted and accent hold it on the subtle fill, that the card is distinguishable from the page (at least 1.08:1) and the border from both, and the Dracula layer values. `e2e/overview.spec.ts` gained "layered surfaces" checks in both themes: body is the page color, the Overview cards, attention items, table header and total row have the expected fills, the Plan summary is a card, and the sign-in form is a card. `e2e/support/page.ts` constants are now page, card and subtle for each theme.
+- **Verified** in real Chromium: the axe scans still pass on every page in both themes at both sizes with the new colors, and screenshots of the Overview, Budget, Bills, Income, Members and sign-in pages were reviewed in light and dark at desktop and phone size.
+- **Left as is:** the Overview's Income and Bills cards stretch to equal height (the Income card has empty space at the bottom); row hover fills stay off because Dracula red text would drop below 4.5:1 on a lighter fill.
+
+## Not verified
+Real Safari and iOS (the WebKit project is not run).

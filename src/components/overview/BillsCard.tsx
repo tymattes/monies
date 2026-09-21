@@ -14,7 +14,7 @@ export default function BillsCard({
 }) {
   const money = (c: number) => formatMoney(c, currency);
   return (
-    <section aria-labelledby="bills-heading" className="space-y-3 rounded-lg border border-border p-4">
+    <section aria-labelledby="bills-heading" className="space-y-3 rounded-xl border border-border bg-background shadow-sm p-5">
       <div className="flex items-center justify-between gap-3">
         <h2 id="bills-heading" className="text-lg font-semibold tracking-tight">Bills</h2>
         <Link href={href} className={`${secondaryButtonCls} inline-block`}>

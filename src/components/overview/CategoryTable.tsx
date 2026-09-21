@@ -53,13 +53,13 @@ export default function CategoryTable({
       <h2 id="categories-heading" className="text-lg font-semibold tracking-tight">
         Categories
       </h2>
-      <div className="overflow-hidden rounded-lg border border-border">
+      <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
         <table className="w-full text-sm">
           <caption className="sr-only">
             Budget by category: budgeted, bills, and what is left of the budget
           </caption>
           <thead>
-            <tr className="text-xs text-muted">
+            <tr className="border-b border-border bg-surface-subtle text-xs text-muted">
               <th scope="col" className="px-4 py-2 text-left font-normal">Category</th>
               <th scope="col" className="hidden px-2 py-2 text-right font-normal sm:table-cell">Budgeted</th>
               <th scope="col" className="hidden px-2 py-2 text-right font-normal sm:table-cell">Bills</th>

@@ -1,7 +1,14 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import {
+  DARK_CARD,
+  DARK_PAGE,
+  DARK_SUBTLE,
+  LIGHT_CARD,
   LIGHT_DANGER,
+  LIGHT_PAGE,
+  LIGHT_SUBTLE,
+  bodyBackground,
   cents,
   money,
   signIn,
@@ -250,3 +257,51 @@ test.describe("over budget with only fixed income", () => {
     await expect(warning).toContainText("Warning:");
   });
 });
+
+// Cards must read as raised panels on a deeper page, and tables must have a
+// distinct header row (spec 011).
+for (const [scheme, page, card, subtle] of [
+  ["light", LIGHT_PAGE, LIGHT_CARD, LIGHT_SUBTLE],
+  ["dark", DARK_PAGE, DARK_CARD, DARK_SUBTLE],
+] as const) {
+  test.describe(`layered surfaces (${scheme})`, () => {
+    test.use({ colorScheme: scheme });
+    test.beforeAll(resetAndSeed);
+
+    test("cards and tables are separate from the page and from each other", async ({ page: p }) => {
+      await signIn(p, OWNER);
+      await p.goto("/");
+      expect(await bodyBackground(p)).toBe(page);
+
+      const regions = [
+        p.getByRole("region", { name: /^Cash flow in/ }),
+        p.getByRole("region", { name: "Income", exact: true }),
+        p.getByRole("region", { name: "Bills", exact: true }),
+        p.getByRole("region", { name: "Needs attention" }).getByRole("listitem").first(),
+      ];
+      for (const region of regions) {
+        await expect(region).toHaveCSS("background-color", card);
+        await expect(region).toHaveCSS("border-top-width", "1px");
+      }
+
+      const table = p.getByRole("table");
+      await expect(table.locator("thead tr")).toHaveCSS("background-color", subtle);
+      await expect(table.locator("tfoot tr")).not.toHaveCSS("background-color", card);
+      await expect(table.locator("tfoot tr")).not.toHaveCSS("background-color", subtle);
+    });
+
+    test("the Plan pages use cards too", async ({ page: p }) => {
+      await signIn(p, OWNER);
+      for (const path of ["/budget", "/bills", "/income"]) {
+        await p.goto(path);
+        await expect(p.getByRole("region", { name: "Plan summary" })).toHaveCSS("background-color", card);
+      }
+    });
+
+    test("the sign-in form sits in a card on the page color", async ({ page: p }) => {
+      await p.goto("/sign-in");
+      expect(await bodyBackground(p)).toBe(page);
+      await expect(p.getByLabel("Email").locator("xpath=ancestor::div[contains(@class,'rounded-xl')][1]")).toHaveCSS("background-color", card);
+    });
+  });
+}

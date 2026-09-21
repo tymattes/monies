@@ -83,7 +83,7 @@ export default function CategoryManager({
         </p>
       </div>
 
-      <ul className="divide-y divide-border rounded-lg border border-border">
+      <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-background shadow-sm">
         {active.map((c, i) => (
           <li key={c.id} className="flex items-center gap-2 px-4 py-2">
             <RenameInput category={c} onSave={(name) => patch(c.id, { name }).then(() => {})} />
@@ -149,7 +149,7 @@ export default function CategoryManager({
           <summary className="cursor-pointer text-muted">
             Archived ({archived.length})
           </summary>
-          <ul className="mt-2 divide-y divide-border rounded-lg border border-border">
+          <ul className="mt-2 divide-y divide-border overflow-hidden rounded-xl border border-border bg-background shadow-sm">
             {archived.map((c) => (
               <li
                 key={c.id}

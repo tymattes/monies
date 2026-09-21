@@ -45,6 +45,34 @@ describe.each(Object.entries(themes))("%s theme tokens", (_name, t) => {
       expect(contrast(t[token], t.surface)).toBeGreaterThanOrEqual(4.5);
     },
   );
+
+  // Table headers and other quiet fills inside a card.
+  it.each(["foreground", "muted", "accent"])(
+    "%s text meets WCAG AA (4.5:1) on the subtle surface",
+    (token) => {
+      expect(contrast(t[token], t["surface-subtle"])).toBeGreaterThanOrEqual(4.5);
+    },
+  );
+
+  // The page is the canvas: headings and error messages can sit directly on it.
+  it.each(["foreground", "muted", "danger", "accent"])(
+    "%s text meets WCAG AA (4.5:1) on the page",
+    (token) => {
+      expect(contrast(t[token], t.page)).toBeGreaterThanOrEqual(4.5);
+    },
+  );
+
+  it("layers the card above the page, with a border visible against both", () => {
+    expect(contrast(t.background, t.page)).toBeGreaterThanOrEqual(1.08);
+    expect(contrast(t.border, t.background)).toBeGreaterThanOrEqual(1.3);
+    expect(contrast(t.border, t.page)).toBeGreaterThanOrEqual(1.3);
+  });
+
+  it("orders the fills from card to subtle to surface", () => {
+    // Each step away from the card must be a visible change.
+    expect(contrast(t["surface-subtle"], t.background)).toBeGreaterThan(1.02);
+    expect(contrast(t.surface, t.background)).toBeGreaterThan(contrast(t["surface-subtle"], t.background));
+  });
 });
 
 describe("palettes", () => {
@@ -52,7 +80,10 @@ describe("palettes", () => {
     const d = themes.dark;
     expect(d.background.toLowerCase()).toBe("#282a36");
     expect(d.foreground.toLowerCase()).toBe("#f8f8f2");
-    expect(d.surface.toLowerCase()).toBe("#44475a");
+    // Dracula's layered backgrounds: Darker for the page, Light and Lighter for fills.
+    expect(d.page.toLowerCase()).toBe("#21222c");
+    expect(d["surface-subtle"].toLowerCase()).toBe("#343746");
+    expect(d.surface.toLowerCase()).toBe("#424450");
     expect(d.danger.toLowerCase()).toBe("#ff5555");
     expect(d.accent.toLowerCase()).toBe("#50fa7b");
   });
@@ -62,7 +93,7 @@ describe("palettes", () => {
     expect(l.background.toLowerCase()).toBe("#fffbeb");
     expect(l.foreground.toLowerCase()).toBe("#1f1f1f");
     expect(l.muted.toLowerCase()).toBe("#6c664b");
-    expect(l.danger.toLowerCase()).toBe("#cb3a2a");
+    expect(l.danger.toLowerCase()).toBe("#c8371f"); // a hair darker than Alucard's #CB3A2A, for AA on the page
     expect(l.accent.toLowerCase()).toBe("#14710a");
   });
 

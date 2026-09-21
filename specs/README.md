@@ -25,4 +25,4 @@ Monies is built spec-first. `brief.md` is the source of truth for product intent
 | 008 | [Overview page and grouped Plan area](008-overview-and-plan.md) | implemented |
 | 009 | [Browser testing with Playwright](009-browser-testing.md) | implemented |
 | 010 | [Provisional income for months in progress](010-provisional-income.md) | implemented |
-| 011 | [UI polish: separate the panes and tables](011-ui-polish.md) | approved |
+| 011 | [UI polish: separate the panes and tables](011-ui-polish.md) | implemented |
