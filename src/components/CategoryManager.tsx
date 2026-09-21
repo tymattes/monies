@@ -77,7 +77,7 @@ export default function CategoryManager({
     <section className="space-y-4">
       <div>
         <h2 className="text-lg font-semibold tracking-tight">Categories</h2>
-        <p className="text-sm text-foreground/60">
+        <p className="text-sm text-muted">
           Renaming applies to every month. Archiving hides a category from this
           month onward; past months keep it.
         </p>
@@ -139,14 +139,14 @@ export default function CategoryManager({
       </form>
 
       {error && (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-danger">
           {error}
         </p>
       )}
 
       {archived.length > 0 && (
         <details className="text-sm">
-          <summary className="cursor-pointer text-foreground/70">
+          <summary className="cursor-pointer text-muted">
             Archived ({archived.length})
           </summary>
           <ul className="mt-2 divide-y divide-foreground/10 rounded-lg border border-foreground/10">
@@ -155,7 +155,7 @@ export default function CategoryManager({
                 key={c.id}
                 className="flex items-center justify-between gap-2 px-4 py-2"
               >
-                <span className="text-foreground/70">{c.name}</span>
+                <span className="text-muted">{c.name}</span>
                 <button
                   type="button"
                   onClick={() => patch(c.id, { archived: false })}

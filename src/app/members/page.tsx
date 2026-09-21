@@ -38,15 +38,15 @@ export default async function MembersPage() {
                 <p className="truncate font-medium">
                   {m.name}
                   {m.userId === ctx.user.id && (
-                    <span className="ml-2 text-xs text-foreground/50">(you)</span>
+                    <span className="ml-2 text-xs text-muted">(you)</span>
                   )}
                 </p>
-                <p className="truncate text-sm text-foreground/60">{m.email}</p>
+                <p className="truncate text-sm text-muted">{m.email}</p>
               </div>
               <div className="flex shrink-0 items-center gap-4">
                 <div className="text-right text-sm">
                   <p className="capitalize">{m.role}</p>
-                  <p className="text-foreground/60">
+                  <p className="text-muted">
                     Joined {dateFmt.format(m.joinedAt)}
                   </p>
                 </div>

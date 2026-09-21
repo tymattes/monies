@@ -47,7 +47,7 @@ export default function InviteManager({ pending }: { pending: Pending[] }) {
       <div className="flex items-center justify-between gap-4">
         <div>
           <h2 className="text-lg font-semibold tracking-tight">Invites</h2>
-          <p className="text-sm text-foreground/60">
+          <p className="text-sm text-muted">
             Links work once and expire after 7 days.
           </p>
         </div>
@@ -83,7 +83,7 @@ export default function InviteManager({ pending }: { pending: Pending[] }) {
       )}
 
       {error && (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-danger">
           {error}
         </p>
       )}
@@ -97,7 +97,7 @@ export default function InviteManager({ pending }: { pending: Pending[] }) {
             >
               <span>
                 Created {i.createdAt}
-                <span className="text-foreground/60">
+                <span className="text-muted">
                   {" "}
                   · expires {i.expiresAt}
                 </span>

@@ -12,7 +12,7 @@ export default async function Home() {
       <h1 className="text-2xl font-semibold tracking-tight">
         {ctx.household.name}
       </h1>
-      <p className="mt-2 text-sm text-foreground/70">
+      <p className="mt-2 text-sm text-muted">
         Welcome back, {ctx.user.name}.
       </p>
     </main>

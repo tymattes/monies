@@ -58,7 +58,7 @@ export default function BudgetEditor({
 
   if (lines.length === 0) {
     return (
-      <p className="rounded-lg border border-foreground/10 p-6 text-sm text-foreground/70">
+      <p className="rounded-lg border border-foreground/10 p-6 text-sm text-muted">
         No categories in {monthName}. Add some below, or go to a later month.
       </p>
     );
@@ -66,7 +66,7 @@ export default function BudgetEditor({
 
   return (
     <div className="space-y-3">
-      <p className="text-sm text-foreground/60">
+      <p className="text-sm text-muted">
         {editable
           ? `Changes apply from ${monthName} onward. Earlier months are not affected.`
           : "Past months are read-only so history stays accurate."}
@@ -86,8 +86,8 @@ export default function BudgetEditor({
                   aria-live="polite"
                   className={`text-xs ${
                     status[l.id] && status[l.id] !== "Saved" && status[l.id] !== "Saving…"
-                      ? "text-red-600"
-                      : "text-foreground/50"
+                      ? "text-danger"
+                      : "text-muted"
                   }`}
                 >
                   {status[l.id]}
