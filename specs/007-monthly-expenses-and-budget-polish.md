@@ -14,10 +14,11 @@ Supports `brief.md`: category-driven budgets, modern UX, and a path to budget vs
 ## Requirements
 
 ### A. Monthly expenses
-- A **monthly expense** is a recurring monthly cost of the household. It has: a name, a monthly amount, a **category** (required), an optional **paid with** label (free text, e.g. "Checking", "Amazon card"), an optional note, and **added by** (the member who created it).
+- A **monthly expense** is a recurring cost of the household that counts against the budget every month. It has: a name, the **bill amount** and **how often it is billed**, a **category** (required), an optional **paid with** label (free text, e.g. "Checking", "Amazon card"), an optional note, and **added by** (the member who created it).
 - **The category is required and the user is prompted to choose it** when creating an expense: the field starts empty with a "Choose a category" prompt, so nothing is assigned by default. Only active categories are offered.
-- **Time-versioned like budgets and income.** The amount and the category are versioned together, effective from a month onward: a month's values are the latest version on or before it. Changing an amount or moving an expense to another category applies from a chosen month forward, never rewriting past months. Only the current and future months can be changed.
-- **Every month the expense counts against its category** for each month it is active, with no per-month entry. The amount may be 0 (a placeholder or a paused bill).
+- **Time-versioned like budgets and income.** The amount, billing period and category are versioned together, effective from a month onward: a month's values are the latest version on or before it. Changing an amount or billing period, or moving an expense to another category, applies from a chosen month forward, never rewriting past months. Only the current and future months can be changed.
+- **Billing period.** An expense can be billed **monthly, every 3 months, every 6 months, or yearly**. The user enters the real bill (e.g. 120.00 every 12 months) and never the monthly figure. The form shows a live preview ("= 10.00 / month"). The **monthly equivalent** is the bill divided by the number of months, rounded to the nearest minor unit, and that is what counts against the category in every month the expense is active. So a yearly subscription is spread evenly across the whole year instead of landing in its renewal month.
+- **Every month the expense counts against its category** for each month it is active, with no per-month entry. The amount may be 0 (a placeholder or a paused bill). Amounts shown in lists include both the bill and its monthly equivalent (e.g. "120.00 / year, about 10.00 / month"); all totals and category rollups use monthly equivalents.
 - Expenses can be renamed, have their paid-with label and note edited, and be **ended** (archived from a month onward; history stays). Ending an expense is how a cancelled subscription stops counting.
 - **Added by** is shown on each expense. If that member is later removed, it shows "Former member" and the expense stays (same behavior as income).
 - **Who can edit:** every household member can add, edit and end any expense (household bills are shared). The added-by tag is informational, not a permission.
@@ -41,15 +42,15 @@ Supports `brief.md`: category-driven budgets, modern UX, and a path to budget vs
 
 ### API
 - `GET /api/expenses/[month]`: expenses active in the month with amount, category, paid with, note, added by (with `addedBy` name or "Former member"), category subtotals and month total.
-- `POST /api/expenses` (`{ name, amountCents, categoryId, paidWith?, note? }`, effective from the current month; `categoryId` is required).
+- `POST /api/expenses` (`{ name, amountCents, intervalMonths, categoryId, paidWith?, note? }`, effective from the current month; `categoryId` is required; `intervalMonths` is one of 1, 3, 6, 12 and defaults to 1). Responses include `amountCents` (the bill), `intervalMonths` and `monthlyCents` (the monthly equivalent).
 - `PATCH /api/expenses/[id]`: rename, paid-with, note, end or restore (label fields are not versioned).
-- `PUT /api/expenses/[month]/items/[id]` (`{ amountCents, categoryId }`): new amount and/or category from that month onward; rejects past months and inactive categories.
+- `PUT /api/expenses/[month]/items/[id]` (`{ amountCents, intervalMonths, categoryId }`): new amount, billing period and/or category from that month onward; rejects past months and inactive categories.
 - `GET /api/budgets/[month]` gains, per category, `expensesCents` and `remainingCents`, and in the summary `expensesTotalCents` and `leftAfterExpensesCents`.
 - `POST /api/budgets/[month]/assign-unallocated` (`{ categoryId }`): implements B; rejects past months, non-positive unallocated, and unknown or inactive categories.
 - All routes use `requireHousehold()`; every member may call them.
 
 ## Out of scope
-Actual transactions and per-charge logging (receipt capture and the transactions spec), paid-with as a managed list with balances or accounts, gross vs. net, expenses that are not monthly (annual or quarterly bills; enter the monthly equivalent), variable-amount bills with a monthly estimate, splitting one expense across categories, automatic rollover of leftover money, importing from Notion or CSV, a user-chosen accent or palette, other themes.
+Actual transactions and per-charge logging (receipt capture and the transactions spec), paid-with as a managed list with balances or accounts, gross vs. net, tracking a bill's actual renewal date or a running "set aside so far" balance (that belongs with transactions), custom intervals other than monthly, 3, 6 and 12 months, variable-amount bills with a monthly estimate, splitting one expense across categories, automatic rollover of leftover money, importing from Notion or CSV, a user-chosen accent or palette, other themes.
 
 ## Acceptance criteria
 - [ ] A member can add a monthly expense; the category field starts empty with a prompt and the expense cannot be saved without choosing one (UI) or a valid `categoryId` (API).
@@ -62,6 +63,8 @@ Actual transactions and per-charge logging (receipt capture and the transactions
 - [ ] The Expenses page shows the month's expenses grouped by category with subtotals and a total.
 - [ ] The Budget page shows per-category expenses and remaining (negative flagged), plus Monthly expenses and Left after monthly expenses in the summary; `GET /api/budgets/[month]` returns the same numbers.
 - [ ] Assign-to-category adds the unallocated amount to the chosen category from this month onward and brings unallocated to 0; it preselects "Savings" when present; it is unavailable for past months or when unallocated is 0; two concurrent assigns do not double-count (covered by tests).
+- [ ] A yearly or 6-month expense counts its monthly equivalent (bill divided by the number of months, rounded to the nearest minor unit) in every active month, not only in a renewal month; the form previews it; totals and category rollups use it (covered by tests).
+- [ ] Changing the billing period applies from the chosen month onward and leaves earlier months unchanged.
 - [ ] Amounts are integer minor units; negative and fractional values are rejected; 0 is allowed for expenses.
 - [ ] Dark theme uses the Dracula palette and the theme tests pass at 4.5:1 for foreground, muted, danger and accent on background and surface in both themes; light theme is unchanged.
 - [ ] No hardcoded colors are introduced; borders and panels use the new `--border` and `--surface` tokens.
@@ -70,7 +73,7 @@ Actual transactions and per-charge logging (receipt capture and the transactions
 - [ ] `npm run lint`, `npm test` and `npm run build` pass.
 
 ## Technical notes
-- Tables (proposal): `monthly_expenses` (id uuid, household_id, name, paid_with text nullable, note text nullable, added_by text nullable fk user `on delete set null`, start_month date, archived_from date nullable, created_at) and `monthly_expense_versions` (id, expense_id, effective_month date, amount_cents integer check >= 0, category_id fk categories, created_by, created_at; unique on `(expense_id, effective_month)`). Amount and category share a version row so moving a bill between categories never changes past months.
+- Tables (proposal): `monthly_expenses` (id uuid, household_id, name, paid_with text nullable, note text nullable, added_by text nullable fk user `on delete set null`, start_month date, archived_from date nullable, created_at) and `monthly_expense_versions` (id, expense_id, effective_month date, amount_cents integer check >= 0 (the bill), interval_months smallint check in (1, 3, 6, 12) default 1, category_id fk categories, created_by, created_at; unique on `(expense_id, effective_month)`). Amount, billing period and category share a version row so moving a bill between categories or changing how often it is billed never changes past months. The monthly equivalent is computed, not stored: `round(amount_cents / interval_months)` (half up) in one shared helper used by the SQL rollups and the API, with tests for amounts that do not divide evenly (a yearly total can differ from the bill by a few minor units, which is acceptable for a budget and is stated in the README).
 - Effective version lookup and archive-by-month visibility (`start_month <= M < archived_from`) reuse the patterns from specs 004 and 006. Add a month-scoped query that returns each active expense with its effective amount and category, and reuse it for the Expenses page and the per-category rollup on the Budget page (`expensesCents` per category).
 - Category archive check: before setting `archived_from`, count expenses whose effective category in the current month is that category and that are active; block when greater than 0. Also reject choosing an archived or not-yet-started category for a version.
 - Assign-unallocated: in one transaction lock the category's allocation for the month (`select ... for update` on the latest allocation, or advisory lock on the household and month), recompute unallocated from income minus the sum of effective allocations, then upsert the allocation as the current effective amount plus unallocated. Reuse `setAllocation`'s rules (past months rejected, category visible in the month).
@@ -86,6 +89,7 @@ Actual transactions and per-charge logging (receipt capture and the transactions
 - Recurring expenses are called **monthly expenses** in the UI, matching the owner's Notion doc, and count against a category as committed spend each month.
 - Expenses are tagged with the member who added them, and any member can edit any expense.
 - The category is chosen by the user, never defaulted.
+- **Non-monthly bills are spread evenly.** Yearly, 6-month and 3-month bills count their monthly equivalent every month instead of hitting the renewal month. This smooths the budget like setting money aside for the renewal. The real charge and any set-aside balance are for the transactions spec.
 - The Notion doc was reviewed read-only for shape (columns: Name, Amount, Type, Payment, Comment, and a monthly cash-flow rollup of income minus expenses). No real names or amounts from it are copied into the repo.
 
 ## Open questions
@@ -94,10 +98,11 @@ Actual transactions and per-charge logging (receipt capture and the transactions
 3. **Left after monthly expenses:** should it be shown on the Budget page as proposed (income minus monthly expenses, like Notion's Spending/Saving), or only on the Expenses page?
 4. **Assign preselect:** preselect the category named "Savings" (proposed), or always require choosing?
 5. **Splitting the work:** land A, B and C as one PR (as the request framed it), or as three small PRs in the order C, B, A? Recommendation: three PRs, one spec.
-6. **One-time import:** you have 20-odd existing items in Notion. Enter them by hand once (proposed), or is a CSV import worth its own small spec later?
+6. **Intervals:** the fixed list of monthly, 3, 6 and 12 months (proposed), or any number of months from 1 to 36 with those four as presets? Recommendation: the fixed list for now.
+7. **One-time import:** you have 20-odd existing items in Notion. Enter them by hand once (proposed), or is a CSV import worth its own small spec later?
 
 ## Documentation
-- `README.md`: add Monthly expenses (recurring bills counted against categories, added-by tag, time-versioned, past months read-only) and Assign unallocated to Features; note the Dracula palette credit and the dark theme change; update the status line.
+- `README.md`: add Monthly expenses (recurring bills, including yearly and 6-month subscriptions spread evenly across months, counted against categories, added-by tag, time-versioned, past months read-only) and Assign unallocated to Features; note the Dracula palette credit and the dark theme change; update the status line.
 - `CLAUDE.md`: architecture notes for the expense tables and the version lookup, the category-archive rule, the assign-unallocated transaction, and the new `--surface` and `--border` tokens (colors must come from tokens).
 - `specs/README.md`: index entry.
 
