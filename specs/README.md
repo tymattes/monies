@@ -20,4 +20,4 @@ Monies is built spec-first. `brief.md` is the source of truth for product intent
 | 003 | [Households and members](003-households.md) | implemented |
 | 004 | [Categories and monthly budgets](004-categories-and-budgets.md) | implemented |
 | 005 | [Light and dark theme](005-theming.md) | implemented |
-| 006 | [Income per member](006-income.md) | approved |
+| 006 | [Income per member](006-income.md) | implemented |

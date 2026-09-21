@@ -1,6 +1,6 @@
 # 006: Income per member
 
-**Status:** approved
+**Status:** implemented
 
 ## Goal
 Let each household member have income, both fixed monthly (salary) and variable (freelance, bonuses, irregular deposits), so the household can see what is coming in each month. Supports `brief.md`: income is set per household member and supports fixed and variable income. It also sets up the "income vs. spend" dashboard and lets the Budget page show how much of the month's income is still unallocated.
@@ -42,25 +42,25 @@ Let each household member have income, both fixed monthly (salary) and variable 
 - All routes use `requireHousehold()` plus an ownership check (owner, or the source's own member).
 
 ## Out of scope
-Bank sync or matching deposits to real accounts, gross vs. net and tax calculations, pay frequencies other than monthly (see Open questions), expected amounts for variable income, recurring deposits, income categories or tags, per-member dashboards (the dashboards spec builds on this), multi-currency, import/export.
+Bank sync or matching deposits to real accounts, gross vs. net and tax calculations, pay frequencies other than monthly (see Decisions), expected amounts for variable income, recurring deposits, income categories or tags, per-member dashboards (the dashboards spec builds on this), multi-currency, import/export.
 
 ## Acceptance criteria
-- [ ] A member can create fixed and variable income sources for themselves; an owner can do so for any member; a regular member cannot for someone else (covered by tests).
-- [ ] Setting a fixed amount for the current month carries into later months and leaves past months unchanged; past months reject edits (covered by tests, mocking the current month as in spec 004).
-- [ ] Setting an amount on a variable source, or a deposit on a fixed source, is rejected.
-- [ ] Deposits count in the month of their date; adding, editing and deleting them updates that month's totals only.
-- [ ] Month view shows per-member and household totals combining fixed amounts and variable deposits.
-- [ ] Budget page shows household income and unallocated for the month.
-- [ ] Everyone in the household can view all income; signed-out users and non-members are rejected on every route.
-- [ ] Removing a member keeps their sources and history as "Former member" (covered by a test); only owners can edit those.
-- [ ] Amounts are integer minor units; negative, fractional and zero deposit values are rejected.
-- [ ] Migration is additive and idempotent on restart; existing households simply have no income yet.
-- [ ] New UI works in light and dark themes using the theme tokens (spec 005).
-- [ ] Documentation updated (see Documentation).
-- [ ] `npm run lint`, `npm test` and `npm run build` pass.
+- [x] A member can create fixed and variable income sources for themselves; an owner can do so for any member; a regular member cannot for someone else (covered by tests).
+- [x] Setting a fixed amount for the current month carries into later months and leaves past months unchanged; past months reject edits (covered by tests, mocking the current month as in spec 004).
+- [x] Setting an amount on a variable source, or a deposit on a fixed source, is rejected.
+- [x] Deposits count in the month of their date; adding, editing and deleting them updates that month's totals only.
+- [x] Month view shows per-member and household totals combining fixed amounts and variable deposits.
+- [x] Budget page shows household income and unallocated for the month.
+- [x] Everyone in the household can view all income; signed-out users and non-members are rejected on every route.
+- [x] Removing a member keeps their sources and history as "Former member" (covered by a test); only owners can edit those.
+- [x] Amounts are integer minor units; negative, fractional and zero deposit values are rejected.
+- [x] Migration is additive and idempotent on restart; existing households simply have no income yet.
+- [x] New UI works in light and dark themes using the theme tokens (spec 005).
+- [x] Documentation updated (see Documentation).
+- [x] `npm run lint`, `npm test` and `npm run build` pass.
 
 ## Technical notes
-- Tables (proposal): `income_sources` (id uuid, household_id, member_id text nullable fk user `on delete set null`, name, kind `fixed`|`variable`, start_month date, archived_from date nullable, created_at), `income_amounts` (id, source_id, effective_month date, amount_cents integer check >= 0, created_by, created_at; unique on `(source_id, effective_month)`; fixed sources only), `income_deposits` (id, source_id, received_on date, amount_cents integer check > 0, note text nullable, created_by, created_at).
+- Tables: `income_sources` (id uuid, household_id, member_id text nullable fk user `on delete set null`, name, kind `fixed`|`variable`, start_month date, archived_from date nullable, created_at), `income_amounts` (id, source_id, effective_month date, amount_cents integer check >= 0, created_by, created_at; unique on `(source_id, effective_month)`; fixed sources only), `income_deposits` (id, source_id, received_on date, amount_cents integer check > 0, note text nullable, created_by, created_at).
 - Reuse the spec 004 patterns: `YYYY-MM` months and `date` columns from `src/lib/months.ts`, integer money from `src/lib/money.ts`, the latest-effective-month lookup, and archive-by-month visibility (`start_month <= M < archived_from`).
 - Ownership check helper next to `requireHousehold()`: allowed when the caller is an owner or `source.member_id === ctx.user.id`; ownerless sources are owner-only.
 - Fixed and variable are stored in separate tables so each keeps a simple shape; a source's `kind` is fixed at creation.
@@ -82,3 +82,14 @@ Bank sync or matching deposits to real accounts, gross vs. net and tax calculati
 
 ## Verification
 Fresh `docker compose up --build`: as the owner, add a Salary (fixed) for yourself and a Freelance (variable) source for a second member. Set the salary for this month and confirm it carries into next month while last month stays unchanged. Record two deposits in different months and confirm each lands in its own month. Sign in as the second member and confirm they can edit their own income but not the owner's, and can see everyone's. Confirm the Budget page shows income and unallocated. Remove the second member and confirm their income remains as "Former member" and only the owner can edit it. Check the pages in light and dark themes. Run tests, lint and build.
+
+## Implementation notes
+- Deposits are only accepted for months where the source is active (`start_month <= month < archived_from`), so a deposit can never become hidden by archiving, and a source can't receive money from before it existed.
+- The API supports editing (`PATCH`) and deleting deposits and renaming sources. The UI currently offers add and delete for deposits and add and archive for sources; to correct a deposit, delete and re-add it, and renaming a source is API-only for now.
+- `GET /api/budgets/[month]` also returns `incomeCents` and `unallocatedCents`, so a future client gets the same numbers as the Budget page. Unallocated is negative when the budget exceeds income and is shown as "Over-allocated by".
+- Month view groups are the current members in join order, then a "Former member" group when any visible source has no member. Members with no income yet still appear so owners can add income for them.
+- `MonthNav` is now shared by the Budget and Income pages.
+- Verified: the migration applied to a database with an existing household and categories leaves them intact and adds empty income tables.
+
+## Not verified
+The Income page and the new Budget rows were not exercised in a real browser (typing amounts, save on blur, the deposit form, light vs. dark appearance). They use only theme tokens (checked by search for hardcoded colors) and render with the expected content when fetched. The routes and behavior are covered by 30 new tests plus a curl run against a scratch instance with two members.

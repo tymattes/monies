@@ -3,6 +3,7 @@ import { getDb } from "@/db";
 import { budgetAllocations, categories } from "@/db/schema";
 import type { HouseholdContext } from "./household";
 import { HttpError } from "./http";
+import { getIncomeMonth } from "./income";
 import { currentMonth, monthStart } from "./months";
 
 export const MAX_AMOUNT = 2_000_000_000;
@@ -15,6 +16,10 @@ export type Budget = {
   editable: boolean;
   categories: BudgetLine[];
   totalCents: number;
+  // Household income for the month and what is left after budgeting it.
+  // Negative unallocated means the budget exceeds income.
+  incomeCents: number;
+  unallocatedCents: number;
 };
 
 // A category shows in month M when start_month <= M < archived_from (if any).
@@ -45,12 +50,16 @@ export async function getBudget(
     .where(and(eq(categories.householdId, ctx.household.id), visibleIn(month)))
     .orderBy(categories.position, categories.name);
 
+  const totalCents = rows.reduce((sum, r) => sum + r.amountCents, 0);
+  const { totalCents: incomeCents } = await getIncomeMonth(ctx, month);
   return {
     month,
     currency: ctx.household.currency,
     editable: month >= currentMonth(),
     categories: rows,
-    totalCents: rows.reduce((sum, r) => sum + r.amountCents, 0),
+    totalCents,
+    incomeCents,
+    unallocatedCents: incomeCents - totalCents,
   };
 }
 
