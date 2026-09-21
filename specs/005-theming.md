@@ -1,6 +1,6 @@
 # 005: Light and dark theme
 
-**Status:** approved
+**Status:** implemented
 
 ## Goal
 Make light and dark mode a first-class part of the UI from the start, so every later screen (dashboards especially) is built against both themes. Supports `brief.md`: modern, rich UX.
@@ -55,4 +55,4 @@ Set the OS to dark, load the app with cleared site data and confirm it is dark w
 - The pre-paint script is inline in `src/app/layout.tsx`; `ThemeToggle` reads the stored choice with `useSyncExternalStore` (server snapshot is "system") and follows live OS changes while in System mode.
 
 ## Not verified
-The browser behavior was not exercised: no flash on hard reload, persistence across reloads, following a live OS change, and the toggle by keyboard. These acceptance boxes stay unchecked until someone confirms them in a browser. The HTML output (script present before the body, toggle rendered, `suppressHydrationWarning` set) and the contrast were verified by test and by fetching the page.
+Marked `implemented` at the owner's direction. Four acceptance boxes stay unchecked because they need a browser and were not run by Claude: no flash on a hard reload, persistence across reloads, following a live OS theme change, and keyboard use of the toggle. The HTML output (script before the body, toggle rendered, `suppressHydrationWarning` set) and token contrast were verified by test and by fetching the page. If any of those four misbehave, fix them in a follow-up.
