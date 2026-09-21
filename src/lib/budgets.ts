@@ -27,6 +27,9 @@ export type Budget = {
   // Household income for the month and what is left after budgeting it.
   // Negative unallocated means the budget exceeds income.
   incomeCents: number;
+  // Variable income may still arrive this month (or is not known yet for a
+  // future one), so income is not final; see spec 010.
+  incomeProvisional: boolean;
   unallocatedCents: number;
   // Total monthly bills and what is left of income after them.
   billsTotalCents: number;
@@ -62,7 +65,8 @@ export async function getBudget(
     .orderBy(categories.position, categories.name);
 
   const totalCents = rows.reduce((sum, r) => sum + r.amountCents, 0);
-  const { totalCents: incomeCents } = await getIncomeMonth(ctx, month);
+  const { totalCents: incomeCents, provisional: incomeProvisional } =
+    await getIncomeMonth(ctx, month);
   const bills = await billsRollup(ctx.household.id, month);
   return {
     month,
@@ -74,6 +78,7 @@ export async function getBudget(
     }),
     totalCents,
     incomeCents,
+    incomeProvisional,
     unallocatedCents: incomeCents - totalCents,
     billsTotalCents: bills.totalCents,
     leftAfterBillsCents: incomeCents - bills.totalCents,

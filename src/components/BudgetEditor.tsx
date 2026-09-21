@@ -205,6 +205,7 @@ export default function BudgetEditor({
   editable,
   lines,
   incomeCents,
+  incomeProvisional,
   billsTotalCents,
 }: {
   month: string;
@@ -213,6 +214,7 @@ export default function BudgetEditor({
   editable: boolean;
   lines: Line[];
   incomeCents: number;
+  incomeProvisional: boolean;
   billsTotalCents: number;
 }) {
   // Last saved amount per category, and what is currently typed.
@@ -258,6 +260,7 @@ export default function BudgetEditor({
       currency={currency}
       editable={editable}
       incomeCents={incomeCents}
+      incomeProvisional={incomeProvisional}
       budgetedCents={total}
       billsCents={billsTotalCents}
       assign="scroll"

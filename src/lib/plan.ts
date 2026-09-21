@@ -8,6 +8,8 @@ export type PlanSummaryData = {
   currency: string;
   editable: boolean;
   incomeCents: number;
+  // Income may still grow (variable deposits not recorded yet); see spec 010.
+  incomeProvisional: boolean;
   budgetedCents: number;
   // Monthly cost of bills; these sit inside the budgeted amounts.
   billsCents: number;
@@ -23,6 +25,7 @@ export async function getPlanSummary(
     currency: b.currency,
     editable: b.editable,
     incomeCents: b.incomeCents,
+    incomeProvisional: b.incomeProvisional,
     budgetedCents: b.totalCents,
     billsCents: b.billsTotalCents,
   };

@@ -16,7 +16,7 @@ const cashFlow = {
   overAllocatedCents: 0,
   leftAfterBillsCents: 237000,
 };
-const base = { cashFlow, currency: "USD", editable: true };
+const base = { cashFlow, currency: "USD", editable: true, incomeProvisional: false };
 const card = (o: Partial<typeof base> = {}, cf: Partial<typeof cashFlow> = {}) =>
   renderToStaticMarkup(
     <CashFlowCard
@@ -67,6 +67,37 @@ describe("CashFlowCard", () => {
     expect(html).not.toContain(">Assign<");
     // The bar is scaled to the budget (5,600), so the income line (4,000) sits at 71.4%.
     expect(html).toContain("left:71.42857142857143%");
+  });
+
+  describe("provisional income", () => {
+    const over = { restOfBudgetCents: 400000, unallocatedCents: 0, overAllocatedCents: 160000 };
+
+    it("shows a shortfall plainly, with the variable-income note and no error color", () => {
+      const html = card({ incomeProvisional: true }, over);
+      expect(html).toContain("Variable income counts once you record it.");
+      expect(html).toContain("Over recorded income by");
+      expect(html).toContain("Above recorded income (past the income line)");
+      expect(html).toContain("above recorded income by $1,600.00"); // the bar's text equivalent
+      expect(html).not.toContain("Over-allocated");
+      expect(html).not.toContain("text-danger");
+      expect(html).not.toContain("bg-danger");
+      expect(html).toContain("bg-foreground"); // the income line is still drawn, neutrally
+    });
+
+    it("keeps the error styling when the income is final", () => {
+      const html = card({}, over);
+      expect(html).toContain("Over-allocated by");
+      expect(html).toContain("text-danger");
+      expect(html).toContain("bg-danger");
+      expect(html).not.toContain("Variable income counts");
+    });
+
+    it("softens bills that exceed the recorded income", () => {
+      const html = card({ incomeProvisional: true }, { leftAfterBillsCents: -50000 });
+      expect(html).toContain("Bills exceed recorded income by");
+      expect(html).not.toContain("text-danger");
+      expect(card({}, { leftAfterBillsCents: -50000 })).toContain("text-danger");
+    });
   });
 
   it("flags bills that exceed income", () => {

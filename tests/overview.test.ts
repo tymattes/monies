@@ -12,6 +12,7 @@ import * as budgetRoute from "@/app/api/budgets/[month]/route";
 import * as billsRoute from "@/app/api/bills/route";
 import * as depositsRoute from "@/app/api/income/sources/[id]/deposits/route";
 import * as incomeAmountRoute from "@/app/api/income/[month]/sources/[id]/route";
+import * as incomeSourceRoute from "@/app/api/income/sources/[id]/route";
 import * as incomeSourcesRoute from "@/app/api/income/sources/route";
 import * as overviewRoute from "@/app/api/overview/[month]/route";
 import * as memberRoute from "@/app/api/members/[userId]/route";
@@ -257,6 +258,113 @@ describe("attention items", () => {
     const { data } = await overview(owner);
     expect(data.currency).toBe("EUR");
     expect(data.attention.find((i) => i.code === "unallocated")!.message).toBe("€800.00 is not assigned to a category yet.");
+  });
+});
+
+describe("provisional income (spec 010)", () => {
+  async function variableSource(cookie: string, name = "Freelance") {
+    const r = await call(incomeSourcesRoute.POST, "/api/income/sources", { method: "POST", cookie, body: { name, kind: "variable" } });
+    return (r.json.source as { id: string }).id;
+  }
+  const budgetApi = (cookie: string, m = "2026-09") =>
+    call(budgetRoute.GET, `/api/budgets/${m}`, { cookie, params: { month: m } });
+
+  it("is false for a household with only fixed income, in every month", async () => {
+    const owner = await setupOwner();
+    await salary(owner, 100000);
+    for (const m of ["2026-09", "2026-10", "2026-11"]) {
+      expect((await overview(owner, m)).data.incomeProvisional).toBe(false);
+      expect((await budgetApi(owner, m)).json.incomeProvisional).toBe(false);
+    }
+  });
+
+  it("is true for the current and later months once a variable source is active, false for past months", async () => {
+    const owner = await setupOwner();
+    await salary(owner, 100000);
+    await variableSource(owner); // no deposits at all yet
+    expect((await overview(owner, "2026-09")).data.incomeProvisional).toBe(true);
+    expect((await overview(owner, "2026-10")).data.incomeProvisional).toBe(true);
+    expect((await budgetApi(owner, "2026-11")).json.incomeProvisional).toBe(true);
+
+    clock.month = "2026-10";
+    expect((await overview(owner, "2026-09")).data.incomeProvisional).toBe(false); // now a past month: final
+    expect((await overview(owner, "2026-10")).data.incomeProvisional).toBe(true);
+  });
+
+  it("stops being provisional when the variable source is archived", async () => {
+    const owner = await setupOwner();
+    await salary(owner, 100000);
+    const id = await variableSource(owner);
+    expect((await overview(owner)).data.incomeProvisional).toBe(true);
+    const archived = await call(incomeSourceRoute.PATCH, `/api/income/sources/${id}`, { method: "PATCH", cookie: owner, params: { id }, body: { archived: true } });
+    expect(archived.status).toBe(204);
+    expect((await overview(owner)).data.incomeProvisional).toBe(false);
+  });
+
+  it("softens over-allocation and bills-over-income to info, with wording about recorded income", async () => {
+    const owner = await setupOwner();
+    await salary(owner, 100000);
+    await variableSource(owner);
+    await budget(owner, "Housing", 200000);
+    await bill(owner, "Rent", 150000, "Housing");
+    const { attention } = (await overview(owner)).data;
+    expect(codes(attention)).toEqual(["over_allocated", "bills_exceed_income"]);
+    expect(attention.map((i) => i.severity)).toEqual(["info", "info"]);
+    expect(attention[0].message).toBe("You have budgeted $1,000.00 more than the income recorded so far. Variable income counts once you record it.");
+    expect(attention[1].message).toBe("Bills ($1,500.00) are more than the income recorded so far ($1,000.00). Variable income counts once you record it.");
+    expect(attention[0]).toMatchObject({ href: "/budget", amountCents: 100000 });
+  });
+
+  it("keeps them as warnings with the original wording when the income is final", async () => {
+    const owner = await setupOwner();
+    await salary(owner, 100000);
+    await budget(owner, "Housing", 200000);
+    await bill(owner, "Rent", 150000, "Housing");
+    const { attention } = (await overview(owner)).data;
+    expect(attention.map((i) => [i.code, i.severity])).toEqual([
+      ["over_allocated", "warning"],
+      ["bills_exceed_income", "warning"],
+    ]);
+    expect(attention[0].message).toBe("You have budgeted $1,000.00 more than your income.");
+  });
+
+  it("never softens a category whose bills exceed its own budget", async () => {
+    const owner = await setupOwner();
+    await salary(owner, 400000);
+    await variableSource(owner);
+    await budget(owner, "Utilities", 10000);
+    await bill(owner, "Phone", 15000, "Utilities");
+    const over = (await overview(owner)).data.attention.find((i) => i.code === "category_bills_over_budget")!;
+    expect(over.severity).toBe("warning");
+  });
+
+  it("changes no amounts", async () => {
+    const owner = await setupOwner();
+    const member = await joinAsMember(owner);
+    await scenario(owner, member.cookie); // includes a variable source with a deposit
+    const { data } = await overview(owner);
+    expect(data.incomeProvisional).toBe(true);
+    expect(data.income.totalCents).toBe(400000);
+    expect(data.budget).toEqual({ budgetedCents: 260000, unallocatedCents: 140000 });
+    expect(data.cashFlow.unallocatedCents).toBe(140000);
+    const api = await budgetApi(owner);
+    expect(api.json.unallocatedCents).toBe(140000);
+    expect(api.json.incomeCents).toBe(400000);
+  });
+
+  it("softens next month's shortfall when only a one-off deposit made this month whole", async () => {
+    const owner = await setupOwner();
+    const member = await joinAsMember(owner);
+    await salary(owner, 300000);
+    await freelance(member.cookie, 100000); // September only
+    await budget(owner, "Housing", 350000); // more than the 3,000 fixed salary
+    const next = (await overview(owner, "2026-10")).data;
+    expect(next.income.totalCents).toBe(300000); // the deposit does not repeat
+    expect(next.incomeProvisional).toBe(true);
+    const over = next.attention.find((i) => i.code === "over_allocated")!;
+    expect(over.severity).toBe("info");
+    expect(over.href).toBe("/budget?month=2026-10");
+    expect(over.message).toContain("recorded so far");
   });
 });
 

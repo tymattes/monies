@@ -25,7 +25,7 @@ function Stat({
       >
         {value}
       </p>
-      {note && <p className="text-xs text-muted">{note}</p>}
+      {note && <p className="text-balance text-xs text-muted">{note}</p>}
     </div>
   );
 }
@@ -38,12 +38,16 @@ export default function PlanSummary({
   currency,
   editable,
   incomeCents,
+  incomeProvisional,
   budgetedCents,
   billsCents,
   assign,
 }: PlanSummaryData & { assign: "scroll" | "link" }) {
   const unallocated = incomeCents - budgetedCents;
   const over = unallocated < 0;
+  // When variable income may still arrive, being above the recorded income is
+  // normal, so it is shown plainly instead of as an error (spec 010).
+  const overIsError = over && !incomeProvisional;
 
   return (
     <section
@@ -53,6 +57,7 @@ export default function PlanSummary({
       <Stat
         label="Income (take-home)"
         value={formatMoney(incomeCents, currency)}
+        note={incomeProvisional ? "Variable income counts once you record it." : undefined}
       />
       <Stat
         label="Budgeted"
@@ -61,9 +66,15 @@ export default function PlanSummary({
       />
       <div className="flex items-end justify-between gap-3 sm:flex-col sm:items-start sm:justify-start">
         <Stat
-          label={over ? "Over-allocated by" : "Unallocated"}
+          label={
+            over
+              ? incomeProvisional
+                ? "Over recorded income by"
+                : "Over-allocated by"
+              : "Unallocated"
+          }
           value={formatMoney(Math.abs(unallocated), currency)}
-          danger={over}
+          danger={overIsError}
         />
         {editable && unallocated > 0 &&
           (assign === "scroll" ? (
