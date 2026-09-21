@@ -98,6 +98,10 @@ Transactions and actual spend, the Trends page (multi-month charts) and any hist
 ## Verification
 Fresh `docker compose up --build`: sign in and confirm the header shows Overview, Plan, Members, and that Plan lights up on Budget, Bills and Income. On each Plan page confirm the summary bar matches; edit a Budget amount and watch Unallocated change live; use Assign from the bar on Bills and confirm it lands on the Budget Assign panel. Open the Overview and confirm the cash-flow bar adds up, the category table matches Budget, and the attention list names a category whose bills exceed its budget. Check a past month (read-only, no Assign) and an empty household. Check everything in light and dark, and on a phone-width window.
 
+## Status of the work
+- **PR 1 (Plan grouping, shared header and summary bar): merged** (#9).
+- **PR 2 (the Overview page, its API and the chart tokens): not built yet.** It is sequenced after spec 009 (browser testing) so the Overview can be verified in a real browser; its own end-to-end checks are listed in spec 009. This spec stays `approved`, not `implemented`, until PR 2 lands.
+
 ## Implementation notes
 
 ### PR 1 of 2: Plan grouping, shared header and summary bar
