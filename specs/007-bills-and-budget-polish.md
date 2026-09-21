@@ -37,7 +37,7 @@ Supports `brief.md`: category-driven budgets, modern UX, and a path to budget vs
 - The light theme is unchanged. The System / Light / Dark control from spec 005 is unchanged.
 - Small muted text needs a derived tone: Dracula's official "Comment" color `#6272A4` is only 3.03:1 on the background, below the 4.5:1 the app requires, so muted text uses a lighter blue-gray tone that keeps the Dracula feel and passes AA. This is the one intentional deviation from the official palette.
 - Add `--surface` and `--border` tokens (both themes), and migrate `border-foreground/10-20` and `bg-foreground/5` to them so dark surfaces use the palette's `#44475A` instead of translucent overlays.
-- `tests/theme.test.ts` keeps enforcing 4.5:1 for foreground, muted, danger and accent, now on both the background and the surface, in both themes.
+- `tests/theme.test.ts` keeps enforcing 4.5:1 for foreground, muted, danger and accent on the background, and for foreground, muted and accent on the surface, in both themes. **Danger is not checked on the surface:** Dracula red `#FF5555` is 4.5:1 on the background but 2.9:1 on `#44475A`, and no red close to Dracula's passes there, so the rule is that error text never sits on a surface panel (documented in `globals.css` and CLAUDE.md). The test also guards against hardcoded colors and translucent foreground overlays in `src/`.
 - The README credits Dracula (draculatheme.com) for the palette.
 
 ### API
@@ -66,8 +66,8 @@ Actual transactions and per-charge logging (receipt capture and the transactions
 - [ ] A yearly or 6-month bill counts its monthly equivalent (the charge divided by the number of months, rounded to the nearest minor unit) in every active month, not only in a renewal month; the form previews it; totals and category rollups use it (covered by tests).
 - [ ] Changing the billing period applies from the chosen month onward and leaves earlier months unchanged.
 - [ ] Amounts are integer minor units; negative and fractional values are rejected; 0 is allowed for bills.
-- [ ] Dark theme uses the Dracula palette and the theme tests pass at 4.5:1 for foreground, muted, danger and accent on background and surface in both themes; light theme is unchanged.
-- [ ] No hardcoded colors are introduced; borders and panels use the new `--border` and `--surface` tokens.
+- [x] Dark theme uses the Dracula palette and the theme tests pass at 4.5:1 for foreground, muted, danger and accent on the background, and foreground, muted and accent on the surface, in both themes; light theme is unchanged.
+- [x] No hardcoded colors are introduced; borders and panels use the new `--border` and `--surface` tokens.
 - [ ] Migration is additive and idempotent on restart; existing households simply have no bills yet.
 - [ ] Documentation updated (see Documentation).
 - [ ] `npm run lint`, `npm test` and `npm run build` pass.
@@ -107,3 +107,15 @@ Actual transactions and per-charge logging (receipt capture and the transactions
 
 ## Verification
 Fresh `docker compose up --build`: as the owner add three bills in different categories, confirm the category field starts empty and cannot be skipped, and that each shows its adder. As a second member edit one; confirm both members can. Set budgets and confirm each category's Budgeted, Bills and Remaining, and the Left after bills line. Change a bill's amount and category for next month and confirm this month is unchanged. End a bill and confirm past months keep it. Try archiving a category that has bills and confirm it is blocked. With income exceeding the budget, use Assign to Savings and confirm unallocated goes to 0 and Savings increased. Remove the member who added a bill and confirm "Former member". Check every page in light and dark; dark should look like Dracula. Run tests, lint and build.
+
+## Implementation notes
+
+### Part C (Dracula theme), first PR
+- Tokens added: `--surface`, `--border`, `--border-strong`. Light values are the previous 5% / 10% / 20% foreground overlays flattened to solid colors (`#f3f3f3`, `#e8e8e8`, `#d1d1d1`), so the light theme looks the same. Dark values are Dracula: surface and dividers `#44475A`, input and button borders `#6272A4` (3.03:1 on the background, which keeps input boundaries visible).
+- Dark `--muted` is `#B4BBDB` (7.5:1 on the background, 4.8:1 on the surface), the deliberate deviation from Dracula's comment color. Dark `--danger` is the official `#FF5555`.
+- Every `border-foreground/10-20`, `divide-foreground/10` and `bg-foreground/5` in `src/` was migrated to `border-border`, `border-border-strong`, `divide-border` and `bg-surface`. `tests/theme.test.ts` now fails if a translucent foreground overlay, a Tailwind palette color, or a literal hex color reappears in `src/`.
+- The input focus border now uses `--accent` in both themes (it was a 50% foreground overlay), which also makes keyboard focus easier to see.
+- The logo and accent text pick up Dracula green in dark mode through `--accent`.
+
+## Not verified (Part C)
+The dark theme was not looked at in a real browser; it was verified by contrast tests, by confirming Tailwind generates every new utility, and by lint, typecheck and build. Please check each page in dark mode. The spec stays `approved` until parts B and A land.

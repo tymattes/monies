@@ -21,7 +21,7 @@ Implemented so far (each maps to a spec in [`specs/`](specs/)):
 - **Members and invites** (spec 003): owners create single-use invite links (7-day expiry, revocable), remove members and rename the household. Members can leave.
 
 - **Categories and monthly budgets** (spec 004): a Budget page with previous/next month navigation. New households start with Housing, Groceries, Dining out, Transport, Utilities, Health, Entertainment, Savings and Other, and any member can add, rename, reorder or archive categories. Set an amount per category and it applies **from that month onward**; later months inherit it until you change them, and past months are read-only so history stays accurate. Archiving hides a category from this month on but past months keep it. Amounts use one currency per household, chosen at setup.
-- **Light and dark theme** (spec 005): follows your system setting by default, with a System / Light / Dark switch in the header. The choice is remembered per device, not per account.
+- **Light and dark theme** (spec 005): follows your system setting by default, with a System / Light / Dark switch in the header. The choice is remembered per device, not per account. The dark theme uses the [Dracula](https://draculatheme.com/) palette.
 
 - **Income** (spec 006): an Income page with previous/next month navigation. Each member has income sources, either **fixed monthly** (a take-home amount that applies from a month onward and carries forward, with past months read-only) or **variable** (you record each deposit with its date, and it counts in that month). Everyone in the household can see everyone's income; members edit their own and owners can edit anyone's. If a member is removed, their income history stays as "Former member". The Budget page shows household income and how much is still unallocated (or over-allocated). Enter take-home (net) income after taxes; if you're paid more often than monthly, enter your average monthly amount.
 
@@ -121,6 +121,10 @@ Keep dumps somewhere other than the server, and test a restore occasionally.
 ## Development workflow
 
 Monies is built spec-first: every feature starts as a numbered spec in [`specs/`](specs/) that is approved before implementation. See [`specs/README.md`](specs/README.md) for the process and the list of specs and their status.
+
+## Credits
+
+The dark theme colors are from the [Dracula](https://draculatheme.com/) palette.
 
 ## License
 

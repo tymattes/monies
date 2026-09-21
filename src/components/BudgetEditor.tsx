@@ -61,7 +61,7 @@ export default function BudgetEditor({
 
   if (lines.length === 0) {
     return (
-      <p className="rounded-lg border border-foreground/10 p-6 text-sm text-muted">
+      <p className="rounded-lg border border-border p-6 text-sm text-muted">
         No categories in {monthName}. Add some below, or go to a later month.
       </p>
     );
@@ -74,7 +74,7 @@ export default function BudgetEditor({
           ? `Changes apply from ${monthName} onward. Earlier months are not affected.`
           : "Past months are read-only so history stays accurate."}
       </p>
-      <ul className="divide-y divide-foreground/10 rounded-lg border border-foreground/10">
+      <ul className="divide-y divide-border rounded-lg border border-border">
         {lines.map((l) => (
           <li
             key={l.id}
@@ -117,7 +117,7 @@ export default function BudgetEditor({
             )}
           </li>
         ))}
-        <li className="flex items-center justify-between gap-4 bg-foreground/5 px-4 py-3 font-semibold">
+        <li className="flex items-center justify-between gap-4 bg-surface px-4 py-3 font-semibold">
           <span>Total budgeted</span>
           <span className="tabular-nums">{formatMoney(total, currency)}</span>
         </li>

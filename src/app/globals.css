@@ -4,9 +4,19 @@
    inline script in layout.tsx and kept in sync by ThemeToggle. */
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Theme tokens. Use these (text-muted, text-danger, ...) instead of hardcoded
-   colors; each pair below is checked for WCAG AA contrast in
-   tests/theme.test.ts. */
+/* Theme tokens. Use these (text-muted, bg-surface, border-border, ...) instead
+   of hardcoded colors or translucent foreground overlays; tests/theme.test.ts
+   checks WCAG AA contrast for the text tokens in both themes.
+
+   Light values are the neutral palette (the old 5% / 10% / 20% foreground
+   overlays, flattened). Dark values are the Dracula palette
+   (https://draculatheme.com/contribute): background #282A36, foreground
+   #F8F8F2, selection #44475A, comment #6272A4, red #FF5555, green #50FA7B.
+   The one deliberate deviation is --muted: Dracula's comment color is only
+   3.0:1 on the background, so muted text uses a lighter blue-gray.
+
+   Do not put --danger text on --surface: red on the lighter surface is below
+   4.5:1 in the dark theme. */
 :root {
   color-scheme: light;
   --background: #ffffff;
@@ -14,15 +24,21 @@
   --muted: #595959;
   --danger: #b91c1c;
   --accent: #047857;
+  --surface: #f3f3f3;
+  --border: #e8e8e8;
+  --border-strong: #d1d1d1;
 }
 
 :root.dark {
   color-scheme: dark;
-  --background: #0a0a0a;
-  --foreground: #ededed;
-  --muted: #a3a3a3;
-  --danger: #f87171;
-  --accent: #34d399;
+  --background: #282a36;
+  --foreground: #f8f8f2;
+  --muted: #b4bbdb;
+  --danger: #ff5555;
+  --accent: #50fa7b;
+  --surface: #44475a;
+  --border: #44475a;
+  --border-strong: #6272a4;
 }
 
 @theme inline {
@@ -31,6 +47,9 @@
   --color-muted: var(--muted);
   --color-danger: var(--danger);
   --color-accent: var(--accent);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
