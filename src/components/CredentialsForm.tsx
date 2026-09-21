@@ -1,8 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { api } from "@/lib/client";
+import { api, navigateTo } from "@/lib/client";
 import { buttonCls, inputCls, labelCls } from "./ui";
 
 const CURRENCIES = Intl.supportedValuesOf("currency");
@@ -27,7 +26,6 @@ export default function CredentialsForm({
   mode: Mode;
   token?: string;
 }) {
-  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const needsName = mode !== "sign-in";
@@ -46,8 +44,9 @@ export default function CredentialsForm({
       setBusy(false);
       return;
     }
-    router.push("/");
-    router.refresh();
+    // A full page load, so the header shows the signed-in user (see navigateTo).
+    // The button stays busy while the browser navigates.
+    navigateTo("/");
   }
 
   return (

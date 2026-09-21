@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { api } from "@/lib/client";
+import { api, navigateTo } from "@/lib/client";
 import { secondaryButtonCls } from "./ui";
 
 export default function MemberActions({
@@ -34,7 +34,7 @@ export default function MemberActions({
       setBusy(false);
       return;
     }
-    if (isSelf) router.push("/sign-in");
+    if (isSelf) return navigateTo("/sign-in"); // your account is gone: full page load
     router.refresh();
   }
 

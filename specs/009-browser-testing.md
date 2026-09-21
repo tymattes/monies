@@ -102,6 +102,9 @@ On a clean checkout with Postgres running (`docker compose up -d db`) and Chromi
 2. **Input width overrides were ignored.** `inputCls` includes `w-full`, which beat `w-32`, `w-28` and `w-auto`, so the Budget amount inputs were about 270px wide instead of 128px, the Bills and Left columns did not line up between rows, and the Assign panel's fields stretched full width. The 12 overrides now use the important suffix (`w-32!`), and a test asserts the Budget inputs are 128px wide with one shared right edge.
 3. **The Next dev badge** covered content in screenshots and could intercept clicks (see above).
 
+### Addendum: tests against the Docker container
+A Docker-only sign-in failure (a race between `router.push()` and `router.refresh()` that left a blank page in the container but never in local servers) showed that local runs do not prove the container works. `npm run test:e2e:docker` (`scripts/e2e-docker.sh`) builds the image, starts it as a container on port 3200 with its own `monies_docker_e2e` database (and `E2E=1`, so the sign-in rate limiter does not block the tests), and runs `e2e/signin.spec.ts` against it via `E2E_EXTERNAL=1`, which makes Playwright test a running server instead of starting one. The spec covers clicking Sign in, pressing Enter in either field, wrong details, no password in the address bar, and signing out. Verified by restoring the old code: 5 of 6 tests fail against the image, all 6 pass with the fix. An optional `firefox` project (`E2E_FIREFOX=1`) also exists; it could not be launched in the environment this was built in, so it is untested.
+
 ## Not verified
 - The optional WebKit project was written but not run (it needs `npx playwright install webkit`); real Safari and iOS behavior remains manual.
 - Screenshots were reviewed by Claude for the Budget and Bills pages in light and dark and the phone Budget page; the others were generated and pass the automated checks but were not all inspected individually.
