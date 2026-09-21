@@ -16,4 +16,4 @@ Monies is built spec-first. `brief.md` is the source of truth for product intent
 | --- | --- | --- |
 | 001 | [App shell](001-app-shell.md) | implemented |
 | 002 | [Database foundation and README](002-database-and-readme.md) | implemented |
-| 003 | [Households and members](003-households.md) | approved |
+| 003 | [Households and members](003-households.md) | implemented |

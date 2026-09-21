@@ -1,6 +1,6 @@
 # 003: Households and members
 
-**Status:** approved
+**Status:** implemented
 
 ## Goal
 Introduce the household as the root scope for all later data, plus the people in it. After this spec a person can create an account, set up a household, and invite others to join it. Supports `brief.md`: household first, household model with setup and invites, API-first for a future iOS app.
@@ -36,31 +36,31 @@ Introduce the household as the root scope for all later data, plus the people in
 Multiple households per instance or per user, open registration, ownership transfer, password reset by email, social/SSO login, email delivery of invites, per-member permissions beyond owner/member, budgets, accounts, income, receipts, dashboards.
 
 ## Acceptance criteria
-- [ ] Fresh database: visiting the app leads to setup, which creates the first user and household and signs them in.
-- [ ] Signed-out visitors are redirected to sign-in; `/api/health` stays public.
-- [ ] Owner can create an invite link; a new person can use it once to create an account and join.
-- [ ] Expired, used or revoked invite links are rejected with a clear message.
-- [ ] Members page lists members; owner can remove one and that person's session stops working.
-- [ ] A second household cannot be created (database constraint), and household-scoped API routes reject signed-out users and non-members (covered by tests).
-- [ ] Passwords are stored hashed; no secrets committed; `.env.example` and README config table updated for new variables.
-- [ ] Migration adds tables and is idempotent on restart.
-- [ ] `CLAUDE.md` and README updated (architecture, auth, tech stack).
-- [ ] `npm run lint` and `npm run build` pass.
+- [x] Fresh database: visiting the app leads to setup, which creates the first user and household and signs them in.
+- [x] Signed-out visitors are redirected to sign-in; `/api/health` stays public.
+- [x] Owner can create an invite link; a new person can use it once to create an account and join.
+- [x] Expired, used or revoked invite links are rejected with a clear message.
+- [x] Members page lists members; owner can remove one and that person's session stops working.
+- [x] A second household cannot be created (database constraint), and household-scoped API routes reject signed-out users and non-members (covered by tests).
+- [x] Passwords are stored hashed; no secrets committed; `.env.example` and README config table updated for new variables.
+- [x] Migration adds tables and is idempotent on restart.
+- [x] `CLAUDE.md` and README updated (architecture, auth, tech stack).
+- [x] `npm run lint` and `npm run build` pass.
 
 ## Technical notes
 - Tables (proposal): `users` (id, email unique, password_hash, name), `households` (id, name), `household_members` (household_id, user_id, role, joined_at), `invites` (id, household_id, token_hash, created_by, expires_at, used_at, revoked_at), plus session storage.
 - Use UUID primary keys. Store only a hash of invite tokens.
 - Auth: Better Auth with its Drizzle adapter (decided), so there is no hand-rolled password or session code. Better Auth owns its own user, session and account tables, so `users` above is its table; `household_members` references it.
-- Route handler: `src/app/api/auth/[...all]/route.ts` exporting `toNextJsHandler(auth)`; server-side session via `auth.api.getSession({ headers: await headers() })`; add the `nextCookies()` plugin so server actions can set cookies. [Next.js integration](https://www.better-auth.com/docs/integrations/next)
+- Route handler: `src/app/api/auth/[...all]/route.ts` exporting `toNextJsHandler(auth)`; server-side session via `auth.api.getSession({ headers: await headers() })`. Implementation forwards the `Set-Cookie` headers from `auth.api.signInEmail({ asResponse: true })` itself instead of using the `nextCookies()` plugin, since sign-in happens inside our own route handlers. [Next.js integration](https://www.better-auth.com/docs/integrations/next)
 - Route protection: the installed Next.js is 16.3.5, so use `proxy.ts` (not `middleware.ts`). The Better Auth docs say cookie-only checks (`getSessionCookie()`) are for optimistic redirects and recommend real checks in each page/route, which is what `requireHousehold()` does. Confirm `proxy.ts` conventions in `node_modules/next/dist/docs/` before writing it. [Next.js integration](https://www.better-auth.com/docs/integrations/next)
-- Drizzle: `drizzleAdapter(db, { provider: "pg" })` from `@better-auth/drizzle-adapter`. Generate the auth tables with `npx auth@latest generate` into `src/db/schema.ts`, then create the migration with our existing `npm run db:generate`; the migrations still apply through `instrumentation.ts`. Verify the generated schema works with the `postgres` driver already in use. [Drizzle adapter](https://www.better-auth.com/docs/adapters/drizzle)
-- Invite-only sign-up: set `emailAndPassword.disableSignUp` to `true` (default `false`). The first user and invitees are created through server-side code that validates the setup state or invite token, using the `hooks.before` or `databaseHooks.user.create.before` hooks as the gate. Exactly how to create a user server-side while `disableSignUp` is on is unconfirmed in the docs I read; settle it with a spike at the start of implementation. [Options reference](https://www.better-auth.com/docs/reference/options)
+- Drizzle: `drizzleAdapter(db, { provider: "pg" })` from `@better-auth/drizzle-adapter`. The auth tables are written by hand in `src/db/schema.ts` to match Better Auth's core schema (the CLI was not used), and the test suite exercises sign-in through the adapter to prove they line up. Migrations come from `npm run db:generate` and apply through `instrumentation.ts`. [Drizzle adapter](https://www.better-auth.com/docs/adapters/drizzle)
+- Invite-only sign-up: set `emailAndPassword.disableSignUp` to `true` (default `false`). The first user and invitees are created through our own server-side code that validates the setup state or invite token. Resolved during implementation: `disableSignUp` only blocks the `/sign-up/email` endpoint (verified in `better-auth` source), so setup and invite-accept create the user and credential rows directly in one Drizzle transaction, hashing with Better Auth's own `$context.password.hash`, then sign in through `auth.api.signInEmail`. [Options reference](https://www.better-auth.com/docs/reference/options)
 - Passwords: hashed with scrypt by default, which meets the "stored hashed" criterion. Skip `requireEmailVerification` and password-reset emails, since there is no email service. [Email & password](https://www.better-auth.com/docs/authentication/email-password)
 - iOS later: the `bearer` plugin returns a session token in a response header after sign-in and accepts it as `Authorization: Bearer`. The docs call it intended for clients that can't use cookies and mention no refresh logic, so revisit token lifetime when the iOS spec is written. Not needed for this spec, and adding the plugin can wait. [Bearer plugin](https://www.better-auth.com/docs/plugins/bearer)
 - Organization plugin considered and rejected: it offers organizations, owner/member roles and invitations, but invitations require a `sendInvitationEmail` function and can only be accepted by an already signed-in user. Neither fits an email-less, invite-link-first-signup flow, and it is built for multiple organizations. We keep our own `households`, `household_members` and `invites` tables. [Organization plugin](https://www.better-auth.com/docs/plugins/organization)
-- Single-household enforcement: a unique index on a constant expression (or a fixed singleton key) on `households`.
+- Single-household enforcement: a `singleton` boolean column on `households` that is unique and checked to be true.
 - Add a small `requireHousehold()` helper that every household-scoped route handler calls, so the session and membership check lives in one place.
-- Introduces the first test runner (proposal: Vitest) for the isolation tests; document it in `CLAUDE.md`.
+- Introduces the first test runner, Vitest, documented in `CLAUDE.md`.
 - Read `node_modules/next/dist/docs/` before writing route handlers or middleware/proxy code, since this Next.js version has breaking changes.
 
 ## Decisions
@@ -70,3 +70,12 @@ Multiple households per instance or per user, open registration, ownership trans
 
 ## Verification
 Fresh `docker compose up --build`: complete setup, create an invite, join in a private window as a second user, confirm both appear on the members page, remove the second user and confirm their session is rejected. Run tests, lint and build.
+
+## Implementation notes
+- Better Auth ids are text, so `household_members.user_id` and `invites.created_by` are text; our own tables use UUIDs.
+- Removing a member or leaving deletes the user row (sessions, credential and membership cascade). Later specs that reference users should use `ON DELETE SET NULL` or soft-delete.
+- Invite tokens are shown once at creation; the pending list shows created/expiry dates only, since only a hash is stored.
+- Tests (`npm test`) are integration tests that call the route handlers directly against a `monies_test` database.
+
+## Not verified
+The browser UI (forms, redirects, copy button) was not exercised in a real browser; the JSON API flow was checked against the Docker Compose stack with curl and by the test suite.
