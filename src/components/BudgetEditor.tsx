@@ -1,11 +1,87 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { api } from "@/lib/client";
 import { formatMoney, parseMoney, toInputString } from "@/lib/money";
-import { inputCls } from "./ui";
+import { buttonCls, inputCls } from "./ui";
 
 type Line = { id: string; name: string; amountCents: number };
+
+// Puts the month's leftover into one category, from this month onward. Nothing
+// is assigned automatically; the user picks the category (Savings if present).
+function AssignUnallocated({
+  month,
+  monthName,
+  currency,
+  lines,
+  unallocated,
+}: {
+  month: string;
+  monthName: string;
+  currency: string;
+  lines: Line[];
+  unallocated: number;
+}) {
+  const router = useRouter();
+  const savings = lines.find((l) => l.name.trim().toLowerCase() === "savings");
+  const [target, setTarget] = useState(savings?.id ?? "");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function assign() {
+    setBusy(true);
+    setError("");
+    const { ok, error } = await api(
+      `/api/budgets/${month}/assign-unallocated`,
+      "POST",
+      { categoryId: target },
+    );
+    setBusy(false);
+    if (!ok) return setError(error ?? "Could not assign");
+    router.refresh();
+  }
+
+  return (
+    <li className="space-y-2 px-4 py-3 text-sm">
+      <div className="flex flex-wrap items-center gap-2">
+        <label htmlFor="assign-target" className="text-muted">
+          Assign the unallocated {formatMoney(unallocated, currency)} to
+        </label>
+        <select
+          id="assign-target"
+          value={target}
+          onChange={(e) => setTarget(e.target.value)}
+          className={`${inputCls} w-auto`}
+        >
+          <option value="">Choose a category</option>
+          {lines.map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.name}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          onClick={assign}
+          disabled={busy || target === ""}
+          className={buttonCls}
+        >
+          Assign
+        </button>
+      </div>
+      <p className="text-xs text-muted">
+        Adds it to that category from {monthName} onward. You can change it
+        afterwards like any other amount.
+      </p>
+      {error && (
+        <p role="alert" className="text-xs text-danger">
+          {error}
+        </p>
+      )}
+    </li>
+  );
+}
 
 export default function BudgetEditor({
   month,
@@ -135,6 +211,15 @@ export default function BudgetEditor({
             {formatMoney(Math.abs(unallocated), currency)}
           </span>
         </li>
+        {editable && unallocated > 0 && (
+          <AssignUnallocated
+            month={month}
+            monthName={monthName}
+            currency={currency}
+            lines={lines}
+            unallocated={unallocated}
+          />
+        )}
       </ul>
     </div>
   );

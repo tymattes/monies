@@ -63,7 +63,7 @@ Actual transactions and per-charge logging (receipt capture and the transactions
 - [ ] Any household member can add, edit and end any bill; signed-out users and non-members are rejected on every route (covered by tests).
 - [ ] The Bills page shows the month's bills grouped by category with subtotals and a total.
 - [ ] The Budget page shows per-category bills and remaining (negative flagged), plus Bills and Left after bills in the summary; `GET /api/budgets/[month]` returns the same numbers.
-- [ ] Assign-to-category adds the unallocated amount to the chosen category from this month onward and brings unallocated to 0; it preselects "Savings" when present; it is unavailable for past months or when unallocated is 0; two concurrent assigns do not double-count (covered by tests).
+- [x] Assign-to-category adds the unallocated amount to the chosen category from this month onward and brings unallocated to 0; it preselects "Savings" when present; it is unavailable for past months or when unallocated is 0; two concurrent assigns do not double-count (covered by tests).
 - [ ] A yearly or 6-month bill counts its monthly equivalent (the charge divided by the number of months, rounded to the nearest minor unit) in every active month, not only in a renewal month; the form previews it; totals and category rollups use it (covered by tests).
 - [ ] Changing the billing period applies from the chosen month onward and leaves earlier months unchanged.
 - [ ] Amounts are integer minor units; negative and fractional values are rejected; 0 is allowed for bills.
@@ -121,6 +121,16 @@ Fresh `docker compose up --build`: as the owner add three bills in different cat
 - The logo and accent text pick up Dracula green in dark mode through `--accent`.
 
 - Brand and icons (owner-approved during review): the overall scheme is purple / cream / green, recorded in CLAUDE.md. The favicon is now the M logo: `src/app/icon.svg` switches colors with the browser's light or dark mode (deep green tile and cream M, or bright green tile and dark M), and `favicon.ico` (16, 32, 48 px) and `apple-icon.png` (180 px, full-bleed since iOS rounds its own corners) use the bright green tile with the dark M so they read on any tab strip or home screen. Raster icons were rendered from the same M path with `sharp`.
+
+### Part B (assign unallocated), second PR
+- `POST /api/budgets/[month]/assign-unallocated` takes `{ categoryId }` and returns `{ assignedCents, amountCents, unallocatedCents: 0 }`. It rejects past months, unknown, archived or malformed categories, and any month with nothing unallocated (zero or over-allocated) with a 400.
+- The lock is `pg_advisory_xact_lock(hashtextextended('<household>:<month>', 0))` inside the transaction; the budget is read after the lock is taken so an earlier assign is already committed. `setAllocation` does not take the lock, so a manual edit racing an assign can interleave, which is acceptable for two people editing the same month at once.
+- UI: an "Assign the unallocated ... to [category] [Assign]" row appears under the Unallocated line only when the month is editable and the amount is greater than 0. The select starts on "Savings" when a category has that name (case-insensitive), otherwise on "Choose a category", and the button stays disabled until a category is chosen.
+- `BudgetEditor` is now keyed on the server data (month, income, categories and amounts), so it remounts after an assign and also after a category is added or renamed, which previously left a new category's input blank until a full reload.
+- Tests: `tests/assign.test.ts` (9 tests) including four simultaneous requests yielding exactly one success; verified by temporarily removing the lock, which made all four succeed.
+
+## Not verified (Part B)
+The Assign row was not clicked through in a browser (select preselect, button enabling, the refresh after assigning). The route, the lock and the page rendering (control present before, gone after) were checked by tests and against a scratch instance.
 
 ## Not verified (Part C)
 The dark theme was not looked at in a real browser; it was verified by contrast tests, by confirming Tailwind generates every new utility, and by lint, typecheck and build. Please check each page in dark mode. The spec stays `approved` until parts B and A land.

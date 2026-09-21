@@ -31,9 +31,10 @@ export default async function BudgetPage(props: PageProps<"/budget">) {
           <h1 className="text-2xl font-semibold tracking-tight">Budget</h1>
           <MonthNav basePath="/budget" month={month} now={now} />
         </div>
-        {/* Keyed by month so navigating resets the editor's local state. */}
+        {/* Remounted when the server data changes (month, income, categories,
+            amounts) so the editor's local state never goes stale. */}
         <BudgetEditor
-          key={month}
+          key={JSON.stringify([month, budget.incomeCents, budget.categories])}
           month={month}
           monthName={monthLabel(month)}
           currency={budget.currency}

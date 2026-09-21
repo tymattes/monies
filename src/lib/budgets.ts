@@ -99,3 +99,55 @@ export async function setAllocation(
       set: { amountCents, createdBy: ctx.user.id },
     });
 }
+
+// Adds the month's unallocated amount to a category, from `month` onward, as
+// an ordinary allocation. A per-household-and-month advisory lock serializes
+// concurrent assigns: the second one waits, then sees unallocated = 0 and is
+// rejected, so the amount can never be assigned twice.
+export async function assignUnallocated(
+  ctx: HouseholdContext,
+  month: string,
+  categoryId: string,
+) {
+  if (month < currentMonth()) {
+    throw new HttpError(400, "Past months are read-only");
+  }
+  return getDb().transaction(async (tx) => {
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtextextended(${`${ctx.household.id}:${month}`}, 0))`,
+    );
+
+    // Read after taking the lock so any earlier assign is already committed.
+    const budget = await getBudget(ctx, month);
+    const line = budget.categories.find((c) => c.id === categoryId);
+    if (!line) throw new HttpError(404, "Category not found for this month");
+    if (budget.unallocatedCents <= 0) {
+      throw new HttpError(400, "There is no unallocated amount to assign");
+    }
+    const amountCents = line.amountCents + budget.unallocatedCents;
+    if (amountCents > MAX_AMOUNT) {
+      throw new HttpError(400, "That would exceed the maximum amount");
+    }
+
+    await tx
+      .insert(budgetAllocations)
+      .values({
+        categoryId,
+        effectiveMonth: monthStart(month),
+        amountCents,
+        createdBy: ctx.user.id,
+      })
+      .onConflictDoUpdate({
+        target: [budgetAllocations.categoryId, budgetAllocations.effectiveMonth],
+        set: { amountCents, createdBy: ctx.user.id },
+      });
+
+    return {
+      month,
+      categoryId,
+      assignedCents: budget.unallocatedCents,
+      amountCents,
+      unallocatedCents: 0,
+    };
+  });
+}
