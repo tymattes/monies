@@ -47,11 +47,44 @@ export const SEED = {
   billsCents: 194599, // 1500 + 420 + 15.99 + 10 (the yearly bill spread)
 };
 
+// Monthly cost of a bill (charge divided by its billing period, rounded half up).
+const monthly = (b: { amountCents: number; intervalMonths?: number }) => {
+  const n = b.intervalMonths ?? 1;
+  return Math.floor((b.amountCents + Math.floor(n / 2)) / n);
+};
+
+// What each category's Budgeted, Bills and Left should read for the seed data.
+export function expectedCategoryRows() {
+  return Object.entries(SEED.budgets).map(([name, budgeted]) => {
+    const bills = SEED.bills.filter((b) => b.category === name).reduce((t, b) => t + monthly(b), 0);
+    return { name, budgeted, bills, left: budgeted - bills };
+  });
+}
+
 async function ok(res: Awaited<ReturnType<APIRequestContext["get"]>>, what: string) {
   if (!res.ok()) {
     throw new Error(`Seeding failed at ${what}: ${res.status()} ${await res.text()}`);
   }
   return res;
+}
+
+// Empties the scratch database and creates only the household and its owner
+// (no income, budgets or bills), for the empty-state checks.
+export async function resetEmpty() {
+  const { e2eUrl, dbName } = e2eDb();
+  assertScratch(dbName);
+  const sql = postgres(e2eUrl, { max: 1, onnotice: () => {} });
+  try {
+    await sql`truncate "user", households, invites, verification cascade`;
+  } finally {
+    await sql.end();
+  }
+  const owner = await request.newContext({ baseURL: E2E_ORIGIN, extraHTTPHeaders: { origin: E2E_ORIGIN } });
+  try {
+    await ok(await owner.post("/api/setup", { data: { householdName: SEED.household, currency: "USD", ...OWNER } }), "setup");
+  } finally {
+    await owner.dispose();
+  }
 }
 
 // Empties the scratch database and rebuilds the same household through the

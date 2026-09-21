@@ -1,0 +1,219 @@
+import { getBillsMonth } from "./bills";
+import { getBudget } from "./budgets";
+import type { HouseholdContext } from "./household";
+import { getIncomeMonth } from "./income";
+import { formatMoney } from "./money";
+import { currentMonth } from "./months";
+
+export type AttentionCode =
+  | "over_allocated"
+  | "bills_exceed_income"
+  | "category_bills_over_budget"
+  | "unallocated"
+  | "no_income"
+  | "no_bills";
+
+export type AttentionItem = {
+  code: AttentionCode;
+  severity: "warning" | "info";
+  message: string;
+  href: string;
+  actionLabel: string;
+  amountCents?: number;
+  categoryId?: string;
+};
+
+export type OverviewCategory = {
+  id: string;
+  name: string;
+  budgetedCents: number;
+  billsCents: number;
+  leftCents: number;
+};
+
+export type Overview = {
+  month: string;
+  currency: string;
+  householdName: string;
+  editable: boolean;
+  income: {
+    totalCents: number;
+    fixedCents: number;
+    variableCents: number;
+    byMember: { memberId: string | null; name: string; totalCents: number }[];
+  };
+  bills: {
+    totalCents: number;
+    byCategory: { categoryId: string; name: string; totalCents: number }[];
+    largest: {
+      id: string;
+      name: string;
+      categoryName: string;
+      monthlyCents: number;
+      amountCents: number;
+      intervalMonths: number;
+    }[];
+  };
+  budget: { budgetedCents: number; unallocatedCents: number };
+  // Splits the month's income for the stacked bar. `billsWithinBudgetCents +
+  // restOfBudgetCents` always equals the budgeted total; `unallocatedCents` is
+  // income minus budgeted when positive, `overAllocatedCents` when negative.
+  cashFlow: {
+    incomeCents: number;
+    billsWithinBudgetCents: number;
+    restOfBudgetCents: number;
+    unallocatedCents: number;
+    overAllocatedCents: number;
+    leftAfterBillsCents: number;
+  };
+  categories: OverviewCategory[];
+  attention: AttentionItem[];
+};
+
+const LARGEST_BILLS = 5;
+
+// Everything the Overview page shows, composed from the budget, income and
+// bills queries so its numbers cannot drift from the Plan pages. Unallocated is
+// always income minus budgeted, the same definition as the Plan summary bar.
+export async function getOverview(
+  ctx: HouseholdContext,
+  month: string,
+): Promise<Overview> {
+  const [budget, income, bills] = await Promise.all([
+    getBudget(ctx, month),
+    getIncomeMonth(ctx, month),
+    getBillsMonth(ctx, month),
+  ]);
+  const currency = ctx.household.currency;
+  const money = (cents: number) => formatMoney(cents, currency);
+  const q = month === currentMonth() ? "" : `?month=${month}`;
+
+  const categories: OverviewCategory[] = budget.categories.map((c) => ({
+    id: c.id,
+    name: c.name,
+    budgetedCents: c.amountCents,
+    billsCents: c.billsCents,
+    leftCents: c.remainingCents,
+  }));
+
+  const sources = income.members.flatMap((m) => m.sources);
+  const sum = (kind: "fixed" | "variable") =>
+    sources.filter((s) => s.kind === kind).reduce((t, s) => t + s.amountCents, 0);
+
+  const billsWithinBudgetCents = categories.reduce(
+    (t, c) => t + Math.min(c.billsCents, c.budgetedCents),
+    0,
+  );
+  const restOfBudgetCents = categories.reduce(
+    (t, c) => t + Math.max(c.budgetedCents - c.billsCents, 0),
+    0,
+  );
+  const incomeCents = budget.incomeCents;
+  const budgetedCents = budget.totalCents;
+  const unallocatedCents = incomeCents - budgetedCents;
+
+  const attention: AttentionItem[] = [];
+  if (incomeCents > 0 && budgetedCents > incomeCents) {
+    attention.push({
+      code: "over_allocated",
+      severity: "warning",
+      message: `You have budgeted ${money(budgetedCents - incomeCents)} more than your income.`,
+      href: `/budget${q}`,
+      actionLabel: "Review budget",
+      amountCents: budgetedCents - incomeCents,
+    });
+  }
+  if (incomeCents > 0 && budget.billsTotalCents > incomeCents) {
+    attention.push({
+      code: "bills_exceed_income",
+      severity: "warning",
+      message: `Bills (${money(budget.billsTotalCents)}) are more than your income (${money(incomeCents)}).`,
+      href: `/bills${q}`,
+      actionLabel: "Review bills",
+      amountCents: budget.billsTotalCents - incomeCents,
+    });
+  }
+  for (const c of categories) {
+    if (c.billsCents > c.budgetedCents) {
+      attention.push({
+        code: "category_bills_over_budget",
+        severity: "warning",
+        message: `${c.name}: bills are ${money(c.billsCents - c.budgetedCents)} over its budget.`,
+        href: `/budget${q}`,
+        actionLabel: "Adjust budget",
+        amountCents: c.billsCents - c.budgetedCents,
+        categoryId: c.id,
+      });
+    }
+  }
+  if (budget.editable && unallocatedCents > 0) {
+    attention.push({
+      code: "unallocated",
+      severity: "info",
+      message: `${money(unallocatedCents)} is not assigned to a category yet.`,
+      href: `/budget${q}#assign`,
+      actionLabel: "Assign",
+      amountCents: unallocatedCents,
+    });
+  }
+  // Setup gaps only matter for months you can still change.
+  if (budget.editable && incomeCents === 0) {
+    attention.push({
+      code: "no_income",
+      severity: "info",
+      message: "No income yet this month.",
+      href: `/income${q}`,
+      actionLabel: "Add income",
+    });
+  }
+  if (budget.editable && bills.bills.length === 0) {
+    attention.push({
+      code: "no_bills",
+      severity: "info",
+      message: "No recurring bills yet.",
+      href: `/bills${q}`,
+      actionLabel: "Add bills",
+    });
+  }
+
+  return {
+    month,
+    currency,
+    householdName: ctx.household.name,
+    editable: budget.editable,
+    income: {
+      totalCents: income.totalCents,
+      fixedCents: sum("fixed"),
+      variableCents: sum("variable"),
+      byMember: income.members
+        .filter((m) => m.totalCents > 0 || m.memberId !== null)
+        .map((m) => ({ memberId: m.memberId, name: m.name, totalCents: m.totalCents })),
+    },
+    bills: {
+      totalCents: bills.totalCents,
+      byCategory: bills.categories,
+      largest: [...bills.bills]
+        .sort((a, b) => b.monthlyCents - a.monthlyCents || a.name.localeCompare(b.name))
+        .slice(0, LARGEST_BILLS)
+        .map((b) => ({
+          id: b.id,
+          name: b.name,
+          categoryName: b.categoryName,
+          monthlyCents: b.monthlyCents,
+          amountCents: b.amountCents,
+          intervalMonths: b.intervalMonths,
+        })),
+    },
+    budget: { budgetedCents, unallocatedCents },
+    cashFlow: {
+      incomeCents,
+      billsWithinBudgetCents,
+      restOfBudgetCents,
+      unallocatedCents: Math.max(unallocatedCents, 0),
+      overAllocatedCents: Math.max(-unallocatedCents, 0),
+      leftAfterBillsCents: incomeCents - budget.billsTotalCents,
+    },
+    categories,
+    attention,
+  };
+}

@@ -1,7 +1,8 @@
 import { mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "@playwright/test";
-import { OWNER, resetAndSeed } from "./support/seed";
+import { E2E_ORIGIN } from "./support/db.mts";
+import { OWNER, SEED, monthKey, resetAndSeed, resetEmpty } from "./support/seed";
 import { SIGNED_IN_PAGES, SIGNED_OUT_PAGES, signIn, waitHydrated } from "./support/page";
 
 // Screenshots for people (and Claude) to review visual polish. Not pixel-compared.
@@ -49,5 +50,38 @@ for (const scheme of ["light", "dark"] as const) {
         await shoot(page, p.name, info.project.name);
       });
     }
+  });
+}
+
+// The Overview's other states, for review: a brand-new household, and a month
+// budgeted past its income. (These change the data, so they run last.)
+for (const scheme of ["light", "dark"] as const) {
+  test.describe(`${scheme} Overview states`, () => {
+    test.use({ colorScheme: scheme });
+
+    test("empty household", async ({ page }, info) => {
+      await resetEmpty();
+      await signIn(page, OWNER);
+      await page.goto("/");
+      await waitHydrated(page);
+      await page.waitForTimeout(300);
+      await page.screenshot({ path: path.join(OUT, `overview-empty-${scheme}-${info.project.name}.png`), fullPage: true });
+    });
+
+    test("over-allocated month", async ({ page }, info) => {
+      await resetAndSeed();
+      await signIn(page, OWNER);
+      const M = monthKey();
+      const budget = await (await page.request.get(`/api/budgets/${M}`)).json();
+      const housing = budget.categories.find((c: { name: string }) => c.name === "Housing").id;
+      await page.request.put(`/api/budgets/${M}/allocations/${housing}`, {
+        data: { amountCents: SEED.budgets.Housing + SEED.unallocatedCents + 100000 },
+        headers: { origin: E2E_ORIGIN },
+      });
+      await page.goto("/");
+      await waitHydrated(page);
+      await page.waitForTimeout(300);
+      await page.screenshot({ path: path.join(OUT, `overview-over-allocated-${scheme}-${info.project.name}.png`), fullPage: true });
+    });
   });
 }
