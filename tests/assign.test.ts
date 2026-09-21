@@ -66,6 +66,15 @@ async function assign(cookie: string, categoryId: unknown, month = "2026-09") {
   });
 }
 
+async function assignMany(cookie: string | undefined, assignments: unknown, month = "2026-09") {
+  return call(assignRoute.POST, `/api/budgets/${month}/assign-unallocated`, {
+    method: "POST",
+    cookie,
+    params: { month },
+    body: { assignments },
+  });
+}
+
 beforeEach(async () => {
   clock.month = "2026-09";
   await getSql()`truncate "user", households, invites, verification cascade`;
@@ -81,7 +90,11 @@ describe("assign unallocated", () => {
     const savings = await idOf(owner, "Savings");
     const r = await assign(owner, savings);
     expect(r.status).toBe(200);
-    expect(r.json).toMatchObject({ assignedCents: 300000, amountCents: 300000, unallocatedCents: 0 });
+    expect(r.json).toMatchObject({
+      assignedCents: 300000,
+      unallocatedCents: 0,
+      assignments: [{ categoryId: savings, assignedCents: 300000, amountCents: 300000 }],
+    });
 
     expect(await amountOf(owner, "Savings")).toBe(300000);
     expect(await amountOf(owner, "Groceries")).toBe(100000);
@@ -99,7 +112,10 @@ describe("assign unallocated", () => {
     await setBudget(owner, "Savings", 50000);
     await setBudget(owner, "Groceries", 100000);
     const r = await assign(owner, await idOf(owner, "Savings"));
-    expect(r.json).toMatchObject({ assignedCents: 250000, amountCents: 300000 });
+    expect(r.json).toMatchObject({
+      assignedCents: 250000,
+      assignments: [{ assignedCents: 250000, amountCents: 300000 }],
+    });
     expect(await amountOf(owner, "Savings")).toBe(300000);
   });
 
@@ -200,5 +216,132 @@ describe("assign unallocated", () => {
 
     expect((await assign(member.cookie, savings)).status).toBe(200);
     expect(await amountOf(owner, "Savings")).toBe(400000);
+  });
+});
+
+describe("splitting across several categories", () => {
+  async function fundedOwner() {
+    const owner = await setupOwner();
+    await setIncome(owner, 400000);
+    await setBudget(owner, "Groceries", 100000); // 300000 unallocated
+    return owner;
+  }
+
+  it("assigns to several categories in one request", async () => {
+    const owner = await fundedOwner();
+    const [savings, dining, other] = await Promise.all(["Savings", "Dining out", "Other"].map((n) => idOf(owner, n)));
+    const r = await assignMany(owner, [
+      { categoryId: savings, amountCents: 200000 },
+      { categoryId: dining, amountCents: 60000 },
+      { categoryId: other, amountCents: 40000 },
+    ]);
+    expect(r.status).toBe(200);
+    expect(r.json).toMatchObject({ assignedCents: 300000, unallocatedCents: 0 });
+    expect((r.json.assignments as unknown[]).length).toBe(3);
+
+    expect(await amountOf(owner, "Savings")).toBe(200000);
+    expect(await amountOf(owner, "Dining out")).toBe(60000);
+    expect(await amountOf(owner, "Other")).toBe(40000);
+    expect((await budget(owner)).json).toMatchObject({ totalCents: 400000, unallocatedCents: 0 });
+    // Each is an ordinary allocation that carries forward.
+    expect(await amountOf(owner, "Dining out", "2026-10")).toBe(60000);
+  });
+
+  it("adds to existing amounts and can leave the rest unallocated", async () => {
+    const owner = await fundedOwner();
+    await setBudget(owner, "Savings", 50000); // unallocated now 250000
+    const savings = await idOf(owner, "Savings");
+    const dining = await idOf(owner, "Dining out");
+    const r = await assignMany(owner, [
+      { categoryId: savings, amountCents: 100000 },
+      { categoryId: dining, amountCents: 50000 },
+    ]);
+    expect(r.status).toBe(200);
+    expect(r.json).toMatchObject({ assignedCents: 150000, unallocatedCents: 100000 });
+    expect(await amountOf(owner, "Savings")).toBe(150000);
+    expect(await amountOf(owner, "Dining out")).toBe(50000);
+    expect((await budget(owner)).json.unallocatedCents).toBe(100000);
+  });
+
+  it("applies nothing when the total is more than the unallocated amount", async () => {
+    const owner = await fundedOwner();
+    const savings = await idOf(owner, "Savings");
+    const dining = await idOf(owner, "Dining out");
+    const r = await assignMany(owner, [
+      { categoryId: savings, amountCents: 200000 },
+      { categoryId: dining, amountCents: 100001 },
+    ]);
+    expect(r.status).toBe(400);
+    expect(r.json.error).toMatch(/more than the unallocated/);
+    expect(await amountOf(owner, "Savings")).toBe(0);
+    expect(await amountOf(owner, "Dining out")).toBe(0);
+  });
+
+  it("applies nothing when any one category is invalid", async () => {
+    const owner = await fundedOwner();
+    const savings = await idOf(owner, "Savings");
+    const r = await assignMany(owner, [
+      { categoryId: savings, amountCents: 100000 },
+      { categoryId: "00000000-0000-0000-0000-000000000000", amountCents: 100000 },
+    ]);
+    expect(r.status).toBe(404);
+    expect(await amountOf(owner, "Savings")).toBe(0);
+    expect((await budget(owner)).json.unallocatedCents).toBe(300000);
+  });
+
+  it("rejects malformed requests", async () => {
+    const owner = await fundedOwner();
+    const savings = await idOf(owner, "Savings");
+    const dining = await idOf(owner, "Dining out");
+    const bad: unknown[] = [
+      [],
+      "nope",
+      [{ categoryId: savings, amountCents: 0 }],
+      [{ categoryId: savings, amountCents: -5 }],
+      [{ categoryId: savings, amountCents: 10.5 }],
+      [{ categoryId: savings, amountCents: "100" }],
+      [{ categoryId: savings }],
+      [{ amountCents: 100 }],
+      [null],
+      [{ categoryId: savings, amountCents: 100 }, { categoryId: savings, amountCents: 100 }],
+      Array.from({ length: 51 }, () => ({ categoryId: dining, amountCents: 1 })),
+    ];
+    for (const assignments of bad) {
+      expect((await assignMany(owner, assignments)).status).toBe(400);
+    }
+    expect((await budget(owner)).json.unallocatedCents).toBe(300000);
+  });
+
+  it("rejects splits in past months and when nothing is unallocated", async () => {
+    const owner = await fundedOwner();
+    const savings = await idOf(owner, "Savings");
+    expect((await assign(owner, savings)).status).toBe(200); // uses it all
+    expect((await assignMany(owner, [{ categoryId: savings, amountCents: 1 }])).status).toBe(400);
+
+    clock.month = "2026-10";
+    const r = await assignMany(owner, [{ categoryId: savings, amountCents: 1 }], "2026-09");
+    expect(r.status).toBe(400);
+    expect(r.json.error).toMatch(/read-only/);
+  });
+
+  it("never lets simultaneous splits assign the same money twice", async () => {
+    const owner = await fundedOwner();
+    const savings = await idOf(owner, "Savings");
+    const dining = await idOf(owner, "Dining out");
+    const results = await Promise.all([
+      assignMany(owner, [{ categoryId: savings, amountCents: 200000 }, { categoryId: dining, amountCents: 100000 }]),
+      assignMany(owner, [{ categoryId: savings, amountCents: 200000 }, { categoryId: dining, amountCents: 100000 }]),
+      assign(owner, savings),
+    ]);
+    expect(results.map((r) => r.status).sort()).toEqual([200, 400, 400]);
+    expect((await budget(owner)).json).toMatchObject({ totalCents: 400000, unallocatedCents: 0 });
+  });
+
+  it("requires a signed-in household member", async () => {
+    const owner = await fundedOwner();
+    const savings = await idOf(owner, "Savings");
+    expect((await assignMany(undefined, [{ categoryId: savings, amountCents: 1 }])).status).toBe(401);
+    const member = await joinAsMember(owner);
+    expect((await assignMany(member.cookie, [{ categoryId: savings, amountCents: 100000 }])).status).toBe(200);
   });
 });

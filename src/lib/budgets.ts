@@ -100,14 +100,21 @@ export async function setAllocation(
     });
 }
 
-// Adds the month's unallocated amount to a category, from `month` onward, as
-// an ordinary allocation. A per-household-and-month advisory lock serializes
-// concurrent assigns: the second one waits, then sees unallocated = 0 and is
-// rejected, so the amount can never be assigned twice.
+export type Assignment = { categoryId: string; amountCents: number };
+
+export const MAX_ASSIGNMENTS = 50;
+
+// Adds part or all of the month's unallocated amount to one or more
+// categories, from `month` onward, as ordinary allocations, all in one
+// transaction (either every assignment applies or none does). `request` is
+// either explicit `assignments`, or `{ categoryId }` meaning "all of it to this
+// category". A per-household-and-month advisory lock serializes concurrent
+// assigns: the loser waits, then sees the new unallocated amount and is
+// rejected if it no longer fits, so money can never be assigned twice.
 export async function assignUnallocated(
   ctx: HouseholdContext,
   month: string,
-  categoryId: string,
+  request: { categoryId: string } | { assignments: Assignment[] },
 ) {
   if (month < currentMonth()) {
     throw new HttpError(400, "Past months are read-only");
@@ -119,35 +126,58 @@ export async function assignUnallocated(
 
     // Read after taking the lock so any earlier assign is already committed.
     const budget = await getBudget(ctx, month);
-    const line = budget.categories.find((c) => c.id === categoryId);
-    if (!line) throw new HttpError(404, "Category not found for this month");
     if (budget.unallocatedCents <= 0) {
       throw new HttpError(400, "There is no unallocated amount to assign");
     }
-    const amountCents = line.amountCents + budget.unallocatedCents;
-    if (amountCents > MAX_AMOUNT) {
-      throw new HttpError(400, "That would exceed the maximum amount");
+    const assignments: Assignment[] =
+      "assignments" in request
+        ? request.assignments
+        : [{ categoryId: request.categoryId, amountCents: budget.unallocatedCents }];
+
+    const seen = new Set<string>();
+    let assignedCents = 0;
+    const results: { categoryId: string; assignedCents: number; amountCents: number }[] = [];
+    for (const a of assignments) {
+      if (seen.has(a.categoryId)) {
+        throw new HttpError(400, "Each category can only appear once");
+      }
+      seen.add(a.categoryId);
+      const line = budget.categories.find((c) => c.id === a.categoryId);
+      if (!line) throw new HttpError(404, "Category not found for this month");
+      const amountCents = line.amountCents + a.amountCents;
+      if (amountCents > MAX_AMOUNT) {
+        throw new HttpError(400, "That would exceed the maximum amount");
+      }
+      assignedCents += a.amountCents;
+      results.push({ categoryId: a.categoryId, assignedCents: a.amountCents, amountCents });
+    }
+    if (assignedCents > budget.unallocatedCents) {
+      throw new HttpError(
+        400,
+        "The amounts add up to more than the unallocated amount",
+      );
     }
 
-    await tx
-      .insert(budgetAllocations)
-      .values({
-        categoryId,
-        effectiveMonth: monthStart(month),
-        amountCents,
-        createdBy: ctx.user.id,
-      })
-      .onConflictDoUpdate({
-        target: [budgetAllocations.categoryId, budgetAllocations.effectiveMonth],
-        set: { amountCents, createdBy: ctx.user.id },
-      });
+    for (const r of results) {
+      await tx
+        .insert(budgetAllocations)
+        .values({
+          categoryId: r.categoryId,
+          effectiveMonth: monthStart(month),
+          amountCents: r.amountCents,
+          createdBy: ctx.user.id,
+        })
+        .onConflictDoUpdate({
+          target: [budgetAllocations.categoryId, budgetAllocations.effectiveMonth],
+          set: { amountCents: r.amountCents, createdBy: ctx.user.id },
+        });
+    }
 
     return {
       month,
-      categoryId,
-      assignedCents: budget.unallocatedCents,
-      amountCents,
-      unallocatedCents: 0,
+      assignments: results,
+      assignedCents,
+      unallocatedCents: budget.unallocatedCents - assignedCents,
     };
   });
 }
