@@ -44,3 +44,13 @@ export const LIGHT_BG = "rgb(255, 251, 235)";
 export const DARK_ACCENT = "rgb(80, 250, 123)";
 export const LIGHT_ACCENT = "rgb(20, 113, 10)";
 export const LIGHT_DANGER = "rgb(203, 58, 42)";
+
+// "$1,234.50" or "-$70.00" -> cents.
+export function cents(text: string): number {
+  const m = text.match(/(-)?\$([\d,]+)\.(\d{2})/);
+  if (!m) throw new Error(`No amount in "${text}"`);
+  const value = Number(m[2].replace(/,/g, "")) * 100 + Number(m[3]);
+  return m[1] ? -value : value;
+}
+
+export const money = (c: number) => `${c < 0 ? "-" : ""}$${(Math.abs(c) / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

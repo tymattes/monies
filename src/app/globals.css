@@ -30,6 +30,11 @@
   --surface: #efe9cf;
   --border: #ddd6b8;
   --border-strong: #8a8467;
+  /* Chart colors: Alucard purple, cyan, pink, orange (each >= 3:1 on the background). */
+  --chart-1: #644ac9;
+  --chart-2: #036a96;
+  --chart-3: #a3144d;
+  --chart-4: #a34d14;
 }
 
 :root.dark {
@@ -42,6 +47,11 @@
   --surface: #44475a;
   --border: #44475a;
   --border-strong: #6272a4;
+  /* Chart colors: Dracula purple, cyan, pink, orange. */
+  --chart-1: #bd93f9;
+  --chart-2: #8be9fd;
+  --chart-3: #ff79c6;
+  --chart-4: #ffb86c;
 }
 
 @theme inline {
@@ -53,6 +63,10 @@
   --color-surface: var(--surface);
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }

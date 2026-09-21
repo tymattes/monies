@@ -74,6 +74,25 @@ describe("palettes", () => {
   );
 });
 
+describe.each(Object.entries(themes))("%s chart colors", (_name, t) => {
+  const charts = ["chart-1", "chart-2", "chart-3", "chart-4"];
+
+  it.each(charts)("%s has at least 3:1 contrast against the background (graphical objects)", (token) => {
+    expect(contrast(t[token], t.background)).toBeGreaterThanOrEqual(3);
+  });
+
+  it("uses four different colors", () => {
+    expect(new Set(charts.map((c) => t[c].toLowerCase())).size).toBe(4);
+  });
+
+  it("stays clear of the semantic colors", () => {
+    for (const c of charts) {
+      expect(t[c].toLowerCase()).not.toBe(t.danger.toLowerCase());
+      expect(t[c].toLowerCase()).not.toBe(t.accent.toLowerCase());
+    }
+  });
+});
+
 describe("theme setup", () => {
   it("defines the same tokens for both themes", () => {
     expect(Object.keys(themes.dark).sort()).toEqual(Object.keys(themes.light).sort());
