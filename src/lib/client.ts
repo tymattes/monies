@@ -24,3 +24,14 @@ export async function api(
     return { ok: false, data: {}, error: "Could not reach the server" };
   }
 }
+
+// Scrolls to the Assign panel on the Budget page and focuses its first field.
+export function focusAssignPanel() {
+  const el = document.getElementById("assign");
+  if (!el) return;
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "center" });
+  el.querySelector<HTMLElement>("select, input, button")?.focus({
+    preventScroll: true,
+  });
+}
