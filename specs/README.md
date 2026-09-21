@@ -22,4 +22,4 @@ Monies is built spec-first. `brief.md` is the source of truth for product intent
 | 005 | [Light and dark theme](005-theming.md) | implemented |
 | 006 | [Income per member](006-income.md) | implemented |
 | 007 | [Bills, assign-to-savings, Dracula theme](007-bills-and-budget-polish.md) | implemented |
-| 008 | [Overview page and grouped Plan area](008-overview-and-plan.md) | draft |
+| 008 | [Overview page and grouped Plan area](008-overview-and-plan.md) | approved |

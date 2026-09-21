@@ -1,6 +1,6 @@
 # 008: Overview page and a grouped Plan area
 
-**Status:** draft
+**Status:** approved
 
 ## Goal
 Separate the places you **edit** the monthly plan from the place you **read** how the month is going, and tie the three inputs (Budget, Bills, Income) together so they read as one plan. Add an **Overview** home page for the results, and group Budget, Bills and Income under a **Plan** area with a shared month switcher and a persistent summary bar. This also gives future transactions a natural home: "Spent" and "Left" will slot into the Overview instead of crowding the Budget table.
@@ -82,14 +82,13 @@ Transactions and actual spend, the Trends page (multi-month charts) and any hist
 - The results page is named **Overview** and is the home page; "Performance" wording is reserved for a section inside it ("Budget vs. actual") once transactions exist.
 - Budget, Bills and Income group under **Plan** with a shared month switcher and a persistent summary bar; the Assign panel stays on Budget.
 
-## Open questions
-1. **Default Plan tab:** the header's Plan item opens Budget (proposed), or the last Plan tab visited? Recommendation: Budget.
-2. **URLs:** keep `/budget`, `/bills`, `/income` (proposed) rather than moving to `/plan/...`. Recommendation: keep, to avoid breaking bookmarks and to keep the API and page names aligned.
-3. **Charts:** hand-built SVG and CSS with no library (proposed) for the small set of graphics here; revisit a library for the Trends page. Recommendation: no library for now.
-4. **Assign from the Overview:** link to the Budget page's Assign panel (proposed) rather than opening the panel inline on the Overview. Recommendation: link.
-5. **Attention items:** is the proposed list right, or should any be dropped or added?
-6. **Trends:** confirm it is its own later spec, since it needs more than one month of history to be useful. Recommendation: yes.
-7. **PR size:** two PRs (Plan grouping, then Overview) as proposed, or one? Recommendation: two.
+- The header's Plan item opens Budget by default.
+- Existing URLs stay (`/budget`, `/bills`, `/income`), not `/plan/...`, so bookmarks and the page and API names stay aligned.
+- Charts are hand-built SVG and CSS with no chart library; a library can be reconsidered for the Trends page.
+- From the Overview, Assign links to the Budget page's Assign panel rather than opening inline.
+- The attention list is the proposed set: unallocated, over-allocated, a category whose bills exceed its budget, bills exceeding income, no income yet, no bills yet.
+- Trends is its own later spec, since it needs more than one month of history.
+- Work lands as two PRs under this one spec: (1) the Plan grouping, shared header and summary bar; (2) the Overview page, its API and the chart tokens. The spec stays `approved` until both land.
 
 ## Documentation
 - `README.md`: describe Overview and the Plan area in Features (what each shows, the summary bar and Assign), and update the status line.
