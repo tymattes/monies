@@ -6,6 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `specs/brief.md` is the source of truth for product intent. Every feature starts as a numbered spec in `specs/` (copy `specs/_template.md`; process in `specs/README.md`). Don't write feature code without an approved spec, and update the spec's status and acceptance checkboxes as work lands.
 
+## Git workflow
+
+Never push directly to `main`. Work on a feature branch, push it, and open a pull request with `gh pr create`; the user merges. Branch names: `<type>/<short-name>`, e.g. `feat/003-households`, `fix/health-timeout`, `chore/...`. One spec per branch/PR where practical, with the spec status update included in the same PR. Commits end with the Co-Authored-By trailer.
+
 ## Commands
 
 Stack: Next.js (App Router) + TypeScript + Tailwind, `src/` layout, npm.

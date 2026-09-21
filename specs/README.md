@@ -8,6 +8,7 @@ Monies is built spec-first. `brief.md` is the source of truth for product intent
 2. Fill it in and review it. Once agreed, set Status to `approved`.
 3. Implement against the acceptance criteria. Keep the spec updated if scope changes.
 4. When every acceptance box is checked and verification passes, set Status to `implemented`.
+5. Deliver each spec on its own feature branch (e.g. `feat/003-households`) via a pull request; never commit directly to `main`.
 
 ## Index
 
