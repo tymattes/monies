@@ -2,6 +2,7 @@ import { and, asc, eq, isNull, max } from "drizzle-orm";
 import { getDb } from "@/db";
 import { categories } from "@/db/schema";
 import type { Tx } from "./accounts";
+import { countBillsBlockingCategory } from "./bills";
 import type { HouseholdContext } from "./household";
 import { HttpError, isUniqueViolation } from "./http";
 import { currentMonth, monthStart } from "./months";
@@ -98,6 +99,16 @@ export async function updateCategory(
       const set: Partial<typeof categories.$inferInsert> = {};
       if (patch.name !== undefined) set.name = patch.name;
       if (patch.archived === true && existing.archivedFrom === null) {
+        const blocking = await countBillsBlockingCategory(
+          ctx.household.id,
+          id,
+        );
+        if (blocking > 0) {
+          throw new HttpError(
+            409,
+            `This category has ${blocking} active bill${blocking === 1 ? "" : "s"}. Move or end ${blocking === 1 ? "it" : "them"} first.`,
+          );
+        }
         set.archivedFrom = monthStart(currentMonth());
       }
       if (patch.archived === false) set.archivedFrom = null;
