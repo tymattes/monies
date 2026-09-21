@@ -1,6 +1,6 @@
 # 008: Overview page and a grouped Plan area
 
-**Status:** approved
+**Status:** implemented
 
 ## Goal
 Separate the places you **edit** the monthly plan from the place you **read** how the month is going, and tie the three inputs (Budget, Bills, Income) together so they read as one plan. Add an **Overview** home page for the results, and group Budget, Bills and Income under a **Plan** area with a shared month switcher and a persistent summary bar. This also gives future transactions a natural home: "Spent" and "Left" will slot into the Overview instead of crowding the Budget table.
@@ -52,20 +52,20 @@ Transactions and actual spend, the Trends page (multi-month charts) and any hist
 
 ## Acceptance criteria
 - [x] The header shows Overview, Plan and Members; Plan opens Budget and is highlighted on Budget, Bills and Income; Budget | Bills | Income sub-tabs mark the current page.
-- [ ] `/` is the Overview and renders for a new household (empty states) and a fully set-up one.
+- [x] `/` is the Overview and renders for a new household (empty states) and a fully set-up one.
 - [x] `/budget`, `/bills` and `/income` keep working at the same URLs with the same `?month=` behavior.
 - [x] The summary bar appears on all three Plan pages with Income, Budgeted (and bills within it) and Unallocated / Over-allocated.
 - [x] On Budget the summary bar updates live as an amount is edited; on Bills and Income it matches the saved data.
 - [x] Assign appears in the bar only when the month is editable and Unallocated is greater than 0, and takes the user to the Assign panel (scrolling and focusing it on Budget).
-- [ ] The Overview cash-flow bar's segments add up to the month's income (or show over-allocation), and its Unallocated equals the summary bar's.
-- [ ] The Overview category table matches `GET /api/budgets/[month]` for budgeted, bills and left.
-- [ ] Attention items appear only when relevant and each links to where it is fixed (covered by tests for each item).
-- [ ] `GET /api/overview/[month]` returns the same numbers as the page and rejects signed-out users and non-members (covered by tests).
-- [ ] No pie or gauge charts; every graphic has a text equivalent; nothing relies on color alone.
-- [ ] Chart tokens pass the theme test (3:1 against the background, distinct) in both themes, and no hardcoded colors are introduced.
-- [ ] Past months are read-only everywhere and the Overview shows them without an Assign action.
-- [ ] Documentation updated (see Documentation).
-- [ ] `npm run lint`, `npm test` and `npm run build` pass.
+- [x] The Overview cash-flow bar's segments add up to the month's income (or show over-allocation), and its Unallocated equals the summary bar's.
+- [x] The Overview category table matches `GET /api/budgets/[month]` for budgeted, bills and left.
+- [x] Attention items appear only when relevant and each links to where it is fixed (covered by tests for each item).
+- [x] `GET /api/overview/[month]` returns the same numbers as the page and rejects signed-out users and non-members (covered by tests).
+- [x] No pie or gauge charts; every graphic has a text equivalent; nothing relies on color alone.
+- [x] Chart tokens pass the theme test (3:1 against the background, distinct) in both themes, and no hardcoded colors are introduced.
+- [x] Past months are read-only everywhere and the Overview shows them without an Assign action.
+- [x] Documentation updated (see Documentation).
+- [x] `npm run lint`, `npm test` and `npm run build` pass.
 
 ## Technical notes
 - Move page code into shared components: `PlanHeader` (title, `PlanTabs`, `MonthNav`, summary bar) used by the three Plan pages, and a presentational `PlanSummary` that Budget renders from live client state and Bills and Income render from server data. `BudgetEditor` already holds the live totals; lift the summary into it on the Budget page.
@@ -100,7 +100,7 @@ Fresh `docker compose up --build`: sign in and confirm the header shows Overview
 
 ## Status of the work
 - **PR 1 (Plan grouping, shared header and summary bar): merged** (#9).
-- **PR 2 (the Overview page, its API and the chart tokens): not built yet.** It is sequenced after spec 009 (browser testing) so the Overview can be verified in a real browser; its own end-to-end checks are listed in spec 009. This spec stays `approved`, not `implemented`, until PR 2 lands.
+- **PR 2 (the Overview page, its API and the chart tokens): built** (see the notes below), with browser tests and screenshots from spec 009.
 
 ## Implementation notes
 
@@ -115,3 +115,22 @@ Fresh `docker compose up --build`: sign in and confirm the header shows Overview
 
 ## Not verified (PR 1)
 Not clicked through in a browser: the live update of the summary while typing an amount, the Assign scroll and focus behavior (from the button and from another page via `#assign`), and how the header looks at phone width with three items plus the name, sign out and theme switch.
+
+### PR 2 of 2: the Overview page
+- **Data:** `getOverview` (`src/lib/overview.ts`) composes `getBudget`, `getIncomeMonth` and `getBillsMonth`, and both the home page and `GET /api/overview/[month]` call it, so they cannot drift. Unallocated is income minus budgeted, exactly as in the Plan summary bar (tests compare them to the budget API). Cash flow: `billsWithinBudget = Σ min(bills, budgeted)` and `restOfBudget = Σ max(budgeted − bills, 0)`, which always add up to the budgeted total; `unallocated` is income minus budgeted when positive, `overAllocated` when negative.
+- **Attention items:** `over_allocated`, `bills_exceed_income`, `category_bills_over_budget` (one per category), `unallocated`, `no_income`, `no_bills`, each with `severity`, a message in the household's currency, a link and an action label. Setup prompts and Assign only appear for months that can still be changed; a past month still reports history (for example a category that was over budget). A brand-new household sees a "Let's get your month set up" card with three linked steps instead.
+- **Page** (`src/app/page.tsx`, components in `src/components/overview/`): all server-rendered, no client JavaScript. The attention list sits at the top, above the cash-flow card, because it is the actionable part (the spec listed it last); then Cash flow, the Categories table, and the Income and Bills cards.
+- **Cash-flow card:** four headline numbers (Income, Bills, Left after bills, Unallocated), a stacked bar, and a legend that repeats every amount. Unallocated is drawn as a hatched gap rather than a fourth color, so nothing depends on color alone; over-allocation adds a red line at the income position and switches the label to "Over-allocated by". The bar has `role="img"` with a text summary. No pies, gauges, SVG or chart library (a unit test asserts it).
+- **Categories table:** a real `<table>` (caption, column and row headers, a Total row). Each row has a bullet-style bar (bills as the fill, the budget as a vertical marker, any part past the budget in the error color); the bar is decorative because the numbers carry the meaning. On phones the Budgeted and Bills columns and the bar collapse into a "Budgeted … · Bills …" line under the name. A Spent column is reserved for transactions and not shown.
+- **Chart tokens:** `--chart-1` to `--chart-4` (Dracula purple, cyan, pink, orange in dark; Alucard's in light), each at least 3:1 against the background, four distinct colors, and different from `--danger` and `--accent` (all enforced in `tests/theme.test.ts`). Bars sit on `--background`, not `--surface`, because Dracula red and purple fall below 3:1 on the lighter surface.
+- **Assign** appears twice on purpose: in the attention list and inside the cash-flow card, both linking to the Budget page's Assign panel.
+- **Tests:** `tests/overview.test.ts` (16, every attention code, the numbers, past and empty months, currency, access control), `tests/overview-ui.test.tsx` (19, server-rendered components), and `e2e/overview.spec.ts` (16, in real Chromium: numbers, the bar adding up to the income, table versus the Budget page, attention links, Assign focus, month links, past month, empty household with axe in both themes, over-allocated state). The generic phone-layout and axe specs also cover the page in both themes.
+- **Found while reviewing screenshots:** the legend pushed each amount to the far edge of its column so it read as belonging to the next swatch; it is now label over amount. And a behavior worth knowing: next month starts out over-allocated whenever this month's income includes a one-off deposit, because budgets carry forward but variable deposits do not.
+
+### Follow-ups (not built)
+- Future months for a household with variable income show an "over-allocated" warning that is really just "no deposits recorded yet". Options: suppress that warning for months after the current one, or compare against fixed income only there.
+- The `unallocated` attention item and the card's Assign button are redundant; keep both or drop the list item.
+- Spending versus budget and per-member spending arrive with transactions; the Trends page stays a separate spec.
+
+## Not verified
+Real Safari and iOS (the WebKit project has not been run). Everything else in this PR was checked in real Chromium, with screenshots reviewed in both themes and at phone width for the seeded, empty and over-allocated states.
