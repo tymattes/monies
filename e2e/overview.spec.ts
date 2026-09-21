@@ -298,10 +298,14 @@ for (const [scheme, page, card, subtle] of [
       }
     });
 
-    test("the sign-in form sits in a card on the page color", async ({ page: p }) => {
+    test("the sign-in screen is one card on the page color: heading, welcome line and form together", async ({ page: p }) => {
       await p.goto("/sign-in");
       expect(await bodyBackground(p)).toBe(page);
-      await expect(p.getByLabel("Email").locator("xpath=ancestor::div[contains(@class,'rounded-xl')][1]")).toHaveCSS("background-color", card);
+      const card_ = p.getByLabel("Email").locator("xpath=ancestor::div[contains(@class,'rounded-xl')][1]");
+      await expect(card_).toHaveCSS("background-color", card);
+      await expect(card_.getByRole("heading", { name: "Sign in" })).toBeVisible();
+      await expect(card_.getByText("Welcome back to Monies.")).toBeVisible();
+      await expect(card_.getByRole("button", { name: "Sign in" })).toBeVisible();
     });
   });
 }

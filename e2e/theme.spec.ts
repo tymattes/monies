@@ -115,3 +115,16 @@ test.describe("input focus uses the accent color", () => {
     });
   });
 });
+
+test.describe("theme switch placement on signed-out screens", () => {
+  for (const path of ["/sign-in"]) {
+    test(`${path}: the switch is at the right edge of the header, away from the logo`, async ({ page }) => {
+      await page.goto(path);
+      const logo = (await page.getByRole("link", { name: "Monies home" }).boundingBox())!;
+      const toggle = (await page.getByRole("group", { name: "Theme" }).boundingBox())!;
+      // Far to the right of the logo, and inside the header's content width.
+      expect(toggle.x).toBeGreaterThan(logo.x + logo.width + 300);
+      expect(toggle.y).toBeLessThan(60);
+    });
+  }
+});

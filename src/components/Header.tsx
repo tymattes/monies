@@ -21,7 +21,14 @@ export default async function Header() {
         {ctx && (
           <HeaderNav className="order-last basis-full gap-6 sm:order-none sm:ml-auto sm:basis-auto sm:gap-4" />
         )}
-        <div className="ml-auto flex items-center gap-3 sm:ml-0 sm:gap-4">
+        {/* Signed in, the navigation pushes these to the right; signed out there is
+            no navigation, so they push themselves (the theme switch sits at the
+            right edge of the header on the sign-in and setup screens). */}
+        <div
+          className={`flex items-center gap-3 sm:gap-4 ${
+            ctx ? "ml-auto sm:ml-0" : "ml-auto"
+          }`}
+        >
           {ctx && (
             <>
               <span className="hidden text-muted sm:inline">{ctx.user.name}</span>

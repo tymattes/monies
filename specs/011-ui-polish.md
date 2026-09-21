@@ -36,10 +36,18 @@ Supports `brief.md`: modern, mobile-first UX.
 - The light error red is nudged from Alucard's `#CB3A2A` to `#C8371F` so error text stays at 4.5:1 or better on the new, slightly deeper light page (Alucard's red is 4.37:1 there). This is a deliberate deviation from the palette, recorded in `globals.css`.
 - Text tokens (foreground, muted, danger, accent) must meet 4.5:1 on the page and card; foreground, muted and accent on the subtle and surface fills. The theme test enforces all of it, plus that the card is distinguishable from the page and the border from both.
 
+### Addendum: the sign-in screen and error pages
+- **Sign-in, setup and join screens** show the heading, the welcome line and the form together inside one card (`AuthCard`), centered on the page.
+- **Theme switch placement:** signed out (no navigation in the header), the theme switch sits at the top-right of the header, away from the logo, on desktop and phone.
+- **Error pages:** a themed error page (`error.tsx`, and `global-error.tsx` as the last resort) replaces Next's plain default. It says "Something went wrong", offers Try again and Reload page, and shows the error's reference number (the digest, which matches the server log entry) but never the error text. The saved or OS theme still applies there.
+
 ## Out of scope
 New components or layout changes, typography changes, animation, changing colors beyond the surface system and the one red adjustment, row hover states, and any change to spacing between sections.
 
 ## Acceptance criteria
+- [x] The sign-in, setup and join screens show the heading, welcome line and form in one card (checked on the sign-in screen in the browser).
+- [x] The theme switch is at the right edge of the header on the sign-in screen at desktop and phone width.
+- [x] A failing page shows the themed error page with a reference number, Try again and Reload page, in the correct theme, and never shows the error text (browser test against a production build).
 - [x] The theme tokens exist for both themes (`--page`, `--surface-subtle`, updated `--surface`, `--border`, light `--danger`), are mapped into Tailwind, and pass the contrast tests.
 - [x] In both themes the card color differs from the page color and the border is distinguishable from both (asserted in the theme test and in the browser).
 - [x] Every panel, list, table, form and empty state listed above uses the card style.
@@ -72,6 +80,12 @@ Look at every page in both themes and at phone width: panels should read as rais
 - **Tests:** `tests/theme.test.ts` now also checks that all four text tokens hold 4.5:1 on the page, that foreground, muted and accent hold it on the subtle fill, that the card is distinguishable from the page (at least 1.08:1) and the border from both, and the Dracula layer values. `e2e/overview.spec.ts` gained "layered surfaces" checks in both themes: body is the page color, the Overview cards, attention items, table header and total row have the expected fills, the Plan summary is a card, and the sign-in form is a card. `e2e/support/page.ts` constants are now page, card and subtle for each theme.
 - **Verified** in real Chromium: the axe scans still pass on every page in both themes at both sizes with the new colors, and screenshots of the Overview, Budget, Bills, Income, Members and sign-in pages were reviewed in light and dark at desktop and phone size.
 - **Left as is:** the Overview's Income and Bills cards stretch to equal height (the Income card has empty space at the bottom); row hover fills stay off because Dracula red text would drop below 4.5:1 on a lighter fill.
+
+- **Sign-in screen:** `AuthCard` is now a single `max-w-md` card holding the title, description and form. The header's controls group gets `ml-auto` when signed out (it previously only had `sm:ml-0`, so with no navigation to push it right it sat beside the logo).
+- **Error pages:** `src/app/error.tsx` (inside the layout, so the header stays and the user can navigate away) and `src/app/global-error.tsx` (own `<html>`, loads `globals.css` and the shared pre-paint theme script from `src/lib/themeScript.ts`). Next logs the failing render to the server output with the same digest, so the reference on screen can be matched to a log line.
+- **A real bug found while checking the error page:** on any error page React re-renders `<html>` and wipes the `dark` class the theme script set, so dark-mode users got a light error page. `ThemeToggle` now re-applies the saved theme whenever it mounts or changes. Guarded by a browser test that fails without the fix (verified by removing it).
+- **Test-only route:** `/e2e-error` fails on purpose when `E2E=1` (set only by Playwright) and is a 404 everywhere else; `e2e/error-page.spec.ts` uses it and runs only with `E2E_PROD=1`, because error pages appear only in production builds.
+- **Investigation note:** the change was prompted by a user seeing Next's plain "This page couldn't load" page right after a redeploy. It was not reproduced: the container logged no errors (Next does log render failures, as the test route shows), the database logged nothing, and a stale tab from the previous build signing in to the new build worked in Chromium. The themed error page with a reference number is meant to make any recurrence diagnosable.
 
 ## Not verified
 Real Safari and iOS (the WebKit project is not run).
