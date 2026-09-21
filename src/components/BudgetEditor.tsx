@@ -6,7 +6,13 @@ import { api } from "@/lib/client";
 import { formatMoney, parseMoney, toInputString } from "@/lib/money";
 import { buttonCls, inputCls, secondaryButtonCls } from "./ui";
 
-type Line = { id: string; name: string; amountCents: number };
+type Line = {
+  id: string;
+  name: string;
+  amountCents: number;
+  // Monthly cost of the bills in this category (spec 007).
+  billsCents: number;
+};
 
 type Row = { key: number; categoryId: string; amount: string };
 
@@ -190,6 +196,7 @@ export default function BudgetEditor({
   editable,
   lines,
   incomeCents,
+  billsTotalCents,
 }: {
   month: string;
   monthName: string;
@@ -197,6 +204,7 @@ export default function BudgetEditor({
   editable: boolean;
   lines: Line[];
   incomeCents: number;
+  billsTotalCents: number;
 }) {
   // Last saved amount per category, and what is currently typed.
   const [saved, setSaved] = useState<Record<string, number>>(() =>
@@ -251,19 +259,74 @@ export default function BudgetEditor({
           : "Past months are read-only so history stays accurate."}
       </p>
       <ul className="divide-y divide-border rounded-lg border border-border">
-        {lines.map((l) => (
-          <li
-            key={l.id}
-            className="flex items-center justify-between gap-4 px-4 py-3"
-          >
-            <label htmlFor={`amount-${l.id}`} className="min-w-0 truncate font-medium">
-              {l.name}
-            </label>
-            {editable ? (
-              <div className="flex shrink-0 items-center gap-3">
+        <li
+          aria-hidden="true"
+          className="hidden items-center justify-between gap-4 px-4 py-2 text-xs text-muted sm:flex"
+        >
+          <span>Category</span>
+          <div className="flex items-center gap-4">
+            <span className="w-24 text-right">Bills</span>
+            <span className="w-24 text-right">Left</span>
+            <span className="w-32 text-right">Budgeted</span>
+          </div>
+        </li>
+        {lines.map((l) => {
+          const budgeted = saved[l.id] ?? 0;
+          const left = budgeted - l.billsCents;
+          return (
+            <li key={l.id} className="px-4 py-3">
+              <div className="flex items-center justify-between gap-4">
+                <label
+                  htmlFor={`amount-${l.id}`}
+                  className="min-w-0 truncate font-medium"
+                >
+                  {l.name}
+                </label>
+                <div className="flex shrink-0 items-center gap-4">
+                  <span className="hidden w-24 text-right text-sm tabular-nums text-muted sm:block">
+                    {formatMoney(l.billsCents, currency)}
+                  </span>
+                  <span
+                    className={`hidden w-24 text-right text-sm tabular-nums sm:block ${
+                      left < 0 ? "text-danger" : "text-muted"
+                    }`}
+                  >
+                    {formatMoney(left, currency)}
+                  </span>
+                  {editable ? (
+                    <input
+                      id={`amount-${l.id}`}
+                      inputMode="decimal"
+                      value={drafts[l.id] ?? ""}
+                      onChange={(e) => {
+                        setDrafts((d) => ({ ...d, [l.id]: e.target.value }));
+                        note(l.id, "");
+                      }}
+                      onBlur={() => commit(l.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") e.currentTarget.blur();
+                      }}
+                      className={`${inputCls} w-32 text-right tabular-nums`}
+                    />
+                  ) : (
+                    <span className="w-32 text-right tabular-nums">
+                      {formatMoney(budgeted, currency)}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div
+                className={`mt-1 flex items-center justify-between gap-3 text-xs ${
+                  status[l.id] ? "" : "sm:hidden"
+                }`}
+              >
+                <span className={`sm:hidden ${left < 0 ? "text-danger" : "text-muted"}`}>
+                  Bills {formatMoney(l.billsCents, currency)} · Left{" "}
+                  {formatMoney(left, currency)}
+                </span>
                 <span
                   aria-live="polite"
-                  className={`text-xs ${
+                  className={`ml-auto ${
                     status[l.id] && status[l.id] !== "Saved" && status[l.id] !== "Saving…"
                       ? "text-danger"
                       : "text-muted"
@@ -271,35 +334,33 @@ export default function BudgetEditor({
                 >
                   {status[l.id]}
                 </span>
-                <input
-                  id={`amount-${l.id}`}
-                  inputMode="decimal"
-                  value={drafts[l.id] ?? ""}
-                  onChange={(e) => {
-                    setDrafts((d) => ({ ...d, [l.id]: e.target.value }));
-                    note(l.id, "");
-                  }}
-                  onBlur={() => commit(l.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") e.currentTarget.blur();
-                  }}
-                  className={`${inputCls} w-32 text-right tabular-nums`}
-                />
               </div>
-            ) : (
-              <span className="tabular-nums">
-                {formatMoney(saved[l.id] ?? 0, currency)}
-              </span>
-            )}
-          </li>
-        ))}
+            </li>
+          );
+        })}
         <li className="flex items-center justify-between gap-4 bg-surface px-4 py-3 font-semibold">
           <span>Total budgeted</span>
           <span className="tabular-nums">{formatMoney(total, currency)}</span>
         </li>
         <li className="flex items-center justify-between gap-4 px-4 py-3 text-sm">
+          <span className="text-muted">Monthly bills</span>
+          <span className="tabular-nums">{formatMoney(billsTotalCents, currency)}</span>
+        </li>
+        <li className="flex items-center justify-between gap-4 px-4 py-3 text-sm">
           <span className="text-muted">Household income (take-home)</span>
           <span className="tabular-nums">{formatMoney(incomeCents, currency)}</span>
+        </li>
+        <li className="flex items-center justify-between gap-4 px-4 py-3 text-sm">
+          <span className={incomeCents - billsTotalCents < 0 ? "text-danger" : "text-muted"}>
+            {incomeCents - billsTotalCents < 0
+              ? "Bills exceed income by"
+              : "Left after bills"}
+          </span>
+          <span
+            className={`tabular-nums ${incomeCents - billsTotalCents < 0 ? "text-danger" : ""}`}
+          >
+            {formatMoney(Math.abs(incomeCents - billsTotalCents), currency)}
+          </span>
         </li>
         <li className="flex items-center justify-between gap-4 px-4 py-3 text-sm font-medium">
           <span className={unallocated < 0 ? "text-danger" : undefined}>

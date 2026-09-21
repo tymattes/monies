@@ -6,6 +6,7 @@ import {
   index,
   integer,
   pgTable,
+  smallint,
   text,
   timestamp,
   uniqueIndex,
@@ -287,5 +288,67 @@ export const incomeDeposits = pgTable(
   (t) => [
     index("income_deposits_source_received_idx").on(t.sourceId, t.receivedOn),
     check("income_deposits_amount_check", sql`${t.amountCents} > 0`),
+  ],
+);
+
+// --- Bills (spec 007) ---
+
+// A recurring household cost (rent, a subscription, insurance). Its amount,
+// billing period and category live in bill_versions so history stays accurate.
+export const bills = pgTable(
+  "bills",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    householdId: uuid("household_id")
+      .notNull()
+      .references(() => households.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    paidWith: text("paid_with"),
+    note: text("note"),
+    // The member who added it; null after that member is removed ("Former member").
+    addedBy: text("added_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    // Same visibility rule as categories: start_month <= M < archived_from.
+    startMonth: date("start_month", { mode: "string" }).notNull(),
+    archivedFrom: date("archived_from", { mode: "string" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("bills_household_id_idx").on(t.householdId)],
+);
+
+// Time-versioned like budget_allocations: a month uses the latest version on or
+// before it. amount_cents is the charge per billing period; the monthly
+// equivalent (amount / interval, rounded half up) is computed, not stored.
+export const billVersions = pgTable(
+  "bill_versions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    billId: uuid("bill_id")
+      .notNull()
+      .references(() => bills.id, { onDelete: "cascade" }),
+    effectiveMonth: date("effective_month", { mode: "string" }).notNull(),
+    amountCents: integer("amount_cents").notNull(),
+    intervalMonths: smallint("interval_months").notNull().default(1),
+    categoryId: uuid("category_id")
+      .notNull()
+      .references(() => categories.id),
+    createdBy: text("created_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("bill_versions_bill_month_idx").on(t.billId, t.effectiveMonth),
+    index("bill_versions_category_id_idx").on(t.categoryId),
+    check("bill_versions_amount_check", sql`${t.amountCents} >= 0`),
+    check(
+      "bill_versions_interval_check",
+      sql`${t.intervalMonths} in (1, 3, 6, 12)`,
+    ),
   ],
 );

@@ -1,6 +1,6 @@
 # 007: Bills, assign-to-savings, and a Dracula dark theme
 
-**Status:** approved
+**Status:** implemented
 
 ## Goal
 Three related improvements before receipt capture, all about making the monthly budget more useful and the app nicer to live in:
@@ -46,7 +46,7 @@ Supports `brief.md`: category-driven budgets, modern UX, and a path to budget vs
 ### API
 - `GET /api/bills/[month]`: bills active in the month with amount, category, paid with, note, added by (with `addedBy` name or "Former member"), category subtotals and month total.
 - `POST /api/bills` (`{ name, amountCents, intervalMonths, categoryId, paidWith?, note? }`, effective from the current month; `categoryId` is required; `intervalMonths` is one of 1, 3, 6, 12 and defaults to 1). Responses include `amountCents` (the charge per billing period), `intervalMonths` and `monthlyCents` (the monthly equivalent).
-- `PATCH /api/bills/[id]`: rename, paid-with, note, end or restore (label fields are not versioned).
+- `PATCH /api/bills/items/[id]`: rename, paid-with, note, end or restore (label fields are not versioned). The `items/` segment avoids a route clash with `[month]`.
 - `PUT /api/bills/[month]/items/[id]` (`{ amountCents, intervalMonths, categoryId }`): new amount, billing period and/or category from that month onward; rejects past months and inactive categories.
 - `GET /api/budgets/[month]` gains, per category, `billsCents` and `remainingCents`, and in the summary `billsTotalCents` and `leftAfterBillsCents`.
 - `POST /api/budgets/[month]/assign-unallocated` implements B. Body: `{ assignments: [{ categoryId, amountCents }, ...] }` (1 to 50 items, amounts positive integers, categories distinct, total at most the unallocated amount), or the shorthand `{ categoryId }` meaning all of it into one category. Returns `{ assignments: [{ categoryId, assignedCents, amountCents }], assignedCents, unallocatedCents }` (the last is what remains). Rejects past months, a month with nothing unallocated, unknown or inactive categories, duplicates, and totals over the unallocated amount, all-or-nothing.
@@ -56,25 +56,25 @@ Supports `brief.md`: category-driven budgets, modern UX, and a path to budget vs
 Actual transactions and per-charge logging (receipt capture and the transactions spec), paid-with as a managed list with balances or accounts, gross vs. net, tracking a bill's actual renewal date or a running "set aside so far" balance (that belongs with transactions), custom intervals other than monthly, 3, 6 and 12 months, variable-amount bills with a monthly estimate, splitting one bill across categories, automatic rollover of leftover money, importing from Notion or CSV, a user-chosen accent or palette, other themes.
 
 ## Acceptance criteria
-- [ ] A member can add a bill; the category field starts empty with a prompt and the bill cannot be saved without choosing one (UI) or a valid `categoryId` (API).
-- [ ] The bill shows who added it; if that member is removed it shows "Former member" and still counts (covered by a test).
-- [ ] A bill counts against its category in the month it starts and every later month with no further entry, and not in earlier months.
-- [ ] Changing a bill's amount or category applies from the chosen month onward and leaves earlier months unchanged; past months reject edits (covered by tests, mocking the current month).
-- [ ] Ending a bill stops it from this month onward; past months keep it.
-- [ ] A category with active bills cannot be archived (409 naming the count); after ending or moving them it can.
-- [ ] Any household member can add, edit and end any bill; signed-out users and non-members are rejected on every route (covered by tests).
-- [ ] The Bills page shows the month's bills grouped by category with subtotals and a total.
-- [ ] The Budget page shows per-category bills and remaining (negative flagged), plus Bills and Left after bills in the summary; `GET /api/budgets/[month]` returns the same numbers.
+- [x] A member can add a bill; the category field starts empty with a prompt and the bill cannot be saved without choosing one (UI) or a valid `categoryId` (API).
+- [x] The bill shows who added it; if that member is removed it shows "Former member" and still counts (covered by a test).
+- [x] A bill counts against its category in the month it starts and every later month with no further entry, and not in earlier months.
+- [x] Changing a bill's amount or category applies from the chosen month onward and leaves earlier months unchanged; past months reject edits (covered by tests, mocking the current month).
+- [x] Ending a bill stops it from this month onward; past months keep it.
+- [x] A category with active bills cannot be archived (409 naming the count); after ending or moving them it can.
+- [x] Any household member can add, edit and end any bill; signed-out users and non-members are rejected on every route (covered by tests).
+- [x] The Bills page shows the month's bills grouped by category with subtotals and a total.
+- [x] The Budget page shows per-category bills and remaining (negative flagged), plus Bills and Left after bills in the summary; `GET /api/budgets/[month]` returns the same numbers.
 - [x] Assign can spread the unallocated amount across one or more categories in a single click: each amount is added to its category from this month onward and unallocated drops by the total; the first row preselects "Savings" when present; assigning less than the whole amount leaves the rest unallocated; amounts over the unallocated total, duplicate categories, and any invalid row are rejected with nothing applied; it is unavailable for past months or when unallocated is 0; concurrent assigns never double-count (covered by tests).
-- [ ] A yearly or 6-month bill counts its monthly equivalent (the charge divided by the number of months, rounded to the nearest minor unit) in every active month, not only in a renewal month; the form previews it; totals and category rollups use it (covered by tests).
-- [ ] Changing the billing period applies from the chosen month onward and leaves earlier months unchanged.
-- [ ] Amounts are integer minor units; negative and fractional values are rejected; 0 is allowed for bills.
+- [x] A yearly or 6-month bill counts its monthly equivalent (the charge divided by the number of months, rounded to the nearest minor unit) in every active month, not only in a renewal month; the form previews it; totals and category rollups use it (covered by tests).
+- [x] Changing the billing period applies from the chosen month onward and leaves earlier months unchanged.
+- [x] Amounts are integer minor units; negative and fractional values are rejected; 0 is allowed for bills.
 - [x] Dark theme uses the Dracula palette and light theme uses Alucard; the theme tests pass at 4.5:1 for foreground, muted, danger and accent on the background, and foreground, muted and accent on the surface, in both themes, and input borders are at least 3:1 against the background.
 - [x] Autofilled inputs use the theme colors instead of the browser's yellow or blue fill.
 - [x] No hardcoded colors are introduced; borders and panels use the new `--border` and `--surface` tokens.
-- [ ] Migration is additive and idempotent on restart; existing households simply have no bills yet.
-- [ ] Documentation updated (see Documentation).
-- [ ] `npm run lint`, `npm test` and `npm run build` pass.
+- [x] Migration is additive and idempotent on restart; existing households simply have no bills yet.
+- [x] Documentation updated (see Documentation).
+- [x] `npm run lint`, `npm test` and `npm run build` pass.
 
 ## Technical notes
 - Tables (proposal): `bills` (id uuid, household_id, name, paid_with text nullable, note text nullable, added_by text nullable fk user `on delete set null`, start_month date, archived_from date nullable, created_at) and `bill_versions` (id, bill_id, effective_month date, amount_cents integer check >= 0 (the charge per billing period), interval_months smallint check in (1, 3, 6, 12) default 1, category_id fk categories, created_by, created_at; unique on `(bill_id, effective_month)`). Amount, billing period and category share a version row so moving a bill between categories or changing how often it is billed never changes past months. The monthly equivalent is computed, not stored: `round(amount_cents / interval_months)` (half up) in one shared helper used by the SQL rollups and the API, with tests for amounts that do not divide evenly (a yearly total can differ from the real charge by a few minor units, which is acceptable for a budget and is stated in the README).
@@ -124,12 +124,27 @@ Fresh `docker compose up --build`: as the owner add three bills in different cat
 
 - Brand and icons (owner-approved during review): the overall scheme is purple / cream / green, recorded in CLAUDE.md. The favicon is now the M logo: `src/app/icon.svg` switches colors with the browser's light or dark mode (deep green tile and cream M, or bright green tile and dark M), and `favicon.ico` (16, 32, 48 px) and `apple-icon.png` (180 px, full-bleed since iOS rounds its own corners) use the bright green tile with the dark M so they read on any tab strip or home screen. Raster icons were rendered from the same M path with `sharp`.
 
+### Part A (bills), third PR
+- Tables `bills` and `bill_versions` (migration `0004_bills`): amount, `interval_months` (check in 1, 3, 6, 12) and category share a version row; `bills.added_by` is `on delete set null` so a removed adder shows as "Former member" and the bill keeps counting.
+- The monthly equivalent is `round(charge / interval)` half up, implemented twice on purpose and tested together: `monthlyEquivalent` in `src/lib/bills.ts` and the SQL in the month query (`(amount::bigint + interval / 2) / interval`). `tests/bills.test.ts` checks that they agree for uneven amounts (1999 over 12 months is 167, 100 over 6 is 17, 3 over 6 is 1).
+- Routes: `POST /api/bills`, `GET /api/bills/[month]`, `PATCH /api/bills/items/[id]`, `PUT /api/bills/[month]/items/[id]`. Any household member may call them; there is no owner check by design.
+- Archiving a category is blocked (409, naming how many bills) while a bill's current version uses it or a scheduled future version moves a bill into it (`countBillsBlockingCategory`).
+- `GET /api/budgets/[month]` now returns per category `billsCents` and `remainingCents` (budgeted minus bills) and, in the summary, `billsTotalCents` and `leftAfterBillsCents` (income minus bills).
+- Budget page: each category row shows Bills and Left beside its Budgeted input (Left turns to the error color when negative); the summary gains Monthly bills and Left after bills (or "Bills exceed income by"). On phones the two extra numbers drop to a line under the category name.
+- Bills page (`/bills`): month navigation, the month's total, an add form whose category field starts empty ("Choose a category") and cannot be skipped, a live "= X / month" preview for non-monthly bills, paid-with suggestions from a datalist, and bills grouped by category with subtotals. Each bill can be edited (amount, period and category apply from the viewed month onward) or ended. Past months are read-only.
+- The bill's own category may have been archived since; the edit form keeps it selectable so the bill can still be saved or moved.
+- Not built: bill categories are chosen from active categories only when adding; editing a bill in a future month offers today's active categories rather than ones active in that specific month (the API still validates the month).
+- Tests: `tests/bills.test.ts` (34 tests) covering creation and validation, the required category, time-versioning, read-only past months, ending and restoring, adder tagging and removed members, grouping, the archive block (including future versions), the Budget integration, and access control.
+
 ### Part B (assign unallocated), second PR
 - `POST /api/budgets/[month]/assign-unallocated` takes `{ assignments: [...] }` (or the `{ categoryId }` shorthand) and returns the per-category results plus what remains unallocated. It rejects past months, unknown, archived or malformed categories, and any month with nothing unallocated (zero or over-allocated).
 - The lock is `pg_advisory_xact_lock(hashtextextended('<household>:<month>', 0))` inside the transaction; the budget is read after the lock is taken so an earlier assign is already committed. `setAllocation` does not take the lock, so a manual edit racing an assign can interleave, which is acceptable for two people editing the same month at once.
 - UI: the Assign panel appears under the Unallocated line only when the month is editable and the amount is greater than 0. It resets whenever the unallocated amount changes (its `key`), so it never shows stale amounts after an edit above it. Category selects hide categories already chosen in other rows.
 - `BudgetEditor` is now keyed on the server data (month, income, categories and amounts), so it remounts after an assign and also after a category is added or renamed, which previously left a new category's input blank until a full reload.
 - Tests: `tests/assign.test.ts` (17 tests) including simultaneous requests yielding exactly one success for both the single and split forms, and atomicity (an invalid row or an over-total applies nothing); verified by temporarily removing the lock, which made all four simultaneous requests succeed.
+
+## Not verified (Part A)
+The Bills page and the new Budget columns were not clicked through in a browser (adding and editing a bill, the live preview, the category prompt, the column layout on a phone). The routes, calculations and page rendering were verified by tests and against a scratch instance with two members.
 
 ## Not verified (Part B)
 The Assign panel was not clicked through in a browser (row editing, Split evenly, button enabling, the refresh after assigning). The route, the lock and the page rendering (control present before, gone after) were checked by tests and against a scratch instance.
