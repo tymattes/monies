@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import BudgetEditor from "@/components/BudgetEditor";
 import CategoryManager from "@/components/CategoryManager";
-import MonthNav from "@/components/MonthNav";
+import PlanHeader from "@/components/PlanHeader";
 import { getBudget } from "@/lib/budgets";
 import { listCategories } from "@/lib/categories";
 import { getHouseholdContext } from "@/lib/household";
@@ -27,10 +27,7 @@ export default async function BudgetPage(props: PageProps<"/budget">) {
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 space-y-10 px-4 py-10">
       <section className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-2xl font-semibold tracking-tight">Budget</h1>
-          <MonthNav basePath="/budget" month={month} now={now} />
-        </div>
+        <PlanHeader title="Budget" month={month} now={now} />
         {/* Remounted when the server data changes (month, income, categories,
             amounts) so the editor's local state never goes stale. */}
         <BudgetEditor

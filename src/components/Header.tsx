@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import Link from "next/link";
 import { getHouseholdContext } from "@/lib/household";
+import HeaderNav from "./HeaderNav";
 import Logo from "./Logo";
 import SignOutButton from "./SignOutButton";
 import ThemeToggle from "./ThemeToggle";
@@ -17,24 +18,13 @@ export default async function Header() {
         </Link>
         <div className="flex items-center gap-4 text-sm">
           {ctx && (
-            <nav className="flex items-center gap-4">
-              <Link href="/budget" className="text-muted hover:text-foreground">
-                Budget
-              </Link>
-              <Link href="/bills" className="text-muted hover:text-foreground">
-                Bills
-              </Link>
-              <Link href="/income" className="text-muted hover:text-foreground">
-                Income
-              </Link>
-              <Link href="/members" className="text-muted hover:text-foreground">
-                Members
-              </Link>
+            <>
+              <HeaderNav />
               <span className="hidden text-muted sm:inline">
                 {ctx.user.name}
               </span>
               <SignOutButton />
-            </nav>
+            </>
           )}
           <ThemeToggle />
         </div>

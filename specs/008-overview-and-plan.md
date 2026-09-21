@@ -51,12 +51,12 @@ Sources consulted (the brief's UX-trends research task, partly covered here: nav
 Transactions and actual spend, the Trends page (multi-month charts) and any history charts, per-member views beyond income by member (bill "added by" means who entered it, not whose bill it is, so a per-member bills view would mislead until a "for whom" field exists), a bottom tab bar or other mobile navigation change (revisit when there are four or five top-level destinations), a chart library, goals, forecasts, notifications, exports, and renaming URLs or API routes.
 
 ## Acceptance criteria
-- [ ] The header shows Overview, Plan and Members; Plan opens Budget and is highlighted on Budget, Bills and Income; Budget | Bills | Income sub-tabs mark the current page.
+- [x] The header shows Overview, Plan and Members; Plan opens Budget and is highlighted on Budget, Bills and Income; Budget | Bills | Income sub-tabs mark the current page.
 - [ ] `/` is the Overview and renders for a new household (empty states) and a fully set-up one.
-- [ ] `/budget`, `/bills` and `/income` keep working at the same URLs with the same `?month=` behavior.
-- [ ] The summary bar appears on all three Plan pages with Income, Budgeted (and bills within it) and Unallocated / Over-allocated.
-- [ ] On Budget the summary bar updates live as an amount is edited; on Bills and Income it matches the saved data.
-- [ ] Assign appears in the bar only when the month is editable and Unallocated is greater than 0, and takes the user to the Assign panel (scrolling and focusing it on Budget).
+- [x] `/budget`, `/bills` and `/income` keep working at the same URLs with the same `?month=` behavior.
+- [x] The summary bar appears on all three Plan pages with Income, Budgeted (and bills within it) and Unallocated / Over-allocated.
+- [x] On Budget the summary bar updates live as an amount is edited; on Bills and Income it matches the saved data.
+- [x] Assign appears in the bar only when the month is editable and Unallocated is greater than 0, and takes the user to the Assign panel (scrolling and focusing it on Budget).
 - [ ] The Overview cash-flow bar's segments add up to the month's income (or show over-allocation), and its Unallocated equals the summary bar's.
 - [ ] The Overview category table matches `GET /api/budgets/[month]` for budgeted, bills and left.
 - [ ] Attention items appear only when relevant and each links to where it is fixed (covered by tests for each item).
@@ -97,3 +97,17 @@ Transactions and actual spend, the Trends page (multi-month charts) and any hist
 
 ## Verification
 Fresh `docker compose up --build`: sign in and confirm the header shows Overview, Plan, Members, and that Plan lights up on Budget, Bills and Income. On each Plan page confirm the summary bar matches; edit a Budget amount and watch Unallocated change live; use Assign from the bar on Bills and confirm it lands on the Budget Assign panel. Open the Overview and confirm the cash-flow bar adds up, the category table matches Budget, and the attention list names a category whose bills exceed its budget. Check a past month (read-only, no Assign) and an empty household. Check everything in light and dark, and on a phone-width window.
+
+## Implementation notes
+
+### PR 1 of 2: Plan grouping, shared header and summary bar
+- New components: `HeaderNav` (client, `usePathname`; Overview, Plan, Members with `aria-current`), `PlanTabs` (client; Budget | Bills | Income, keeps `?month=` only when it is not the current month), `PlanHeader` (server; title with a "Plan" label, tabs, `MonthNav`, and the summary when given one), and `PlanSummary` (client; Income, Budgeted with "of which bills", and Unallocated or Over-allocated by). The Assign button is a `scroll` button on the Budget page and a link to `/budget?month=…#assign` elsewhere.
+- `getPlanSummary` (`src/lib/plan.ts`) feeds the Bills and Income pages from one `getBudget` call, so its numbers equal the Budget API's (a test compares them). On the Budget page `BudgetEditor` renders the summary itself from its live state, so it changes as amounts are edited.
+- The Budget table's old footer rows (Total budgeted, Monthly bills, Household income, Left after bills, Unallocated) are gone. The table ends with a **Total** row aligned to its columns (bills, left, budgeted), followed by the Assign panel. "Left after bills" is not shown anywhere until the Overview page (PR 2) gives it a home.
+- The Assign panel has `id="assign"` and, when the page loads with `#assign`, scrolls to and focuses it (`focusAssignPanel` in `src/lib/client.ts`, which respects reduced motion).
+- Over-allocated uses `--danger` on the plain summary card, not on a surface, following the theme rule.
+- Until PR 2 the Overview destination (`/`) is still the old page (household name and a greeting).
+- Tests: `tests/plan.test.ts` (summary numbers against real data, over-allocation, past months) and `tests/plan-ui.test.tsx` (server-rendered markup with `usePathname` mocked: active tabs and header items, month handling in links, Assign link versus button, hidden Assign cases, and the over-allocated state).
+
+## Not verified (PR 1)
+Not clicked through in a browser: the live update of the summary while typing an amount, the Assign scroll and focus behavior (from the button and from another page via `#assign`), and how the header looks at phone width with three items plus the name, sign out and theme switch.

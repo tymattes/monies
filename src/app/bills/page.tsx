@@ -1,10 +1,11 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import BillsView from "@/components/BillsView";
-import MonthNav from "@/components/MonthNav";
+import PlanHeader from "@/components/PlanHeader";
 import { getBillsMonth } from "@/lib/bills";
 import { listCategories } from "@/lib/categories";
 import { getHouseholdContext } from "@/lib/household";
+import { getPlanSummary } from "@/lib/plan";
 import { currentMonth, isMonth, monthLabel } from "@/lib/months";
 
 export const dynamic = "force-dynamic";
@@ -18,17 +19,15 @@ export default async function BillsPage(props: PageProps<"/bills">) {
   const month =
     typeof requested === "string" && isMonth(requested) ? requested : now;
 
-  const [data, all] = await Promise.all([
+  const [data, all, summary] = await Promise.all([
     getBillsMonth(ctx, month),
     listCategories(ctx.household.id),
+    getPlanSummary(ctx, month),
   ]);
 
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 space-y-6 px-4 py-10">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold tracking-tight">Bills</h1>
-        <MonthNav basePath="/bills" month={month} now={now} />
-      </div>
+      <PlanHeader title="Bills" month={month} now={now} summary={summary} />
       {/* Remounted whenever the server data changes so local edit state never goes stale. */}
       <BillsView
         key={JSON.stringify([month, data.bills])}

@@ -1,9 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { api } from "@/lib/client";
+import { useEffect, useRef, useState } from "react";
+import { api, focusAssignPanel } from "@/lib/client";
 import { formatMoney, parseMoney, toInputString } from "@/lib/money";
+import PlanSummary from "./PlanSummary";
 import { buttonCls, inputCls, secondaryButtonCls } from "./ui";
 
 type Line = {
@@ -53,6 +54,14 @@ function AssignUnallocated({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
+  // Arriving from the Plan summary on another page (…/budget#assign).
+  const arrivedViaHash = useRef(false);
+  useEffect(() => {
+    if (arrivedViaHash.current) return;
+    arrivedViaHash.current = true;
+    if (window.location.hash === "#assign") focusAssignPanel();
+  }, []);
+
   const parsed = rows.map((r) => ({ ...r, minor: parseMoney(r.amount, currency) }));
   const total = parsed.reduce((sum, r) => sum + (r.minor ?? 0), 0);
   const left = unallocated - total;
@@ -101,7 +110,7 @@ function AssignUnallocated({
   }
 
   return (
-    <li className="space-y-3 px-4 py-3 text-sm">
+    <li id="assign" className="space-y-3 px-4 py-3 text-sm">
       <p className="text-muted">
         Assign the unallocated {formatMoney(unallocated, currency)} to one or
         more categories:
@@ -243,16 +252,35 @@ export default function BudgetEditor({
     note(id, "Saved");
   }
 
+  const summary = (
+    <PlanSummary
+      month={month}
+      currency={currency}
+      editable={editable}
+      incomeCents={incomeCents}
+      budgetedCents={total}
+      billsCents={billsTotalCents}
+      assign="scroll"
+    />
+  );
+
   if (lines.length === 0) {
     return (
-      <p className="rounded-lg border border-border p-6 text-sm text-muted">
-        No categories in {monthName}. Add some below, or go to a later month.
-      </p>
+      <div className="space-y-3">
+        {summary}
+        <p className="rounded-lg border border-border p-6 text-sm text-muted">
+          No categories in {monthName}. Add some below, or go to a later month.
+        </p>
+      </div>
     );
   }
 
+  const billsColumn = lines.reduce((sum, l) => sum + l.billsCents, 0);
+  const leftColumn = total - billsColumn;
+
   return (
     <div className="space-y-3">
+      {summary}
       <p className="text-sm text-muted">
         {editable
           ? `Changes apply from ${monthName} onward. Earlier months are not affected.`
@@ -339,38 +367,16 @@ export default function BudgetEditor({
           );
         })}
         <li className="flex items-center justify-between gap-4 bg-surface px-4 py-3 font-semibold">
-          <span>Total budgeted</span>
-          <span className="tabular-nums">{formatMoney(total, currency)}</span>
-        </li>
-        <li className="flex items-center justify-between gap-4 px-4 py-3 text-sm">
-          <span className="text-muted">Monthly bills</span>
-          <span className="tabular-nums">{formatMoney(billsTotalCents, currency)}</span>
-        </li>
-        <li className="flex items-center justify-between gap-4 px-4 py-3 text-sm">
-          <span className="text-muted">Household income (take-home)</span>
-          <span className="tabular-nums">{formatMoney(incomeCents, currency)}</span>
-        </li>
-        <li className="flex items-center justify-between gap-4 px-4 py-3 text-sm">
-          <span className={incomeCents - billsTotalCents < 0 ? "text-danger" : "text-muted"}>
-            {incomeCents - billsTotalCents < 0
-              ? "Bills exceed income by"
-              : "Left after bills"}
-          </span>
-          <span
-            className={`tabular-nums ${incomeCents - billsTotalCents < 0 ? "text-danger" : ""}`}
-          >
-            {formatMoney(Math.abs(incomeCents - billsTotalCents), currency)}
-          </span>
-        </li>
-        <li className="flex items-center justify-between gap-4 px-4 py-3 text-sm font-medium">
-          <span className={unallocated < 0 ? "text-danger" : undefined}>
-            {unallocated < 0 ? "Over-allocated by" : "Unallocated"}
-          </span>
-          <span
-            className={`tabular-nums ${unallocated < 0 ? "text-danger" : ""}`}
-          >
-            {formatMoney(Math.abs(unallocated), currency)}
-          </span>
+          <span>Total</span>
+          <div className="flex items-center gap-4 tabular-nums">
+            <span className="hidden w-24 text-right sm:block">
+              {formatMoney(billsColumn, currency)}
+            </span>
+            <span className="hidden w-24 text-right sm:block">
+              {formatMoney(leftColumn, currency)}
+            </span>
+            <span className="w-32 text-right">{formatMoney(total, currency)}</span>
+          </div>
         </li>
         {editable && unallocated > 0 && (
           <AssignUnallocated
