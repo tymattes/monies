@@ -21,6 +21,9 @@ export default async function Header() {
               <Link href="/budget" className="text-muted hover:text-foreground">
                 Budget
               </Link>
+              <Link href="/income" className="text-muted hover:text-foreground">
+                Income
+              </Link>
               <Link href="/members" className="text-muted hover:text-foreground">
                 Members
               </Link>

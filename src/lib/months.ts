@@ -36,3 +36,23 @@ export function monthLabel(month: string): string {
     timeZone: "UTC",
   }).format(new Date(Date.UTC(y, m - 1, 1)));
 }
+
+// Validates a calendar date string "YYYY-MM-DD" (rejects e.g. 2026-02-30).
+export function parseDate(value: unknown): string {
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const d = new Date(`${value}T00:00:00Z`);
+    if (
+      !Number.isNaN(d.getTime()) &&
+      d.toISOString().slice(0, 10) === value &&
+      isMonth(value.slice(0, 7))
+    ) {
+      return value;
+    }
+  }
+  throw new HttpError(400, "Date must be a valid date in YYYY-MM-DD format");
+}
+
+// Today's date as "YYYY-MM-DD" in the server's timezone.
+export function currentDate(now: Date = new Date()): string {
+  return `${currentMonth(now)}-${String(now.getDate()).padStart(2, "0")}`;
+}
