@@ -47,7 +47,7 @@ function CategorySelect({
       required
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className={`${inputCls} w-auto min-w-40`}
+      className={`${inputCls} w-auto! min-w-40`}
     >
       <option value="">Choose a category</option>
       {categories.map((c) => (
@@ -73,7 +73,7 @@ function IntervalSelect({
       id={id}
       value={value}
       onChange={(e) => onChange(Number(e.target.value))}
-      className={`${inputCls} w-auto`}
+      className={`${inputCls} w-auto!`}
     >
       {INTERVALS.map((i) => (
         <option key={i.value} value={i.value}>
@@ -174,7 +174,7 @@ function AddBillForm({
             placeholder="0.00"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            className={`${inputCls} w-28 text-right tabular-nums`}
+            className={`${inputCls} w-28! text-right tabular-nums`}
           />
         </div>
         <div className="space-y-1">
@@ -349,7 +349,7 @@ function BillRow({
                 inputMode="decimal"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className={`${inputCls} w-28 text-right tabular-nums`}
+                className={`${inputCls} w-28! text-right tabular-nums`}
               />
             </div>
             <div className="space-y-1">

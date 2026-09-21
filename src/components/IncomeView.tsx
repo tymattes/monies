@@ -86,7 +86,7 @@ function FixedAmount({
         onKeyDown={(e) => {
           if (e.key === "Enter") e.currentTarget.blur();
         }}
-        className={`${inputCls} w-32 text-right tabular-nums`}
+        className={`${inputCls} w-32! text-right tabular-nums`}
       />
     </div>
   );
@@ -182,7 +182,7 @@ function Deposits({
               required
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className={`${inputCls} w-auto`}
+              className={`${inputCls} w-auto!`}
             />
           </div>
           <div className="space-y-1">
@@ -196,7 +196,7 @@ function Deposits({
               placeholder="0.00"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className={`${inputCls} w-28 text-right tabular-nums`}
+              className={`${inputCls} w-28! text-right tabular-nums`}
             />
           </div>
           <div className="min-w-32 flex-1 space-y-1">
@@ -334,7 +334,7 @@ function AddSourceForm({ member }: { member: IncomeMemberView }) {
         required
         maxLength={60}
         placeholder="New source, e.g. Salary"
-        className={`${inputCls} w-auto min-w-48 flex-1`}
+        className={`${inputCls} w-auto! min-w-48 flex-1`}
       />
       <label htmlFor={`kind-${member.memberId}`} className="sr-only">
         Kind of income
@@ -343,7 +343,7 @@ function AddSourceForm({ member }: { member: IncomeMemberView }) {
         id={`kind-${member.memberId}`}
         value={kind}
         onChange={(e) => setKind(e.target.value as "fixed" | "variable")}
-        className={`${inputCls} w-auto`}
+        className={`${inputCls} w-auto!`}
       >
         <option value="fixed">Fixed monthly</option>
         <option value="variable">Variable</option>

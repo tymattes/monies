@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 const PLAN_PATHS = ["/budget", "/bills", "/income"];
 
 // Top-level destinations: Overview, Plan (Budget | Bills | Income) and Members.
-export default function HeaderNav() {
+export default function HeaderNav({ className = "" }: { className?: string }) {
   const pathname = usePathname();
   const items = [
     { href: "/", label: "Overview", active: pathname === "/" },
@@ -14,7 +14,7 @@ export default function HeaderNav() {
     { href: "/members", label: "Members", active: pathname === "/members" },
   ];
   return (
-    <nav aria-label="Main" className="flex items-center gap-4">
+    <nav aria-label="Main" className={`flex items-center ${className}`}>
       {items.map((i) => (
         <Link
           key={i.href}

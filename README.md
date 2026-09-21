@@ -41,7 +41,7 @@ Planned: receipt capture, dashboards, a native iOS app. See [`specs/brief.md`](s
 | Data access | [Drizzle ORM](https://orm.drizzle.team/) with the `postgres` driver; SQL migrations via `drizzle-kit` |
 | Runtime | Node.js 24 |
 | Auth | [Better Auth](https://www.better-auth.com/) (email and password, cookie sessions); sign-up is invite-only |
-| Tests | [Vitest](https://vitest.dev/) |
+| Tests | [Vitest](https://vitest.dev/) for the API and logic; [Playwright](https://playwright.dev/) with axe for browser and accessibility tests |
 | Packaging | Docker (multi-stage build, Next.js `standalone` output) and Docker Compose |
 
 ## Quick start (Docker Compose)
@@ -78,6 +78,13 @@ npm run dev                   # http://localhost:3000 (applies pending migration
 | `npm test` | Vitest integration tests (needs `docker compose up -d db`; uses a separate `monies_test` database) |
 | `npm run db:generate` | Generate a migration after editing `src/db/schema.ts` |
 | `npm run db:migrate` | Apply migrations manually |
+
+### Tests
+
+- `npm test` runs the fast Vitest suite (API, business logic, server-rendered markup). It needs Postgres (`docker compose up -d db`) and uses a separate `monies_test` database.
+- `npm run test:e2e` runs the browser tests in real Chromium with Playwright: themes (follows the OS, live change, no flash, keyboard), the Plan pages and Assign panel, Bills, phone layout, and accessibility scans (axe) of every page in both themes at desktop and phone size. It uses a throwaway `monies_e2e` database and its own port (3100), never your real data, and refuses to run against any database whose name does not end in `_e2e`. One-time setup: `npx playwright install chromium`.
+- `E2E_PROD=1 npm run test:e2e` runs them against the production build (the standalone server, as in Docker) instead of the dev server. `E2E_WEBKIT=1` adds a rough Safari stand-in (`npx playwright install webkit` first).
+- `npm run e2e:screenshots` writes a screenshot of every page in light and dark, at desktop and phone size, to `e2e-screenshots/` (git-ignored, with an `INDEX.md`) for visual review.
 
 Migrations live in `drizzle/` and are committed. The app applies pending migrations at startup (`src/instrumentation.ts`), both in dev and in the container.
 

@@ -8,7 +8,7 @@ export default function SignOutButton() {
   return (
     <button
       type="button"
-      className="text-sm text-muted hover:text-foreground"
+      className="whitespace-nowrap text-sm text-muted hover:text-foreground"
       onClick={async () => {
         await api("/api/auth/sign-out", "POST");
         router.push("/sign-in");
