@@ -19,4 +19,4 @@ Monies is built spec-first. `brief.md` is the source of truth for product intent
 | 002 | [Database foundation and README](002-database-and-readme.md) | implemented |
 | 003 | [Households and members](003-households.md) | implemented |
 | 004 | [Categories and monthly budgets](004-categories-and-budgets.md) | implemented |
-| 005 | [Light and dark theme](005-theming.md) | draft |
+| 005 | [Light and dark theme](005-theming.md) | approved |

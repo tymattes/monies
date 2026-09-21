@@ -12,7 +12,7 @@ export default async function JoinPage(props: PageProps<"/join/[token]">) {
   if (status !== "valid") {
     return (
       <AuthCard title="Invite unavailable" description={INVITE_MESSAGES[status]}>
-        <p className="text-sm text-foreground/70">
+        <p className="text-sm text-muted">
           Ask a household owner for a new link, or{" "}
           <Link href="/sign-in" className="underline">
             sign in

@@ -42,7 +42,7 @@ export default function HouseholdNameForm({ name }: { name: string }) {
         Rename
       </button>
       {error && (
-        <p role="alert" className="text-xs text-red-600">
+        <p role="alert" className="text-xs text-danger">
           {error}
         </p>
       )}

@@ -21,6 +21,7 @@ Implemented so far (each maps to a spec in [`specs/`](specs/)):
 - **Members and invites** (spec 003): owners create single-use invite links (7-day expiry, revocable), remove members and rename the household. Members can leave.
 
 - **Categories and monthly budgets** (spec 004): a Budget page with previous/next month navigation. New households start with Housing, Groceries, Dining out, Transport, Utilities, Health, Entertainment, Savings and Other, and any member can add, rename, reorder or archive categories. Set an amount per category and it applies **from that month onward**; later months inherit it until you change them, and past months are read-only so history stays accurate. Archiving hides a category from this month on but past months keep it. Amounts use one currency per household, chosen at setup.
+- **Light and dark theme** (spec 005): follows your system setting by default, with a System / Light / Dark switch in the header. The choice is remembered per device, not per account.
 
 Planned: income, receipt capture, dashboards, a native iOS app. See [`specs/brief.md`](specs/brief.md).
 

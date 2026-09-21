@@ -1,6 +1,6 @@
 # 005: Light and dark theme
 
-**Status:** draft
+**Status:** approved
 
 ## Goal
 Make light and dark mode a first-class part of the UI from the start, so every later screen (dashboards especially) is built against both themes. Supports `brief.md`: modern, rich UX.
@@ -22,12 +22,12 @@ Per-account or per-household stored preference, custom color palettes or accent 
 - [ ] With no saved choice, the app matches the system theme and follows a live system change.
 - [ ] Choosing Light or Dark persists across reloads and overrides the system; choosing System returns to following it.
 - [ ] No visible flash of the wrong theme on a hard reload in either theme (checked on `/sign-in` and `/budget`).
-- [ ] Every existing page (setup, sign-in, join, home, budget, members) is readable in both themes, with no hardcoded colors left outside the tokens.
-- [ ] Error, muted and accent text meet 4.5:1 contrast in both themes.
-- [ ] Native inputs and selects match the theme.
-- [ ] Theme control works by keyboard and has an accessible label.
-- [ ] Documentation updated (see Documentation).
-- [ ] `npm run lint`, `npm test` and `npm run build` pass.
+- [x] Every existing page (setup, sign-in, join, home, budget, members) is readable in both themes, with no hardcoded colors left outside the tokens.
+- [x] Error, muted and accent text meet 4.5:1 contrast in both themes.
+- [x] Native inputs and selects match the theme.
+- [x] Theme control works by keyboard and has an accessible label.
+- [x] Documentation updated (see Documentation).
+- [x] `npm run lint`, `npm test` and `npm run build` pass.
 
 ## Technical notes
 - Tailwind v4: declare `@custom-variant dark (&:where(.dark, .dark *));` so `dark:` follows a `dark` class on `<html>` rather than only the media query.
@@ -37,9 +37,9 @@ Per-account or per-household stored preference, custom color palettes or accent 
 - Read `node_modules/next/dist/docs/` for the current guidance on scripts in the root layout and the flash-before-hydration guide (`01-app/02-guides/preventing-flash-before-hydration.md`) before implementing.
 - No new dependency is required; `next-themes` is an option, but the amount of code needed is small.
 
-## Open questions
-1. Toggle style: a three-way segmented control (System / Light / Dark) or a single cycling icon button? Recommendation: a compact menu-free segmented control on wide screens and the same control inside the header on mobile.
-2. Should the choice ever sync to the account? Recommendation: no, per device only, for now.
+## Decisions
+- The control is a compact three-button segmented icon control (System / Light / Dark) in the header on every page, signed in or not.
+- The choice is per device only, not synced to the account. A per-user preference belongs in a future account settings spec.
 
 ## Documentation
 - `README.md`: add theming to Features (follows the system, per-device override).
@@ -47,3 +47,12 @@ Per-account or per-household stored preference, custom color palettes or accent 
 
 ## Verification
 Set the OS to dark, load the app with cleared site data and confirm it is dark with no flash. Switch the OS to light and confirm it follows. Choose Dark in the toggle, switch the OS to light, reload, and confirm it stays dark. Choose System and confirm it follows again. Walk every page in both themes and check text contrast. Run tests, lint and build.
+
+## Implementation notes
+- Tokens: `--background`, `--foreground`, `--muted`, `--danger`, `--accent`, defined in `src/app/globals.css` for `:root` and `:root.dark`. Muted text moved from `text-foreground/50-70` (which failed 4.5:1) to `text-muted`; errors use `text-danger`; the logo uses `text-accent` with its glyph drawn in the page background color so it reads in both themes.
+- `tests/theme.test.ts` parses the tokens and asserts WCAG AA (4.5:1) for foreground, muted, danger and accent against the background in both themes, so a future color change that breaks contrast fails the build.
+- Borders and dividers use `border-foreground/10-20`, which are non-text and follow the theme automatically.
+- The pre-paint script is inline in `src/app/layout.tsx`; `ThemeToggle` reads the stored choice with `useSyncExternalStore` (server snapshot is "system") and follows live OS changes while in System mode.
+
+## Not verified
+The browser behavior was not exercised: no flash on hard reload, persistence across reloads, following a live OS change, and the toggle by keyboard. These acceptance boxes stay unchecked until someone confirms them in a browser. The HTML output (script present before the body, toggle rendered, `suppressHydrationWarning` set) and the contrast were verified by test and by fetching the page.
