@@ -11,7 +11,7 @@ export default function AuthCard({
     <main className="mx-auto w-full max-w-sm flex-1 px-4 py-12">
       <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
       {description && (
-        <p className="mt-2 text-sm text-foreground/70">{description}</p>
+        <p className="mt-2 text-sm text-muted">{description}</p>
       )}
       <div className="mt-6">{children}</div>
     </main>

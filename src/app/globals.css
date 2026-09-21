@@ -1,22 +1,38 @@
 @import "tailwindcss";
 
+/* `dark:` follows the `dark` class on <html>, set before first paint by the
+   inline script in layout.tsx and kept in sync by ThemeToggle. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Theme tokens. Use these (text-muted, text-danger, ...) instead of hardcoded
+   colors; each pair below is checked for WCAG AA contrast in
+   tests/theme.test.ts. */
 :root {
+  color-scheme: light;
   --background: #ffffff;
   --foreground: #171717;
+  --muted: #595959;
+  --danger: #b91c1c;
+  --accent: #047857;
+}
+
+:root.dark {
+  color-scheme: dark;
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  --muted: #a3a3a3;
+  --danger: #f87171;
+  --accent: #34d399;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-danger: var(--danger);
+  --color-accent: var(--accent);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {

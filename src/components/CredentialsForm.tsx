@@ -79,12 +79,12 @@ export default function CredentialsForm({
             className={inputCls}
           >
             {CURRENCIES.map((code) => (
-              <option key={code} value={code} className="text-black">
+              <option key={code} value={code}>
                 {code} · {currencyName.of(code)}
               </option>
             ))}
           </select>
-          <p className="text-xs text-foreground/60">
+          <p className="text-xs text-muted">
             Used for every amount in this household. Can&apos;t be changed later
             in this version.
           </p>
@@ -133,11 +133,11 @@ export default function CredentialsForm({
           className={inputCls}
         />
         {needsName && (
-          <p className="text-xs text-foreground/60">At least 8 characters.</p>
+          <p className="text-xs text-muted">At least 8 characters.</p>
         )}
       </div>
       {error && (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-danger">
           {error}
         </p>
       )}
