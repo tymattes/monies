@@ -1,6 +1,6 @@
 # 006: Income per member
 
-**Status:** draft
+**Status:** approved
 
 ## Goal
 Let each household member have income, both fixed monthly (salary) and variable (freelance, bonuses, irregular deposits), so the household can see what is coming in each month. Supports `brief.md`: income is set per household member and supports fixed and variable income. It also sets up the "income vs. spend" dashboard and lets the Budget page show how much of the month's income is still unallocated.
@@ -68,13 +68,13 @@ Bank sync or matching deposits to real accounts, gross vs. net and tax calculati
 - Tests that depend on "today" mock `currentMonth` as in `tests/budgets.test.ts`; put the new tests in their own file and reuse `tests/helpers.ts`.
 - Read `node_modules/next/dist/docs/` before adding new route handlers or pages, and use only theme tokens for colors.
 
-## Open questions
-1. **Visibility:** proposal is that every member can see every member's income, which fits a household budget and the household-level dashboards. The alternative is private per-member income with only totals shared. Recommendation: visible to all.
-2. **Net or gross:** proposal is to record take-home (net) income, since that is what funds the budget, and to say so in the UI. Recommendation: net.
-3. **Pay frequency:** proposal is monthly amounts only; someone paid every two weeks enters their average monthly take-home. Weekly or biweekly conversion (26 pays a year makes some months have three) is more work and can be its own spec. Recommendation: monthly only for now.
-4. **Variable income planning:** proposal is actuals only, with no expected monthly amount. The tradeoff is that a month with no deposits yet shows 0 for that source. Recommendation: actuals only until dashboards show a need for forecasts.
-5. **Unallocated on the Budget page:** include income and unallocated on the Budget page in this spec (proposed), or leave it for the dashboards spec? Recommendation: include, it is small and immediately useful.
-6. **Former members:** keep their income history as "Former member" (proposed), or delete it along with them? Recommendation: keep, so past months stay accurate.
+## Decisions
+- Every member can see every member's income (household first).
+- Income is recorded as net take-home and the UI says so.
+- Monthly amounts only; someone paid more often enters their average monthly take-home. Other pay frequencies can be their own spec.
+- Variable income is actual deposits only, with no expected amount.
+- The Budget page shows household income and unallocated, in this spec.
+- A removed member's income history is kept and shown as "Former member".
 
 ## Documentation
 - `README.md`: add Income to Features (fixed vs. variable, who can edit what, carry-forward and read-only past months, unallocated on the Budget page), move it out of "Planned".
