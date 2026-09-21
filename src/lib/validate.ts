@@ -32,3 +32,17 @@ export function parseNote(value: unknown): string | null {
   }
   return value.trim();
 }
+
+// Optional short text label. undefined = not provided; null or "" = clear it.
+export function parseLabel(
+  value: unknown,
+  what: string,
+  max: number,
+): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null || value === "") return null;
+  if (typeof value !== "string" || value.trim().length > max) {
+    throw new HttpError(400, `${what} must be text of at most ${max} characters`);
+  }
+  return value.trim();
+}

@@ -2,13 +2,21 @@ import { and, eq, lte, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { budgetAllocations, categories } from "@/db/schema";
 import type { HouseholdContext } from "./household";
+import { billsRollup } from "./bills";
 import { HttpError } from "./http";
 import { getIncomeMonth } from "./income";
 import { currentMonth, monthStart } from "./months";
 
 export const MAX_AMOUNT = 2_000_000_000;
 
-export type BudgetLine = { id: string; name: string; amountCents: number };
+export type BudgetLine = {
+  id: string;
+  name: string;
+  amountCents: number;
+  // Monthly cost of the bills in this category, and what is left of the budget after them.
+  billsCents: number;
+  remainingCents: number;
+};
 
 export type Budget = {
   month: string;
@@ -20,6 +28,9 @@ export type Budget = {
   // Negative unallocated means the budget exceeds income.
   incomeCents: number;
   unallocatedCents: number;
+  // Total monthly bills and what is left of income after them.
+  billsTotalCents: number;
+  leftAfterBillsCents: number;
 };
 
 // A category shows in month M when start_month <= M < archived_from (if any).
@@ -52,14 +63,20 @@ export async function getBudget(
 
   const totalCents = rows.reduce((sum, r) => sum + r.amountCents, 0);
   const { totalCents: incomeCents } = await getIncomeMonth(ctx, month);
+  const bills = await billsRollup(ctx.household.id, month);
   return {
     month,
     currency: ctx.household.currency,
     editable: month >= currentMonth(),
-    categories: rows,
+    categories: rows.map((r) => {
+      const billsCents = bills.byCategory.get(r.id) ?? 0;
+      return { ...r, billsCents, remainingCents: r.amountCents - billsCents };
+    }),
     totalCents,
     incomeCents,
     unallocatedCents: incomeCents - totalCents,
+    billsTotalCents: bills.totalCents,
+    leftAfterBillsCents: incomeCents - bills.totalCents,
   };
 }
 
