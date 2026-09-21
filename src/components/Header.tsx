@@ -17,6 +17,12 @@ export default async function Header() {
         {ctx && (
           <nav className="flex items-center gap-4 text-sm">
             <Link
+              href="/budget"
+              className="text-foreground/70 hover:text-foreground"
+            >
+              Budget
+            </Link>
+            <Link
               href="/members"
               className="text-foreground/70 hover:text-foreground"
             >

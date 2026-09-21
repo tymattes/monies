@@ -2,10 +2,13 @@ import { sql } from "drizzle-orm";
 import {
   boolean,
   check,
+  date,
   index,
+  integer,
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -102,6 +105,8 @@ export const households = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     name: text("name").notNull(),
+    // ISO 4217 code; one currency per household.
+    currency: text("currency").notNull().default("USD"),
     singleton: boolean("singleton").notNull().default(true).unique(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -146,3 +151,60 @@ export const invites = pgTable("invites", {
   usedBy: text("used_by").references(() => user.id, { onDelete: "set null" }),
   revokedAt: timestamp("revoked_at", { withTimezone: true }),
 });
+
+// --- Categories and budgets (spec 004) ---
+
+// Months are stored as `date` values on the first of the month (YYYY-MM-01).
+export const categories = pgTable(
+  "categories",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    householdId: uuid("household_id")
+      .notNull()
+      .references(() => households.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    position: integer("position").notNull(),
+    // First month the category appears in.
+    startMonth: date("start_month", { mode: "string" }).notNull(),
+    // First month the category no longer appears in (null = still active).
+    // Categories are never hard-deleted so history keeps resolving them.
+    archivedFrom: date("archived_from", { mode: "string" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("categories_active_name_idx")
+      .on(t.householdId, sql`lower(${t.name})`)
+      .where(sql`${t.archivedFrom} is null`),
+    index("categories_household_id_idx").on(t.householdId),
+  ],
+);
+
+// Time-versioned: the amount for a month is the row with the latest
+// effective_month on or before it. Rows are never rewritten for past months.
+export const budgetAllocations = pgTable(
+  "budget_allocations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    categoryId: uuid("category_id")
+      .notNull()
+      .references(() => categories.id, { onDelete: "cascade" }),
+    effectiveMonth: date("effective_month", { mode: "string" }).notNull(),
+    // Minor units of the household currency (cents for USD).
+    amountCents: integer("amount_cents").notNull(),
+    createdBy: text("created_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("budget_allocations_category_month_idx").on(
+      t.categoryId,
+      t.effectiveMonth,
+    ),
+    check("budget_allocations_amount_check", sql`${t.amountCents} >= 0`),
+  ],
+);

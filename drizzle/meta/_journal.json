@@ -15,6 +15,13 @@
       "when": 1790013225583,
       "tag": "0001_households_and_auth",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790014843955,
+      "tag": "0002_categories_and_budgets",
+      "breakpoints": true
     }
   ]
 }

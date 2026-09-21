@@ -8,7 +8,7 @@ export type Role = "owner" | "member";
 
 export type HouseholdContext = {
   user: { id: string; name: string; email: string };
-  household: { id: string; name: string };
+  household: { id: string; name: string; currency: string };
   role: Role;
 };
 
@@ -22,6 +22,7 @@ export async function getHouseholdContext(
     .select({
       householdId: households.id,
       householdName: households.name,
+      householdCurrency: households.currency,
       role: householdMembers.role,
     })
     .from(householdMembers)
@@ -35,7 +36,11 @@ export async function getHouseholdContext(
       name: session.user.name,
       email: session.user.email,
     },
-    household: { id: row.householdId, name: row.householdName },
+    household: {
+      id: row.householdId,
+      name: row.householdName,
+      currency: row.householdCurrency,
+    },
     role: row.role,
   };
 }
