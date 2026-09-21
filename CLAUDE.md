@@ -17,17 +17,19 @@ Stack: Next.js (App Router) + TypeScript + Tailwind, `src/` layout, npm.
 - `npm run dev`: dev server on :3000
 - `npm run build` / `npm run start`: production build (`output: "standalone"`) and serve
 - `npm run lint`: ESLint
-- `docker compose up --build`: run the full stack (app + Postgres). Needs `.env` copied from `.env.example` with `POSTGRES_PASSWORD` set; healthcheck hits `/api/health`
+- `npm test`: Vitest integration tests against a separate `monies_test` DB on the Compose Postgres (`docker compose up -d db` first; `tests/global-setup.ts` creates and migrates it)
+- `docker compose up --build`: run the full stack (app + Postgres). Needs `.env` copied from `.env.example` with `POSTGRES_PASSWORD` and `BETTER_AUTH_SECRET` set; healthcheck hits `/api/health`
 - `docker compose up -d db`: Postgres only, for native `npm run dev` (uses `DATABASE_URL` from `.env`)
 - `npm run db:generate` / `npm run db:migrate`: generate migrations from `src/db/schema.ts` / apply them manually
 
-No test runner is configured yet.
-
 ## Architecture
 
-Specs 001-002 are done: header/logo shell, `GET /api/health` (reports DB connectivity, 503 when down), and the database foundation. Business logic should go behind API route handlers (`src/app/api/`) so a future iOS app can reuse them.
+Specs 001-003 are done: header/logo shell, `GET /api/health` (reports DB connectivity, 503 when down), the database foundation, and households/auth. Business logic should go behind API route handlers (`src/app/api/`) so a future iOS app can reuse them.
 
-- Data access: Drizzle ORM over `postgres`. `src/db/schema.ts` holds tables (empty until later specs), `src/db/index.ts` exposes lazy `getDb()`/`getSql()` so builds work without a DB. Migrations are SQL files in `drizzle/`, committed.
+- Data access: Drizzle ORM over `postgres`. `src/db/schema.ts` holds tables (Better Auth's `user`/`session`/`account`/`verification`, plus `households`, `household_members`, `invites`), `src/db/index.ts` exposes lazy `getDb()`/`getSql()` so builds work without a DB. Migrations are SQL files in `drizzle/`, committed.
+- Auth: Better Auth (`src/lib/auth.ts`, lazy `getAuth()`), mounted at `/api/auth/[...all]`. Public sign-up is disabled; accounts are only created by `src/lib/accounts.ts` (`insertUserWithPassword`) from first-run setup and invite accept. One household per instance, enforced by a unique constraint on `households.singleton`.
+- Every household-scoped route handler calls `requireHousehold(request.headers, { role? })` from `src/lib/household.ts` first; wrap handlers in `route()` from `src/lib/http.ts` for JSON errors. `src/proxy.ts` only does an optimistic cookie check and redirect; it is not authorization.
+- Removing a member deletes their user row (cascades to sessions and membership). Later tables that reference users should use `ON DELETE SET NULL` or soft-delete to keep history.
 - Migrations run automatically at server start via `src/instrumentation.ts` (dev and container). The Dockerfile copies `drizzle/` into the standalone image.
 - Keep `README.md` (notably its tech stack table and config table) current when the stack or env vars change.
 
