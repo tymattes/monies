@@ -123,7 +123,7 @@ function AssignUnallocated({
               aria-label={`Category ${i + 1}`}
               value={r.categoryId}
               onChange={(e) => update(r.key, { categoryId: e.target.value })}
-              className={`${inputCls} w-auto min-w-40`}
+              className={`${inputCls} w-auto! min-w-40`}
             >
               <option value="">Choose a category</option>
               {lines
@@ -139,7 +139,7 @@ function AssignUnallocated({
               inputMode="decimal"
               value={r.amount}
               onChange={(e) => update(r.key, { amount: e.target.value })}
-              className={`${inputCls} w-32 text-right tabular-nums`}
+              className={`${inputCls} w-32! text-right tabular-nums`}
             />
             {rows.length > 1 && (
               <button
@@ -334,7 +334,7 @@ export default function BudgetEditor({
                       onKeyDown={(e) => {
                         if (e.key === "Enter") e.currentTarget.blur();
                       }}
-                      className={`${inputCls} w-32 text-right tabular-nums`}
+                      className={`${inputCls} w-32! text-right tabular-nums`}
                     />
                   ) : (
                     <span className="w-32 text-right tabular-nums">
