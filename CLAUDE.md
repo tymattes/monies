@@ -39,7 +39,7 @@ Specs and any later implementation must respect these:
 
 - **Household is the root scope.** Every budget, account, and transaction belongs to a household, not an individual. Households have multiple members, and setup includes creating a household and inviting members.
 - **Budgets** are monthly and category-driven. Category allocations change over time, and history must be preserved so past months stay accurate. Model allocations as time-versioned, not as a single mutable value.
-- **Income** is set per household member and supports both fixed monthly (salary) and variable (freelance, bonuses, irregular deposits).
+- **Income** is set per household member and supports both fixed monthly (salary) and variable (freelance, bonuses, irregular deposits). Owners can edit income for every member; members edit their own.
 - **Receipt capture**: photograph a receipt, parse merchant, date, total and ideally line items, then show a review step before saving. Entry should take seconds.
 - **Dashboards**: budget vs. actual, category trends, income vs. spend, with household-level and per-member views.
 - **API-first architecture**: the web app is first, but the API must let a native iOS app be added later without a rewrite.

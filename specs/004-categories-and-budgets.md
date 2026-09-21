@@ -1,6 +1,6 @@
 # 004: Categories and monthly budgets
 
-**Status:** draft
+**Status:** approved
 
 ## Goal
 Let a household define spending categories and set a monthly budget amount for each, with changes over time preserved so past months stay accurate. Supports `brief.md`: monthly, category-driven budgets whose allocations change over time while history is preserved. This spec covers the plan only (what the household intends to spend). Actual spend arrives with transactions in a later spec, which is what makes "budget vs. actual" possible.
@@ -67,12 +67,13 @@ Transactions and actual spend, budget vs. actual, rollover of unspent amounts, i
 - Read `node_modules/next/dist/docs/` before adding new route handlers or pages.
 - Keep the UI plain and functional. Visual polish and charts follow the UX trends research and the dashboards spec.
 
-## Open questions
-1. **Who can edit?** Proposal: any household member can manage categories and budgets (partners both budget together), while only owners manage members and invites. The alternative is owner-only editing with members read-only. Recommendation: all members.
-2. **Starter categories on setup**: keep the proposed list, or start empty?
-3. **Current month and timezone**: proposal is to use the server's timezone (the `TZ` env var, default UTC in Docker) and document it. A per-household timezone setting is more correct but adds a field and UI; recommendation is to defer it.
-4. **Currency**: is a single household currency (default USD, chosen at setup) enough for now?
-5. **One-off changes**: "from this month onward" is the only edit. Should there also be "just this month" (which would write a second allocation restoring the old value the next month)? Recommendation: leave it out until it is asked for.
+## Decisions
+- Every household member can manage categories and budgets. Owners still manage members and invites.
+- Keep the proposed starter categories.
+- "Current month" uses the server's timezone (`TZ`, default UTC in Docker), documented in the README. The app is intended to be hosted locally; a per-household timezone can come later if needed.
+- Single household currency (default USD, chosen at setup) is enough for now.
+- "From this month onward" is the only edit; no "just this month" option.
+- Carried into the income spec (not built here): owners can edit income for every member, while members edit their own.
 
 ## Documentation
 - `README.md`: add categories and monthly budgets to Features (how allocations carry forward, past months read-only), document the timezone/`TZ` behavior and the household currency, move it out of "Planned", update the status line.
