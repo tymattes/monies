@@ -13,6 +13,15 @@ A self-hosted, household-centric budgeting app. Web first, with a companion iOS 
 
 The full product brief is in [`specs/brief.md`](specs/brief.md).
 
+## Features
+
+Implemented so far (each maps to a spec in [`specs/`](specs/)):
+
+- **Households and sign-in** (spec 003): first-run setup creates your household and owner account. Email and password sign-in, invite-only sign-up (no email service needed), one household per instance.
+- **Members and invites** (spec 003): owners create single-use invite links (7-day expiry, revocable), remove members and rename the household. Members can leave.
+
+Planned: categories and monthly budgets, income, receipt capture, dashboards, a native iOS app. See [`specs/brief.md`](specs/brief.md).
+
 ## Tech stack
 
 | Layer | Choice |

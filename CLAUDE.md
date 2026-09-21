@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Workflow: spec-driven
 
-`specs/brief.md` is the source of truth for product intent. Every feature starts as a numbered spec in `specs/` (copy `specs/_template.md`; process in `specs/README.md`). Don't write feature code without an approved spec, and update the spec's status and acceptance checkboxes as work lands.
+`specs/brief.md` is the source of truth for product intent. Every feature starts as a numbered spec in `specs/` (copy `specs/_template.md`; process in `specs/README.md`). Don't write feature code without an approved spec, and update the spec's status and acceptance checkboxes as work lands. Documentation is part of every spec: update `README.md` (features, config, commands, deploy notes) and this file in the same PR, and list the changes in the spec's Documentation section.
 
 ## Git workflow
 

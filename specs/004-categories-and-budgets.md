@@ -52,7 +52,7 @@ Transactions and actual spend, budget vs. actual, rollover of unspent amounts, i
 - [ ] Amounts are stored as integer cents; negative and non-integer values are rejected.
 - [ ] All new routes reject signed-out users and non-members (covered by tests).
 - [ ] Migration is additive and idempotent on restart; existing households get the default currency and no categories are auto-created for them.
-- [ ] `CLAUDE.md` and README updated (architecture, tests).
+- [ ] Documentation updated as listed under Documentation.
 - [ ] `npm run lint`, `npm test` and `npm run build` pass.
 
 ## Technical notes
@@ -73,6 +73,10 @@ Transactions and actual spend, budget vs. actual, rollover of unspent amounts, i
 3. **Current month and timezone**: proposal is to use the server's timezone (the `TZ` env var, default UTC in Docker) and document it. A per-household timezone setting is more correct but adds a field and UI; recommendation is to defer it.
 4. **Currency**: is a single household currency (default USD, chosen at setup) enough for now?
 5. **One-off changes**: "from this month onward" is the only edit. Should there also be "just this month" (which would write a second allocation restoring the old value the next month)? Recommendation: leave it out until it is asked for.
+
+## Documentation
+- `README.md`: add categories and monthly budgets to Features (how allocations carry forward, past months read-only), document the timezone/`TZ` behavior and the household currency, move it out of "Planned", update the status line.
+- `CLAUDE.md`: architecture note on time-versioned allocations and the effective-amount lookup, and any new commands.
 
 ## Verification
 Fresh `docker compose up --build`: complete setup and confirm starter categories. Set Groceries for this month, move to next month and confirm it carried over. Change next month's amount and confirm this month is unchanged. Confirm past months are read-only, archive a category and confirm it disappears from this month but shows in last month if it had an allocation there. Run tests, lint and build.

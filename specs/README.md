@@ -7,8 +7,9 @@ Monies is built spec-first. `brief.md` is the source of truth for product intent
 1. Copy `_template.md` to `NNN-short-name.md` (next unused number) and set Status to `draft`.
 2. Fill it in and review it. Once agreed, set Status to `approved`.
 3. Implement against the acceptance criteria. Keep the spec updated if scope changes.
-4. When every acceptance box is checked and verification passes, set Status to `implemented`.
-5. Deliver each spec on its own feature branch (e.g. `feat/003-households`) via a pull request; never commit directly to `main`.
+4. Update the docs in the same PR: `README.md` (features, config, commands, deploy notes, tech stack) and `CLAUDE.md`. Each spec lists what changes under its Documentation section.
+5. When every acceptance box, including docs, is checked and verification passes, set Status to `implemented`.
+6. Deliver each spec on its own feature branch (e.g. `feat/003-households`) via a pull request; never commit directly to `main`.
 
 ## Index
 
