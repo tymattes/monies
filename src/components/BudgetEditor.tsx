@@ -1,11 +1,187 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { api } from "@/lib/client";
 import { formatMoney, parseMoney, toInputString } from "@/lib/money";
-import { inputCls } from "./ui";
+import { buttonCls, inputCls, secondaryButtonCls } from "./ui";
 
 type Line = { id: string; name: string; amountCents: number };
+
+type Row = { key: number; categoryId: string; amount: string };
+
+// Splits `total` minor units across `n` rows; leftover cents go to the first rows.
+function evenSplit(total: number, n: number): number[] {
+  const base = Math.floor(total / n);
+  const extra = total - base * n;
+  return Array.from({ length: n }, (_, i) => base + (i < extra ? 1 : 0));
+}
+
+// Puts part or all of the month's leftover into one or more categories in one
+// click, from this month onward. Nothing is assigned automatically: the user
+// picks the categories and amounts (the first row starts on Savings, if there
+// is one, with the whole amount).
+function AssignUnallocated({
+  month,
+  monthName,
+  currency,
+  lines,
+  unallocated,
+}: {
+  month: string;
+  monthName: string;
+  currency: string;
+  lines: Line[];
+  unallocated: number;
+}) {
+  const router = useRouter();
+  const savings = lines.find((l) => l.name.trim().toLowerCase() === "savings");
+  const [rows, setRows] = useState<Row[]>(() => [
+    {
+      key: 0,
+      categoryId: savings?.id ?? "",
+      amount: toInputString(unallocated, currency),
+    },
+  ]);
+  const [nextKey, setNextKey] = useState(1);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const parsed = rows.map((r) => ({ ...r, minor: parseMoney(r.amount, currency) }));
+  const total = parsed.reduce((sum, r) => sum + (r.minor ?? 0), 0);
+  const left = unallocated - total;
+  const chosen = rows.map((r) => r.categoryId).filter(Boolean);
+  const valid =
+    parsed.every((r) => r.categoryId !== "" && r.minor !== null && r.minor > 0) &&
+    new Set(chosen).size === rows.length &&
+    total > 0 &&
+    total <= unallocated;
+
+  function update(key: number, patch: Partial<Row>) {
+    setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+  }
+
+  function addRow() {
+    setRows((rs) => [
+      ...rs,
+      { key: nextKey, categoryId: "", amount: left > 0 ? toInputString(left, currency) : "" },
+    ]);
+    setNextKey((k) => k + 1);
+  }
+
+  function splitEvenly() {
+    const parts = evenSplit(unallocated, rows.length);
+    setRows((rs) =>
+      rs.map((r, i) => ({ ...r, amount: toInputString(parts[i], currency) })),
+    );
+  }
+
+  async function assign() {
+    setBusy(true);
+    setError("");
+    const { ok, error } = await api(
+      `/api/budgets/${month}/assign-unallocated`,
+      "POST",
+      {
+        assignments: parsed.map((r) => ({
+          categoryId: r.categoryId,
+          amountCents: r.minor,
+        })),
+      },
+    );
+    setBusy(false);
+    if (!ok) return setError(error ?? "Could not assign");
+    router.refresh();
+  }
+
+  return (
+    <li className="space-y-3 px-4 py-3 text-sm">
+      <p className="text-muted">
+        Assign the unallocated {formatMoney(unallocated, currency)} to one or
+        more categories:
+      </p>
+
+      <ul className="space-y-2">
+        {rows.map((r, i) => (
+          <li key={r.key} className="flex flex-wrap items-center gap-2">
+            <select
+              aria-label={`Category ${i + 1}`}
+              value={r.categoryId}
+              onChange={(e) => update(r.key, { categoryId: e.target.value })}
+              className={`${inputCls} w-auto min-w-40`}
+            >
+              <option value="">Choose a category</option>
+              {lines
+                .filter((l) => l.id === r.categoryId || !chosen.includes(l.id))
+                .map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name}
+                  </option>
+                ))}
+            </select>
+            <input
+              aria-label={`Amount for category ${i + 1}`}
+              inputMode="decimal"
+              value={r.amount}
+              onChange={(e) => update(r.key, { amount: e.target.value })}
+              className={`${inputCls} w-32 text-right tabular-nums`}
+            />
+            {rows.length > 1 && (
+              <button
+                type="button"
+                aria-label={`Remove category ${i + 1}`}
+                onClick={() => setRows((rs) => rs.filter((x) => x.key !== r.key))}
+                className={secondaryButtonCls}
+              >
+                Remove
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={addRow}
+          disabled={rows.length >= lines.length}
+          className={secondaryButtonCls}
+        >
+          Add category
+        </button>
+        {rows.length > 1 && (
+          <button type="button" onClick={splitEvenly} className={secondaryButtonCls}>
+            Split evenly
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={assign}
+          disabled={busy || !valid}
+          className={buttonCls}
+        >
+          Assign
+        </button>
+      </div>
+
+      <p
+        aria-live="polite"
+        className={`text-xs ${left < 0 ? "text-danger" : "text-muted"}`}
+      >
+        {left < 0
+          ? `That is ${formatMoney(-left, currency)} more than the unallocated amount.`
+          : left === 0
+            ? `Assigning all of it from ${monthName} onward. You can change any amount afterwards.`
+            : `Assigning ${formatMoney(total, currency)}; ${formatMoney(left, currency)} stays unallocated. Applies from ${monthName} onward.`}
+      </p>
+      {error && (
+        <p role="alert" className="text-xs text-danger">
+          {error}
+        </p>
+      )}
+    </li>
+  );
+}
 
 export default function BudgetEditor({
   month,
@@ -135,6 +311,16 @@ export default function BudgetEditor({
             {formatMoney(Math.abs(unallocated), currency)}
           </span>
         </li>
+        {editable && unallocated > 0 && (
+          <AssignUnallocated
+            key={unallocated}
+            month={month}
+            monthName={monthName}
+            currency={currency}
+            lines={lines}
+            unallocated={unallocated}
+          />
+        )}
       </ul>
     </div>
   );

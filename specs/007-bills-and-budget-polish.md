@@ -27,10 +27,12 @@ Supports `brief.md`: category-driven budgets, modern UX, and a path to budget vs
 - **Budget page integration.** Each category row gains what is committed and what remains: **Budgeted**, **Bills**, **Remaining** (budgeted minus bills; negative is flagged in the error color as over). The page summary adds **Bills** total and **Left after bills** (income minus bills), which mirrors the Notion "Spending/Saving" figure. The existing income and unallocated lines stay.
 
 ### B. Assign unallocated
-- When the month's unallocated amount is greater than 0 and the month is editable, the Budget page shows an **Assign to…** control next to it: a category select preselected to the category named "Savings" (case-insensitive) if one exists, otherwise showing a "Choose a category" prompt, and a button.
-- Assigning adds the current unallocated amount to that category's amount for this month, from this month onward (the same effect as typing it in), and the unallocated line drops to 0.
-- It is an ordinary allocation afterwards: editable, and it appears in history like any other. Nothing is assigned automatically.
-- Done in one database transaction so two clicks or two members cannot double-assign.
+- When the month's unallocated amount is greater than 0 and the month is editable, the Budget page shows an **Assign** panel under the Unallocated line. The user can spread the amount across **one or more categories in a single click**.
+- The panel is a list of rows, each a category and an amount. The first row starts on the category named "Savings" (case-insensitive) if one exists, otherwise on a "Choose a category" prompt, with the whole unallocated amount. **Add category** adds a row (prefilled with what is still unassigned), **Remove** drops a row, and **Split evenly** divides the unallocated amount equally across the rows (extra cents go to the first rows). A category can appear only once.
+- A live line shows what is being assigned and what stays unallocated, and turns to an error if the amounts add up to more than the unallocated amount. The **Assign** button is enabled only when every row has a category and a positive amount and the total is between 0 and the unallocated amount. Assigning less than the whole amount is allowed; the rest stays unallocated.
+- Assigning adds each amount to that category's current amount for this month, from this month onward (the same effect as typing each total in), and the unallocated line drops by the assigned total.
+- The amounts are ordinary allocations afterwards: editable, and they appear in history like any other. Nothing is assigned automatically.
+- All the assignments apply in **one database transaction** under a per-household-and-month lock: either every row is applied or none is, and two clicks or two members cannot assign the same money twice.
 
 ### C. Dracula dark theme and Alucard light theme
 - The dark theme uses the official Dracula palette (source under Technical notes): background `#282A36`, foreground `#F8F8F2`, surfaces and borders `#44475A`, with green `#50FA7B` as the accent, red `#FF5555` for errors, and purple, cyan, pink, orange and yellow available for charts and highlights later.
@@ -47,7 +49,7 @@ Supports `brief.md`: category-driven budgets, modern UX, and a path to budget vs
 - `PATCH /api/bills/[id]`: rename, paid-with, note, end or restore (label fields are not versioned).
 - `PUT /api/bills/[month]/items/[id]` (`{ amountCents, intervalMonths, categoryId }`): new amount, billing period and/or category from that month onward; rejects past months and inactive categories.
 - `GET /api/budgets/[month]` gains, per category, `billsCents` and `remainingCents`, and in the summary `billsTotalCents` and `leftAfterBillsCents`.
-- `POST /api/budgets/[month]/assign-unallocated` (`{ categoryId }`): implements B; rejects past months, non-positive unallocated, and unknown or inactive categories.
+- `POST /api/budgets/[month]/assign-unallocated` implements B. Body: `{ assignments: [{ categoryId, amountCents }, ...] }` (1 to 50 items, amounts positive integers, categories distinct, total at most the unallocated amount), or the shorthand `{ categoryId }` meaning all of it into one category. Returns `{ assignments: [{ categoryId, assignedCents, amountCents }], assignedCents, unallocatedCents }` (the last is what remains). Rejects past months, a month with nothing unallocated, unknown or inactive categories, duplicates, and totals over the unallocated amount, all-or-nothing.
 - All routes use `requireHousehold()`; every member may call them.
 
 ## Out of scope
@@ -63,7 +65,7 @@ Actual transactions and per-charge logging (receipt capture and the transactions
 - [ ] Any household member can add, edit and end any bill; signed-out users and non-members are rejected on every route (covered by tests).
 - [ ] The Bills page shows the month's bills grouped by category with subtotals and a total.
 - [ ] The Budget page shows per-category bills and remaining (negative flagged), plus Bills and Left after bills in the summary; `GET /api/budgets/[month]` returns the same numbers.
-- [ ] Assign-to-category adds the unallocated amount to the chosen category from this month onward and brings unallocated to 0; it preselects "Savings" when present; it is unavailable for past months or when unallocated is 0; two concurrent assigns do not double-count (covered by tests).
+- [x] Assign can spread the unallocated amount across one or more categories in a single click: each amount is added to its category from this month onward and unallocated drops by the total; the first row preselects "Savings" when present; assigning less than the whole amount leaves the rest unallocated; amounts over the unallocated total, duplicate categories, and any invalid row are rejected with nothing applied; it is unavailable for past months or when unallocated is 0; concurrent assigns never double-count (covered by tests).
 - [ ] A yearly or 6-month bill counts its monthly equivalent (the charge divided by the number of months, rounded to the nearest minor unit) in every active month, not only in a renewal month; the form previews it; totals and category rollups use it (covered by tests).
 - [ ] Changing the billing period applies from the chosen month onward and leaves earlier months unchanged.
 - [ ] Amounts are integer minor units; negative and fractional values are rejected; 0 is allowed for bills.
@@ -121,6 +123,16 @@ Fresh `docker compose up --build`: as the owner add three bills in different cat
 - The logo and accent text pick up Dracula green in dark mode through `--accent`.
 
 - Brand and icons (owner-approved during review): the overall scheme is purple / cream / green, recorded in CLAUDE.md. The favicon is now the M logo: `src/app/icon.svg` switches colors with the browser's light or dark mode (deep green tile and cream M, or bright green tile and dark M), and `favicon.ico` (16, 32, 48 px) and `apple-icon.png` (180 px, full-bleed since iOS rounds its own corners) use the bright green tile with the dark M so they read on any tab strip or home screen. Raster icons were rendered from the same M path with `sharp`.
+
+### Part B (assign unallocated), second PR
+- `POST /api/budgets/[month]/assign-unallocated` takes `{ assignments: [...] }` (or the `{ categoryId }` shorthand) and returns the per-category results plus what remains unallocated. It rejects past months, unknown, archived or malformed categories, and any month with nothing unallocated (zero or over-allocated).
+- The lock is `pg_advisory_xact_lock(hashtextextended('<household>:<month>', 0))` inside the transaction; the budget is read after the lock is taken so an earlier assign is already committed. `setAllocation` does not take the lock, so a manual edit racing an assign can interleave, which is acceptable for two people editing the same month at once.
+- UI: the Assign panel appears under the Unallocated line only when the month is editable and the amount is greater than 0. It resets whenever the unallocated amount changes (its `key`), so it never shows stale amounts after an edit above it. Category selects hide categories already chosen in other rows.
+- `BudgetEditor` is now keyed on the server data (month, income, categories and amounts), so it remounts after an assign and also after a category is added or renamed, which previously left a new category's input blank until a full reload.
+- Tests: `tests/assign.test.ts` (17 tests) including simultaneous requests yielding exactly one success for both the single and split forms, and atomicity (an invalid row or an over-total applies nothing); verified by temporarily removing the lock, which made all four simultaneous requests succeed.
+
+## Not verified (Part B)
+The Assign panel was not clicked through in a browser (row editing, Split evenly, button enabling, the refresh after assigning). The route, the lock and the page rendering (control present before, gone after) were checked by tests and against a scratch instance.
 
 ## Not verified (Part C)
 The dark theme was not looked at in a real browser; it was verified by contrast tests, by confirming Tailwind generates every new utility, and by lint, typecheck and build. Please check each page in dark mode. The spec stays `approved` until parts B and A land.
