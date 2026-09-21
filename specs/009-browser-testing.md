@@ -1,6 +1,6 @@
 # 009: Browser testing with Playwright
 
-**Status:** draft
+**Status:** approved
 
 ## Goal
 Verify UI behavior, layout, accessibility and appearance in a real browser, repeatably, by the developer and by Claude. Today the test suite (Vitest) covers the API and server-rendered markup, but every spec from 005 to 008 ends with a "Not verified" note for things only a browser can show: theme flash and persistence, live updates while typing, scroll and focus, the phone layout, and how the themes actually look. This spec adds Playwright to close those gaps, leaves regression tests behind, and produces screenshots that can be reviewed for visual polish.
@@ -79,12 +79,11 @@ Pixel-diff visual regression baselines, a browser matrix beyond the optional Web
 - Playwright in the repository is the primary way to verify UI. The Claude in Chrome extension remains an optional aid for looking at the real instance, since it cannot sign in for the user and is less repeatable.
 - Sequence: this spec is implemented before the Overview page (spec 008 PR 2), which then adds its own e2e checks.
 
-## Open questions
-1. **Dev server or production build for e2e?** Recommendation: the dev server by default for speed, with an environment flag to run the production build; the production run is what to trust before merging visual work.
-2. **WebKit:** include the optional WebKit project (off by default, needs its own browser download), or leave it out for now? Recommendation: include it, off by default.
-3. **Axe threshold:** fail on serious and critical only (proposed), or on every violation including minor and moderate? Recommendation: serious and critical, and review the rest in the report.
-4. **Screenshot set:** every main page in light and dark at desktop and phone (proposed, about 20 images), or a smaller set? Recommendation: the full set; it is what makes visual review possible.
-5. **Phone preset:** an iPhone-sized viewport on Chromium (proposed) versus a Pixel-sized one. Recommendation: iPhone 13 dimensions, since the iOS app is the eventual companion.
+- The e2e run uses the dev server by default for speed, with an `E2E_PROD` flag to run the production build (the run to trust before merging visual work).
+- A WebKit project is included as a rough Safari stand-in, off by default (`E2E_WEBKIT=1`, needs its own browser download).
+- Axe fails the run on serious and critical violations only; lesser findings are reviewed in the report.
+- The screenshot set is every main page in light and dark at desktop and phone size.
+- The phone preset uses iPhone 13 dimensions (on Chromium), since the iOS app is the eventual companion.
 
 ## Verification
 On a clean checkout with Postgres running (`docker compose up -d db`) and Chromium installed, run `npm run test:e2e` and confirm all tests pass and the real database is unchanged (compare row counts before and after). Run it once with the database name pointed at the real one and confirm it refuses. Run `npm run e2e:screenshots`, open the images in both themes at both sizes, and confirm they show the seeded household. Break something on purpose (for example remove the pre-paint theme script) and confirm the theme test fails, then restore it. Run `npm test`, lint and build.
