@@ -2,7 +2,7 @@
 
 A self-hosted, household-centric budgeting app. Web first, with a companion iOS app planned.
 
-**Status:** early development. The app shell, database, and household sign-in and invites exist so far; features are being added one spec at a time (see [`specs/`](specs/)).
+**Status:** early development. The app shell, database, household sign-in and invites, and monthly category budgets exist so far; features are being added one spec at a time (see [`specs/`](specs/)).
 
 ## Principles
 
@@ -20,7 +20,9 @@ Implemented so far (each maps to a spec in [`specs/`](specs/)):
 - **Households and sign-in** (spec 003): first-run setup creates your household and owner account. Email and password sign-in, invite-only sign-up (no email service needed), one household per instance.
 - **Members and invites** (spec 003): owners create single-use invite links (7-day expiry, revocable), remove members and rename the household. Members can leave.
 
-Planned: categories and monthly budgets, income, receipt capture, dashboards, a native iOS app. See [`specs/brief.md`](specs/brief.md).
+- **Categories and monthly budgets** (spec 004): a Budget page with previous/next month navigation. New households start with Housing, Groceries, Dining out, Transport, Utilities, Health, Entertainment, Savings and Other, and any member can add, rename, reorder or archive categories. Set an amount per category and it applies **from that month onward**; later months inherit it until you change them, and past months are read-only so history stays accurate. Archiving hides a category from this month on but past months keep it. Amounts use one currency per household, chosen at setup.
+
+Planned: income, receipt capture, dashboards, a native iOS app. See [`specs/brief.md`](specs/brief.md).
 
 ## Tech stack
 
@@ -84,6 +86,7 @@ Migrations live in `drizzle/` and are committed. The app applies pending migrati
 | `DB_PORT` | `5432` | Host port for Postgres, bound to `127.0.0.1` only. |
 | `BETTER_AUTH_SECRET` | none (required) | Secret used to sign sessions. Generate with `openssl rand -base64 32` and keep it stable; changing it signs everyone out. |
 | `BETTER_AUTH_URL` | `http://localhost:${APP_PORT}` | The public URL people open the app at (scheme, host, port). Set it when serving behind a domain or reverse proxy, or sign-in requests are rejected. |
+| `TZ` | `UTC` | Server timezone (IANA name, e.g. `America/Chicago`). Decides which calendar month is "this month" for budgets, so set it to where you live. |
 | `DATABASE_URL` | none | Connection string for local development. In Compose it is set automatically to the `db` service. |
 
 ## Deploying
@@ -94,7 +97,7 @@ On your server: clone the repo, create `.env` as above with a strong password, t
 
 ### Portainer
 
-Create a stack from this Git repository (Repository build method) using `docker-compose.yml`, and set the variables from the table above in the stack's environment section. `POSTGRES_PASSWORD` and `BETTER_AUTH_SECRET` are required; the stack will not start without them. Set `BETTER_AUTH_URL` to the address you will browse to.
+Create a stack from this Git repository (Repository build method) using `docker-compose.yml`, and set the variables from the table above in the stack's environment section. `POSTGRES_PASSWORD` and `BETTER_AUTH_SECRET` are required; the stack will not start without them. Set `BETTER_AUTH_URL` to the address you will browse to, and `TZ` to your timezone.
 
 ## Backup and restore
 

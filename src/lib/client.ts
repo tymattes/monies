@@ -1,7 +1,7 @@
 // Browser-side helper for calling our JSON API.
 export async function api(
   url: string,
-  method: "POST" | "PATCH" | "DELETE",
+  method: "POST" | "PUT" | "PATCH" | "DELETE",
   body?: unknown,
 ): Promise<{ ok: boolean; data: Record<string, unknown>; error?: string }> {
   try {
