@@ -5,6 +5,9 @@ import { useState } from "react";
 import { api } from "@/lib/client";
 import { buttonCls, inputCls, labelCls } from "./ui";
 
+const CURRENCIES = Intl.supportedValuesOf("currency");
+const currencyName = new Intl.DisplayNames("en", { type: "currency" });
+
 type Mode = "sign-in" | "setup" | "join";
 
 const CONFIG: Record<Mode, { submit: string; ask: (t?: string) => string }> = {
@@ -62,6 +65,29 @@ export default function CredentialsForm({
             placeholder="The Smiths"
             className={inputCls}
           />
+        </div>
+      )}
+      {mode === "setup" && (
+        <div className="space-y-1">
+          <label htmlFor="currency" className={labelCls}>
+            Currency
+          </label>
+          <select
+            id="currency"
+            name="currency"
+            defaultValue="USD"
+            className={inputCls}
+          >
+            {CURRENCIES.map((code) => (
+              <option key={code} value={code} className="text-black">
+                {code} · {currencyName.of(code)}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-foreground/60">
+            Used for every amount in this household. Can&apos;t be changed later
+            in this version.
+          </p>
         </div>
       )}
       {needsName && (
