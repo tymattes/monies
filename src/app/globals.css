@@ -4,25 +4,44 @@
    inline script in layout.tsx and kept in sync by ThemeToggle. */
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Theme tokens. Use these (text-muted, text-danger, ...) instead of hardcoded
-   colors; each pair below is checked for WCAG AA contrast in
-   tests/theme.test.ts. */
+/* Theme tokens. Use these (text-muted, bg-surface, border-border, ...) instead
+   of hardcoded colors or translucent foreground overlays; tests/theme.test.ts
+   checks WCAG AA contrast for the text tokens in both themes.
+
+   Dark is the Dracula palette and light is Alucard, Dracula's official light
+   variant (https://draculatheme.com/contribute, https://draculatheme.com/spec):
+     dark : background #282A36, foreground #F8F8F2, selection #44475A,
+            comment #6272A4, red #FF5555, green #50FA7B
+     light: background #FFFBEB, foreground #1F1F1F, comment #6C664B,
+            red #CB3A2A, green #14710A
+   Deliberate deviations: dark --muted is lighter than Dracula's comment color
+   (3.0:1 on the background, below AA); light --surface, --border and
+   --border-strong are derived from the cream background.
+
+   Do not put --danger text on --surface: red on the surface is below 4.5:1 in
+   the dark theme. */
 :root {
   color-scheme: light;
-  --background: #ffffff;
-  --foreground: #171717;
-  --muted: #595959;
-  --danger: #b91c1c;
-  --accent: #047857;
+  --background: #fffbeb;
+  --foreground: #1f1f1f;
+  --muted: #6c664b;
+  --danger: #cb3a2a;
+  --accent: #14710a;
+  --surface: #efe9cf;
+  --border: #ddd6b8;
+  --border-strong: #8a8467;
 }
 
 :root.dark {
   color-scheme: dark;
-  --background: #0a0a0a;
-  --foreground: #ededed;
-  --muted: #a3a3a3;
-  --danger: #f87171;
-  --accent: #34d399;
+  --background: #282a36;
+  --foreground: #f8f8f2;
+  --muted: #b4bbdb;
+  --danger: #ff5555;
+  --accent: #50fa7b;
+  --surface: #44475a;
+  --border: #44475a;
+  --border-strong: #6272a4;
 }
 
 @theme inline {
@@ -31,6 +50,9 @@
   --color-muted: var(--muted);
   --color-danger: var(--danger);
   --color-accent: var(--accent);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -39,4 +61,22 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+/* Browsers paint autofilled fields with their own yellow or blue; keep them on
+   theme. Two rules because an unknown pseudo-class invalidates a whole list. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+select:-webkit-autofill {
+  -webkit-text-fill-color: var(--foreground);
+  caret-color: var(--foreground);
+  box-shadow: 0 0 0 1000px var(--background) inset;
+}
+
+input:autofill,
+select:autofill {
+  -webkit-text-fill-color: var(--foreground);
+  caret-color: var(--foreground);
+  box-shadow: 0 0 0 1000px var(--background) inset;
 }

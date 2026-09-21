@@ -142,7 +142,7 @@ function Deposits({
   return (
     <div className="mt-3 space-y-3">
       {source.deposits.length > 0 && (
-        <ul className="divide-y divide-foreground/10 rounded-md border border-foreground/10 text-sm">
+        <ul className="divide-y divide-border rounded-md border border-border text-sm">
           {source.deposits.map((d) => (
             <li
               key={d.id}
@@ -384,7 +384,7 @@ export default function IncomeView({
         </p>
       </div>
 
-      <div className="flex items-center justify-between rounded-lg bg-foreground/5 px-4 py-3 font-semibold">
+      <div className="flex items-center justify-between rounded-lg bg-surface px-4 py-3 font-semibold">
         <span>Household income in {monthName}</span>
         <span className="tabular-nums">
           {formatMoney(income.totalCents, currency)}
@@ -404,11 +404,11 @@ export default function IncomeView({
               {formatMoney(m.totalCents, currency)}
             </span>
           </div>
-          <div className="divide-y divide-foreground/10 rounded-lg border border-foreground/10">
+          <div className="divide-y divide-border rounded-lg border border-border">
             {m.sources.length === 0 && (
               <p className="px-4 py-3 text-sm text-muted">No income sources yet.</p>
             )}
-            <ul className="divide-y divide-foreground/10">
+            <ul className="divide-y divide-border">
               {m.sources.map((s) => (
                 <SourceRow
                   key={s.id}
