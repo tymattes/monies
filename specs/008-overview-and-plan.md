@@ -128,7 +128,7 @@ Not clicked through in a browser: the live update of the summary while typing an
 - **Found while reviewing screenshots:** the legend pushed each amount to the far edge of its column so it read as belonging to the next swatch; it is now label over amount. And a behavior worth knowing: next month starts out over-allocated whenever this month's income includes a one-off deposit, because budgets carry forward but variable deposits do not.
 
 ### Follow-ups (not built)
-- Future months for a household with variable income show an "over-allocated" warning that is really just "no deposits recorded yet". Options: suppress that warning for months after the current one, or compare against fixed income only there.
+- ~~Future months for a household with variable income show an "over-allocated" warning that is really just "no deposits recorded yet".~~ Resolved by spec 010 (provisional income): the shortfall is shown plainly, not as an error, while variable income may still arrive.
 - The `unallocated` attention item and the card's Assign button are redundant; keep both or drop the list item.
 - Spending versus budget and per-member spending arrive with transactions; the Trends page stays a separate spec.
 

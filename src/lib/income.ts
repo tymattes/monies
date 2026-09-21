@@ -245,6 +245,9 @@ export type IncomeMonth = {
   editable: boolean;
   members: IncomeMemberView[];
   totalCents: number;
+  // True for the current or a later month when a variable source is active:
+  // deposits may still arrive, so the total is not final (spec 010).
+  provisional: boolean;
 };
 
 // Fixed sources use the latest amount on or before the month (0 if none);
@@ -353,5 +356,7 @@ export async function getIncomeMonth(
     editable: month >= currentMonth(),
     members: groups,
     totalCents: groups.reduce((sum, g) => sum + g.totalCents, 0),
+    provisional:
+      month >= currentMonth() && sources.some((s) => s.kind === "variable"),
   };
 }

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { OWNER, SEED, monthKey, resetAndSeed } from "./support/seed";
+import { FIXED_ONLY, OWNER, SEED, monthKey, resetAndSeed, resetAndSeedFixedOnly } from "./support/seed";
 import { LIGHT_DANGER, signIn, waitHydrated } from "./support/page";
 
 const money = (cents: number) =>
@@ -107,16 +107,18 @@ test.describe("the summary bar and Assign", () => {
     await expect(bar).toContainText(money(SEED.unallocatedCents - 10000));
   });
 
-  test("shows Over-allocated by in the error color when budgeted exceeds income", async ({ page }) => {
+  test("being above the recorded income is shown plainly while variable income may still arrive", async ({ page }) => {
     await page.goto("/budget");
     await waitHydrated(page);
-    const housing = page.getByLabel("Housing", { exact: true });
-    await housing.fill("2800.00"); // +1,000 => 6,100 budgeted vs 6,000 income
-    await housing.blur();
     const bar = summary(page);
-    await expect(bar).toContainText("Over-allocated by");
+    await expect(bar).toContainText("Variable income counts once you record it.");
+    const housing = page.getByLabel("Housing", { exact: true });
+    await housing.fill("2800.00"); // +1,000 => 6,100 budgeted vs 6,000 recorded
+    await housing.blur();
+    await expect(bar).toContainText("Over recorded income by");
     await expect(bar).toContainText(money(10000));
-    await expect(bar.getByText("Over-allocated by")).toHaveCSS("color", LIGHT_DANGER);
+    await expect(bar).not.toContainText("Over-allocated");
+    await expect(bar.getByText("Over recorded income by")).not.toHaveCSS("color", LIGHT_DANGER);
     await expect(bar.getByRole("button", { name: "Assign" })).toHaveCount(0);
   });
 
@@ -146,5 +148,24 @@ test.describe("the summary bar and Assign", () => {
     await expect(panel).toHaveCount(0);
     await expect(summary(page)).toContainText(money(0));
     await expect(summary(page).getByRole("button", { name: "Assign" })).toHaveCount(0);
+  });
+});
+
+test.describe("a household with only fixed income", () => {
+  test.beforeEach(async ({ page }) => {
+    await resetAndSeedFixedOnly();
+    await signIn(page, OWNER);
+  });
+
+  test("keeps the red Over-allocated by, since its income is complete", async ({ page }) => {
+    for (const path of ["/budget", "/bills", "/income"]) {
+      await page.goto(path);
+      const bar = summary(page);
+      await expect(bar).toContainText(money(FIXED_ONLY.incomeCents));
+      await expect(bar).toContainText("Over-allocated by");
+      await expect(bar).toContainText(money(FIXED_ONLY.overAllocatedCents));
+      await expect(bar).not.toContainText("Variable income counts");
+      await expect(bar.getByText("Over-allocated by")).toHaveCSS("color", LIGHT_DANGER);
+    }
   });
 });

@@ -63,6 +63,7 @@ describe("plan summary", () => {
       currency: "USD",
       editable: true,
       incomeCents: 0,
+      incomeProvisional: false,
       budgetedCents: 0,
       billsCents: 0,
     });

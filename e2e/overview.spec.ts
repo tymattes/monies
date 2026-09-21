@@ -9,11 +9,13 @@ import {
 } from "./support/page";
 import { E2E_ORIGIN } from "./support/db.mts";
 import {
+  FIXED_ONLY,
   OWNER,
   SEED,
   expectedCategoryRows,
   monthKey,
   resetAndSeed,
+  resetAndSeedFixedOnly,
   resetEmpty,
 } from "./support/seed";
 
@@ -146,7 +148,12 @@ test.describe("with a seeded household", () => {
     // budgets carry forward: next month starts out over-allocated.
     await expect(cashFlow(page)).toContainText(money(SEED.salaryCents));
     const list = page.getByRole("region", { name: "Needs attention" });
-    await expect(list).toContainText(`You have budgeted ${money(SEED.budgetedCents - SEED.salaryCents)} more than your income.`);
+    await expect(list).toContainText(`You have budgeted ${money(SEED.budgetedCents - SEED.salaryCents)} more than the income recorded so far.`);
+    // The freelance deposit has not been recorded yet: informational, not an alarm.
+    const income = list.getByRole("listitem").filter({ hasText: "recorded so far" });
+    await expect(income).not.toContainText("Warning:");
+    // The Utilities item (bills past a category's own budget) is still a warning.
+    await expect(list.getByRole("listitem").filter({ hasText: "Utilities: bills are" })).toContainText("Warning:");
     await expect(list.getByRole("link", { name: "Review budget" })).toHaveAttribute("href", `/budget?month=${next}`);
     await expect(list.getByRole("link", { name: "Adjust budget" })).toHaveAttribute("href", `/budget?month=${next}`);
     await expect(page.getByRole("link", { name: "Assign" })).toHaveCount(0);
@@ -190,11 +197,11 @@ test.describe("an empty household", () => {
   }
 });
 
-test.describe("an over-allocated month", () => {
+test.describe("over budget while variable income may still arrive", () => {
   test.beforeEach(async ({ page }) => {
     await resetAndSeed();
     await signIn(page, OWNER);
-    // Budget 1,000 more into Housing than there is income left for.
+    // Budget 1,000 more into Housing than there is recorded income left for.
     const M = monthKey();
     const budget = await (await page.request.get(`/api/budgets/${M}`)).json();
     const housing = budget.categories.find((c: { name: string }) => c.name === "Housing").id;
@@ -206,13 +213,40 @@ test.describe("an over-allocated month", () => {
     await page.goto("/");
   });
 
-  test("shows Over-allocated by, an income line on the bar, and a warning", async ({ page }) => {
+  test("says Over recorded income by, neutrally, with a plain note in the list", async ({ page }) => {
     const card = cashFlow(page);
-    await expect(card).toContainText("Over-allocated by");
+    await expect(card).toContainText("Over recorded income by");
     await expect(card).toContainText(money(100000));
-    await expect(card.getByRole("img")).toHaveAttribute("aria-label", /over-allocated by \$1,000\.00/);
+    await expect(card).toContainText("Variable income counts once you record it.");
+    await expect(card).not.toContainText("Over-allocated");
+    await expect(card.getByText("Over recorded income by").first()).not.toHaveCSS("color", LIGHT_DANGER);
+    await expect(card.getByRole("img")).toHaveAttribute("aria-label", /above recorded income by \$1,000\.00/);
     await expect(card.getByRole("link", { name: "Assign" })).toHaveCount(0);
-    const warning = page.getByRole("region", { name: "Needs attention" }).getByRole("listitem").filter({ hasText: "You have budgeted $1,000.00 more than your income." });
+
+    const item = page.getByRole("region", { name: "Needs attention" }).getByRole("listitem").filter({ hasText: "more than the income recorded so far" });
+    await expect(item).toContainText("You have budgeted $1,000.00 more than the income recorded so far. Variable income counts once you record it.");
+    await expect(item).not.toContainText("Warning:");
+    await expect(item.getByRole("link", { name: "Review budget" })).toBeVisible();
+  });
+});
+
+test.describe("over budget with only fixed income", () => {
+  test.beforeEach(async ({ page }) => {
+    await resetAndSeedFixedOnly(); // already 100.00 over: the income is complete
+    await signIn(page, OWNER);
+    await page.goto("/");
+  });
+
+  test("is still an error: Over-allocated by in red, and a warning", async ({ page }) => {
+    const card = cashFlow(page);
+    await expect(card).toContainText(money(FIXED_ONLY.incomeCents));
+    await expect(card).toContainText("Over-allocated by");
+    await expect(card).toContainText(money(FIXED_ONLY.overAllocatedCents));
+    await expect(card).not.toContainText("Variable income counts");
+    await expect(card.getByText("Over-allocated by").first()).toHaveCSS("color", LIGHT_DANGER);
+    await expect(card.getByRole("img")).toHaveAttribute("aria-label", /over-allocated by \$100\.00/);
+
+    const warning = page.getByRole("region", { name: "Needs attention" }).getByRole("listitem").filter({ hasText: "You have budgeted $100.00 more than your income." });
     await expect(warning).toContainText("Warning:");
   });
 });

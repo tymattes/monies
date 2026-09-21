@@ -36,6 +36,8 @@ export type Overview = {
   currency: string;
   householdName: string;
   editable: boolean;
+  // See spec 010: income is what is recorded so far and may still grow.
+  incomeProvisional: boolean;
   income: {
     totalCents: number;
     fixedCents: number;
@@ -113,11 +115,18 @@ export async function getOverview(
   const unallocatedCents = incomeCents - budgetedCents;
 
   const attention: AttentionItem[] = [];
+  // Income that may still grow (variable deposits not recorded yet) makes a
+  // shortfall informational rather than an error.
+  const provisional = budget.incomeProvisional;
+  const shortfallSeverity = provisional ? "info" : "warning";
+  const note = provisional ? " Variable income counts once you record it." : "";
   if (incomeCents > 0 && budgetedCents > incomeCents) {
     attention.push({
       code: "over_allocated",
-      severity: "warning",
-      message: `You have budgeted ${money(budgetedCents - incomeCents)} more than your income.`,
+      severity: shortfallSeverity,
+      message: provisional
+        ? `You have budgeted ${money(budgetedCents - incomeCents)} more than the income recorded so far.${note}`
+        : `You have budgeted ${money(budgetedCents - incomeCents)} more than your income.`,
       href: `/budget${q}`,
       actionLabel: "Review budget",
       amountCents: budgetedCents - incomeCents,
@@ -126,8 +135,10 @@ export async function getOverview(
   if (incomeCents > 0 && budget.billsTotalCents > incomeCents) {
     attention.push({
       code: "bills_exceed_income",
-      severity: "warning",
-      message: `Bills (${money(budget.billsTotalCents)}) are more than your income (${money(incomeCents)}).`,
+      severity: shortfallSeverity,
+      message: provisional
+        ? `Bills (${money(budget.billsTotalCents)}) are more than the income recorded so far (${money(incomeCents)}).${note}`
+        : `Bills (${money(budget.billsTotalCents)}) are more than your income (${money(incomeCents)}).`,
       href: `/bills${q}`,
       actionLabel: "Review bills",
       amountCents: budget.billsTotalCents - incomeCents,
@@ -181,6 +192,7 @@ export async function getOverview(
     currency,
     householdName: ctx.household.name,
     editable: budget.editable,
+    incomeProvisional: provisional,
     income: {
       totalCents: income.totalCents,
       fixedCents: sum("fixed"),

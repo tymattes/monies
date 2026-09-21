@@ -2,7 +2,7 @@ import { mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "@playwright/test";
 import { E2E_ORIGIN } from "./support/db.mts";
-import { OWNER, SEED, monthKey, resetAndSeed, resetEmpty } from "./support/seed";
+import { OWNER, SEED, monthKey, resetAndSeed, resetAndSeedFixedOnly, resetEmpty } from "./support/seed";
 import { SIGNED_IN_PAGES, SIGNED_OUT_PAGES, signIn, waitHydrated } from "./support/page";
 
 // Screenshots for people (and Claude) to review visual polish. Not pixel-compared.
@@ -68,7 +68,16 @@ for (const scheme of ["light", "dark"] as const) {
       await page.screenshot({ path: path.join(OUT, `overview-empty-${scheme}-${info.project.name}.png`), fullPage: true });
     });
 
-    test("over-allocated month", async ({ page }, info) => {
+    test("over budget with only fixed income (a real error)", async ({ page }, info) => {
+      await resetAndSeedFixedOnly();
+      await signIn(page, OWNER);
+      await page.goto("/");
+      await waitHydrated(page);
+      await page.waitForTimeout(300);
+      await page.screenshot({ path: path.join(OUT, `overview-over-allocated-${scheme}-${info.project.name}.png`), fullPage: true });
+    });
+
+    test("over recorded income while variable income may still arrive", async ({ page }, info) => {
       await resetAndSeed();
       await signIn(page, OWNER);
       const M = monthKey();
@@ -81,7 +90,7 @@ for (const scheme of ["light", "dark"] as const) {
       await page.goto("/");
       await waitHydrated(page);
       await page.waitForTimeout(300);
-      await page.screenshot({ path: path.join(OUT, `overview-over-allocated-${scheme}-${info.project.name}.png`), fullPage: true });
+      await page.screenshot({ path: path.join(OUT, `overview-over-recorded-${scheme}-${info.project.name}.png`), fullPage: true });
     });
   });
 }
