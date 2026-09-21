@@ -208,3 +208,84 @@ export const budgetAllocations = pgTable(
     check("budget_allocations_amount_check", sql`${t.amountCents} >= 0`),
   ],
 );
+
+// --- Income (spec 006) ---
+
+// A member's income source. member_id is set null when the member is removed
+// so history survives (shown as "Former member").
+export const incomeSources = pgTable(
+  "income_sources",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    householdId: uuid("household_id")
+      .notNull()
+      .references(() => households.id, { onDelete: "cascade" }),
+    memberId: text("member_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    name: text("name").notNull(),
+    kind: text("kind", { enum: ["fixed", "variable"] }).notNull(),
+    // Same visibility rule as categories: start_month <= M < archived_from.
+    startMonth: date("start_month", { mode: "string" }).notNull(),
+    archivedFrom: date("archived_from", { mode: "string" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("income_sources_active_name_idx")
+      .on(t.memberId, sql`lower(${t.name})`)
+      .where(sql`${t.archivedFrom} is null`),
+    index("income_sources_household_id_idx").on(t.householdId),
+  ],
+);
+
+// Fixed sources only: time-versioned monthly amount, like budget_allocations.
+export const incomeAmounts = pgTable(
+  "income_amounts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sourceId: uuid("source_id")
+      .notNull()
+      .references(() => incomeSources.id, { onDelete: "cascade" }),
+    effectiveMonth: date("effective_month", { mode: "string" }).notNull(),
+    amountCents: integer("amount_cents").notNull(),
+    createdBy: text("created_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("income_amounts_source_month_idx").on(
+      t.sourceId,
+      t.effectiveMonth,
+    ),
+    check("income_amounts_amount_check", sql`${t.amountCents} >= 0`),
+  ],
+);
+
+// Variable sources only: actual deposits, counted in the month of received_on.
+export const incomeDeposits = pgTable(
+  "income_deposits",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sourceId: uuid("source_id")
+      .notNull()
+      .references(() => incomeSources.id, { onDelete: "cascade" }),
+    receivedOn: date("received_on", { mode: "string" }).notNull(),
+    amountCents: integer("amount_cents").notNull(),
+    note: text("note"),
+    createdBy: text("created_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("income_deposits_source_received_idx").on(t.sourceId, t.receivedOn),
+    check("income_deposits_amount_check", sql`${t.amountCents} > 0`),
+  ],
+);

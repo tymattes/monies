@@ -13,12 +13,14 @@ export default function BudgetEditor({
   currency,
   editable,
   lines,
+  incomeCents,
 }: {
   month: string;
   monthName: string;
   currency: string;
   editable: boolean;
   lines: Line[];
+  incomeCents: number;
 }) {
   // Last saved amount per category, and what is currently typed.
   const [saved, setSaved] = useState<Record<string, number>>(() =>
@@ -32,6 +34,7 @@ export default function BudgetEditor({
   const [status, setStatus] = useState<Record<string, string>>({});
 
   const total = Object.values(saved).reduce((a, b) => a + b, 0);
+  const unallocated = incomeCents - total;
 
   function note(id: string, message: string) {
     setStatus((s) => ({ ...s, [id]: message }));
@@ -117,6 +120,20 @@ export default function BudgetEditor({
         <li className="flex items-center justify-between gap-4 bg-foreground/5 px-4 py-3 font-semibold">
           <span>Total budgeted</span>
           <span className="tabular-nums">{formatMoney(total, currency)}</span>
+        </li>
+        <li className="flex items-center justify-between gap-4 px-4 py-3 text-sm">
+          <span className="text-muted">Household income (take-home)</span>
+          <span className="tabular-nums">{formatMoney(incomeCents, currency)}</span>
+        </li>
+        <li className="flex items-center justify-between gap-4 px-4 py-3 text-sm font-medium">
+          <span className={unallocated < 0 ? "text-danger" : undefined}>
+            {unallocated < 0 ? "Over-allocated by" : "Unallocated"}
+          </span>
+          <span
+            className={`tabular-nums ${unallocated < 0 ? "text-danger" : ""}`}
+          >
+            {formatMoney(Math.abs(unallocated), currency)}
+          </span>
         </li>
       </ul>
     </div>

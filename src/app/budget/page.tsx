@@ -1,17 +1,14 @@
 import { headers } from "next/headers";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import BudgetEditor from "@/components/BudgetEditor";
 import CategoryManager from "@/components/CategoryManager";
+import MonthNav from "@/components/MonthNav";
 import { getBudget } from "@/lib/budgets";
 import { listCategories } from "@/lib/categories";
 import { getHouseholdContext } from "@/lib/household";
-import { addMonths, currentMonth, isMonth, monthLabel } from "@/lib/months";
+import { currentMonth, isMonth, monthLabel } from "@/lib/months";
 
 export const dynamic = "force-dynamic";
-
-const navCls =
-  "rounded-md border border-foreground/20 px-3 py-1.5 text-sm hover:bg-foreground/5";
 
 export default async function BudgetPage(props: PageProps<"/budget">) {
   const ctx = await getHouseholdContext(await headers());
@@ -32,30 +29,7 @@ export default async function BudgetPage(props: PageProps<"/budget">) {
       <section className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-2xl font-semibold tracking-tight">Budget</h1>
-          <nav aria-label="Month" className="flex items-center gap-2">
-            <Link
-              href={`/budget?month=${addMonths(month, -1)}`}
-              className={navCls}
-              aria-label="Previous month"
-            >
-              ←
-            </Link>
-            <span className="min-w-36 text-center text-sm font-medium">
-              {monthLabel(month)}
-            </span>
-            <Link
-              href={`/budget?month=${addMonths(month, 1)}`}
-              className={navCls}
-              aria-label="Next month"
-            >
-              →
-            </Link>
-            {month !== now && (
-              <Link href="/budget" className={navCls}>
-                This month
-              </Link>
-            )}
-          </nav>
+          <MonthNav basePath="/budget" month={month} now={now} />
         </div>
         {/* Keyed by month so navigating resets the editor's local state. */}
         <BudgetEditor
@@ -65,6 +39,7 @@ export default async function BudgetPage(props: PageProps<"/budget">) {
           currency={budget.currency}
           editable={budget.editable}
           lines={budget.categories}
+          incomeCents={budget.incomeCents}
         />
       </section>
 
