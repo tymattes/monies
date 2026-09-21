@@ -10,7 +10,7 @@ export default async function Header() {
   const ctx = await getHouseholdContext(await headers()).catch(() => null);
 
   return (
-    <header className="sticky top-0 z-10 border-b border-foreground/10 bg-background/80 backdrop-blur">
+    <header className="sticky top-0 z-10 border-b border-border bg-background/80 backdrop-blur">
       <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between gap-3 px-4">
         <Link href="/" aria-label="Monies home">
           <Logo />

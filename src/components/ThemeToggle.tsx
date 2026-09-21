@@ -90,7 +90,7 @@ export default function ThemeToggle() {
     <div
       role="group"
       aria-label="Theme"
-      className="inline-flex rounded-md border border-foreground/20 p-0.5"
+      className="inline-flex rounded-md border border-border-strong p-0.5"
     >
       {OPTIONS.map((o) => (
         <button
