@@ -13,13 +13,19 @@ Stack: Next.js (App Router) + TypeScript + Tailwind, `src/` layout, npm.
 - `npm run dev`: dev server on :3000
 - `npm run build` / `npm run start`: production build (`output: "standalone"`) and serve
 - `npm run lint`: ESLint
-- `docker compose up --build`: run the containerized app (port from `APP_PORT` in `.env`, see `.env.example`); healthcheck hits `/api/health`
+- `docker compose up --build`: run the full stack (app + Postgres). Needs `.env` copied from `.env.example` with `POSTGRES_PASSWORD` set; healthcheck hits `/api/health`
+- `docker compose up -d db`: Postgres only, for native `npm run dev` (uses `DATABASE_URL` from `.env`)
+- `npm run db:generate` / `npm run db:migrate`: generate migrations from `src/db/schema.ts` / apply them manually
 
 No test runner is configured yet.
 
 ## Architecture
 
-Only the shell exists so far (spec 001): `src/components/Header.tsx` and `Logo.tsx` rendered from `src/app/layout.tsx`, a placeholder page, and `GET /api/health`. Business logic should go behind API route handlers (`src/app/api/`) so a future iOS app can reuse them. Postgres is planned but not yet added.
+Specs 001-002 are done: header/logo shell, `GET /api/health` (reports DB connectivity, 503 when down), and the database foundation. Business logic should go behind API route handlers (`src/app/api/`) so a future iOS app can reuse them.
+
+- Data access: Drizzle ORM over `postgres`. `src/db/schema.ts` holds tables (empty until later specs), `src/db/index.ts` exposes lazy `getDb()`/`getSql()` so builds work without a DB. Migrations are SQL files in `drizzle/`, committed.
+- Migrations run automatically at server start via `src/instrumentation.ts` (dev and container). The Dockerfile copies `drizzle/` into the standalone image.
+- Keep `README.md` (notably its tech stack table and config table) current when the stack or env vars change.
 
 ## Product constraints from `specs/brief.md`
 
@@ -38,3 +44,13 @@ Specs and any later implementation must respect these:
 - Research must be completed before the specs are written. Cite sources for anything factual.
 - The brief lists research tasks. Only task 1 (current fintech/budgeting UX trends: navigation, data visualization, dark mode, motion, mobile-first; note what to adopt and what to avoid) is defined so far, and the brief appears truncated after it.
 - Keep spec files under `specs/`.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
