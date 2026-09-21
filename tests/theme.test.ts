@@ -47,8 +47,8 @@ describe.each(Object.entries(themes))("%s theme tokens", (_name, t) => {
   );
 });
 
-describe("dark theme", () => {
-  it("uses the Dracula palette", () => {
+describe("palettes", () => {
+  it("dark is the Dracula palette", () => {
     const d = themes.dark;
     expect(d.background.toLowerCase()).toBe("#282a36");
     expect(d.foreground.toLowerCase()).toBe("#f8f8f2");
@@ -57,9 +57,21 @@ describe("dark theme", () => {
     expect(d.accent.toLowerCase()).toBe("#50fa7b");
   });
 
-  it("keeps input borders visible against the background (3:1)", () => {
-    expect(contrast(themes.dark["border-strong"], themes.dark.background)).toBeGreaterThanOrEqual(3);
+  it("light is Alucard, Dracula's official light variant", () => {
+    const l = themes.light;
+    expect(l.background.toLowerCase()).toBe("#fffbeb");
+    expect(l.foreground.toLowerCase()).toBe("#1f1f1f");
+    expect(l.muted.toLowerCase()).toBe("#6c664b");
+    expect(l.danger.toLowerCase()).toBe("#cb3a2a");
+    expect(l.accent.toLowerCase()).toBe("#14710a");
   });
+
+  it.each(["light", "dark"] as const)(
+    "%s input borders are visible against the background (3:1)",
+    (name) => {
+      expect(contrast(themes[name]["border-strong"], themes[name].background)).toBeGreaterThanOrEqual(3);
+    },
+  );
 });
 
 describe("theme setup", () => {
@@ -80,6 +92,11 @@ describe("theme setup", () => {
 
   it("makes the dark: variant follow the dark class", () => {
     expect(css).toMatch(/@custom-variant dark/);
+  });
+
+  it("keeps browser autofill on theme", () => {
+    expect(css).toMatch(/input:-webkit-autofill[^{]*\{[^}]*var\(--background\)/);
+    expect(css).toMatch(/input:autofill[^{]*\{[^}]*var\(--background\)/);
   });
 });
 

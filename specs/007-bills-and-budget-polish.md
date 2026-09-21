@@ -7,7 +7,7 @@ Three related improvements before receipt capture, all about making the monthly 
 
 - **A. Bills.** The household records its recurring bills once (rent, subscriptions, phone, utilities, insurance), each tagged with who added it and a category the user is prompted to choose. Every month those bills count against their category automatically, without logging each one. This brings over the "Monthly Expenses" idea from the owner's Notion Finances doc: a list of recurring items with a type, an amount, a payment method and a comment, rolled up against income into what is left to spend or save (Notion's "Monthly Cash Flow").
 - **B. Assign unallocated to a category.** A one-click way to put the month's leftover (unallocated) budget into Savings or any other category, instead of defaulting it silently. See the discussion in the Decisions section.
-- **C. Dracula dark theme.** Replace the dark palette with the widely used Dracula palette.
+- **C. Dracula themes.** Replace the dark palette with the widely used Dracula palette, and the light palette with Alucard, Dracula's official light variant, so the two themes are a matched pair.
 
 Supports `brief.md`: category-driven budgets, modern UX, and a path to budget vs. actual (recurring bills are the first source of "actual").
 
@@ -32,13 +32,14 @@ Supports `brief.md`: category-driven budgets, modern UX, and a path to budget vs
 - It is an ordinary allocation afterwards: editable, and it appears in history like any other. Nothing is assigned automatically.
 - Done in one database transaction so two clicks or two members cannot double-assign.
 
-### C. Dracula dark theme
+### C. Dracula dark theme and Alucard light theme
 - The dark theme uses the official Dracula palette (source under Technical notes): background `#282A36`, foreground `#F8F8F2`, surfaces and borders `#44475A`, with green `#50FA7B` as the accent, red `#FF5555` for errors, and purple, cyan, pink, orange and yellow available for charts and highlights later.
-- The light theme is unchanged. The System / Light / Dark control from spec 005 is unchanged.
+- The light theme is **Alucard Classic**, Dracula's official light variant: warm cream background `#FFFBEB`, foreground `#1F1F1F`, comment `#6C664B` for muted text, red `#CB3A2A`, green `#14710A` as the accent. Its surface and border tones are derived from the cream background. The System / Light / Dark control from spec 005 is unchanged.
+- Browser autofill styling (the yellow or blue fill Chrome and Safari paint on autofilled inputs) is overridden so autofilled fields stay on theme in both modes.
 - Small muted text needs a derived tone: Dracula's official "Comment" color `#6272A4` is only 3.03:1 on the background, below the 4.5:1 the app requires, so muted text uses a lighter blue-gray tone that keeps the Dracula feel and passes AA. This is the one intentional deviation from the official palette.
 - Add `--surface` and `--border` tokens (both themes), and migrate `border-foreground/10-20` and `bg-foreground/5` to them so dark surfaces use the palette's `#44475A` instead of translucent overlays.
 - `tests/theme.test.ts` keeps enforcing 4.5:1 for foreground, muted, danger and accent on the background, and for foreground, muted and accent on the surface, in both themes. **Danger is not checked on the surface:** Dracula red `#FF5555` is 4.5:1 on the background but 2.9:1 on `#44475A`, and no red close to Dracula's passes there, so the rule is that error text never sits on a surface panel (documented in `globals.css` and CLAUDE.md). The test also guards against hardcoded colors and translucent foreground overlays in `src/`.
-- The README credits Dracula (draculatheme.com) for the palette.
+- The README credits Dracula and Alucard (draculatheme.com) for the palettes.
 
 ### API
 - `GET /api/bills/[month]`: bills active in the month with amount, category, paid with, note, added by (with `addedBy` name or "Former member"), category subtotals and month total.
@@ -66,7 +67,8 @@ Actual transactions and per-charge logging (receipt capture and the transactions
 - [ ] A yearly or 6-month bill counts its monthly equivalent (the charge divided by the number of months, rounded to the nearest minor unit) in every active month, not only in a renewal month; the form previews it; totals and category rollups use it (covered by tests).
 - [ ] Changing the billing period applies from the chosen month onward and leaves earlier months unchanged.
 - [ ] Amounts are integer minor units; negative and fractional values are rejected; 0 is allowed for bills.
-- [x] Dark theme uses the Dracula palette and the theme tests pass at 4.5:1 for foreground, muted, danger and accent on the background, and foreground, muted and accent on the surface, in both themes; light theme is unchanged.
+- [x] Dark theme uses the Dracula palette and light theme uses Alucard; the theme tests pass at 4.5:1 for foreground, muted, danger and accent on the background, and foreground, muted and accent on the surface, in both themes, and input borders are at least 3:1 against the background.
+- [x] Autofilled inputs use the theme colors instead of the browser's yellow or blue fill.
 - [x] No hardcoded colors are introduced; borders and panels use the new `--border` and `--surface` tokens.
 - [ ] Migration is additive and idempotent on restart; existing households simply have no bills yet.
 - [ ] Documentation updated (see Documentation).
@@ -78,7 +80,7 @@ Actual transactions and per-charge logging (receipt capture and the transactions
 - Category archive check: before setting `archived_from`, count bills whose effective category in the current month is that category and that are active; block when greater than 0. Also reject choosing an archived or not-yet-started category for a version.
 - Assign-unallocated: in one transaction lock the category's allocation for the month (`select ... for update` on the latest allocation, or advisory lock on the household and month), recompute unallocated from income minus the sum of effective allocations, then upsert the allocation as the current effective amount plus unallocated. Reuse `setAllocation`'s rules (past months rejected, category visible in the month).
 - Paid-with suggestions come from a distinct query over the household's bills; no separate table.
-- Dracula source: https://draculatheme.com/contribute lists Background `#282A36`, Selection `#44475A`, Foreground `#F8F8F2`, Comment `#6272A4`, Red `#FF5555`, Orange `#FFB86C`, Yellow `#F1FA8C`, Green `#50FA7B`, Cyan `#8BE9FD`, Purple `#BD93F9`, Pink `#FF79C6`. That page's table labels "Current Line" with the Comment color, which looks like a typo (the values `#44475A` and `#6272A4` are what matter here). It does not state a license; only these color values are used, with credit in the README.
+- Dracula source: https://draculatheme.com/contribute (dark) and https://draculatheme.com/spec (Alucard Classic light: Background `#FFFBEB`, Foreground `#1F1F1F`, Comment `#6C664B`, Selection `#CFCFDE`, Red `#CB3A2A`, Orange `#A34D14`, Yellow `#846E15`, Green `#14710A`, Cyan `#036A96`, Purple `#644AC9`, Pink `#A3144D`). The contribute page lists Background `#282A36`, Selection `#44475A`, Foreground `#F8F8F2`, Comment `#6272A4`, Red `#FF5555`, Orange `#FFB86C`, Yellow `#F1FA8C`, Green `#50FA7B`, Cyan `#8BE9FD`, Purple `#BD93F9`, Pink `#FF79C6`. That page's table labels "Current Line" with the Comment color, which looks like a typo (the values `#44475A` and `#6272A4` are what matter here). It does not state a license; only these color values are used, with credit in the README.
 - Contrast on `#282A36`: foreground 13.4:1, green 10.4:1, purple 5.9:1, red 4.5:1 (passes narrowly), Comment `#6272A4` 3.0:1 (fails). Check red on the surface tone (`#44475A`), where it is 2.9:1, and keep error text off surface panels or lighten it slightly; the theme test will catch this.
 - Migrating `border-foreground/10-20` and `bg-foreground/5` to tokens touches most components; do it as a mechanical pass and re-run the theme tests.
 - Tests that depend on "today" mock `currentMonth` as before; add `tests/bills.test.ts` and reuse `tests/helpers.ts`.
@@ -111,10 +113,11 @@ Fresh `docker compose up --build`: as the owner add three bills in different cat
 ## Implementation notes
 
 ### Part C (Dracula theme), first PR
-- Tokens added: `--surface`, `--border`, `--border-strong`. Light values are the previous 5% / 10% / 20% foreground overlays flattened to solid colors (`#f3f3f3`, `#e8e8e8`, `#d1d1d1`), so the light theme looks the same. Dark values are Dracula: surface and dividers `#44475A`, input and button borders `#6272A4` (3.03:1 on the background, which keeps input boundaries visible).
+- Tokens added: `--surface`, `--border`, `--border-strong`. Light values are Alucard with derived surfaces: background `#FFFBEB`, foreground `#1F1F1F`, muted `#6C664B` (5.6:1), danger `#CB3A2A` (4.9:1), accent `#14710A` (6.0:1), surface `#EFE9CF`, border `#DDD6B8`, and input/button border `#8A8467` (3.6:1 on the background). Dark values are Dracula: surface and dividers `#44475A`, input and button borders `#6272A4` (3.03:1 on the background, which keeps input boundaries visible).
 - Dark `--muted` is `#B4BBDB` (7.5:1 on the background, 4.8:1 on the surface), the deliberate deviation from Dracula's comment color. Dark `--danger` is the official `#FF5555`.
 - Every `border-foreground/10-20`, `divide-foreground/10` and `bg-foreground/5` in `src/` was migrated to `border-border`, `border-border-strong`, `divide-border` and `bg-surface`. `tests/theme.test.ts` now fails if a translucent foreground overlay, a Tailwind palette color, or a literal hex color reappears in `src/`.
 - The input focus border now uses `--accent` in both themes (it was a 50% foreground overlay), which also makes keyboard focus easier to see.
+- Autofill: `globals.css` overrides `:-webkit-autofill` and `:autofill` (text color and an inset shadow in `--background`) because Chrome painted an olive fill on the sign-in email field in dark mode.
 - The logo and accent text pick up Dracula green in dark mode through `--accent`.
 
 ## Not verified (Part C)
