@@ -120,5 +120,7 @@ Fresh `docker compose up --build`: as the owner add three bills in different cat
 - Autofill: `globals.css` overrides `:-webkit-autofill` and `:autofill` (text color and an inset shadow in `--background`) because Chrome painted an olive fill on the sign-in email field in dark mode.
 - The logo and accent text pick up Dracula green in dark mode through `--accent`.
 
+- Brand and icons (owner-approved during review): the overall scheme is purple / cream / green, recorded in CLAUDE.md. The favicon is now the M logo: `src/app/icon.svg` switches colors with the browser's light or dark mode (deep green tile and cream M, or bright green tile and dark M), and `favicon.ico` (16, 32, 48 px) and `apple-icon.png` (180 px, full-bleed since iOS rounds its own corners) use the bright green tile with the dark M so they read on any tab strip or home screen. Raster icons were rendered from the same M path with `sharp`.
+
 ## Not verified (Part C)
 The dark theme was not looked at in a real browser; it was verified by contrast tests, by confirming Tailwind generates every new utility, and by lint, typecheck and build. Please check each page in dark mode. The spec stays `approved` until parts B and A land.
