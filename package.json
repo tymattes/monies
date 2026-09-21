@@ -9,7 +9,9 @@
     "lint": "eslint",
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "test:e2e": "node e2e/prepare-db.mts && playwright test",
+    "e2e:screenshots": "node e2e/prepare-db.mts && SCREENSHOTS=1 playwright test screenshots.spec.ts"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "^1.7.5",
@@ -21,6 +23,8 @@
     "react-dom": "19.2.8"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^24.13.6",
     "@types/react": "^19",

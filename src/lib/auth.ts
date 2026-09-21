@@ -14,6 +14,10 @@ function createAuth() {
       // setup and invite-accept routes (see src/lib/accounts.ts).
       disableSignUp: true,
     },
+    // Better Auth rate-limits sign-in in production, which is what we want for
+    // real deployments. The Playwright browser tests sign in dozens of times a
+    // minute, so only they (E2E=1, set by playwright.config.ts) turn it off.
+    ...(process.env.E2E ? { rateLimit: { enabled: false } } : {}),
   });
 }
 
