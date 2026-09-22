@@ -201,9 +201,9 @@ describe("CashFlowCard", () => {
 });
 
 const rows: OverviewCategory[] = [
-  { id: "1", name: "Housing", type: "spending", budgetedCents: 180000, billsCents: 150000, leftCents: 30000 },
-  { id: "2", name: "Utilities", type: "spending", budgetedCents: 35000, billsCents: 42000, leftCents: -7000 },
-  { id: "3", name: "Health", type: "spending", budgetedCents: 0, billsCents: 0, leftCents: 0 },
+  { id: "1", name: "Housing", budgetedCents: 180000, billsCents: 150000, leftCents: 30000 },
+  { id: "2", name: "Utilities", budgetedCents: 35000, billsCents: 42000, leftCents: -7000 },
+  { id: "3", name: "Health", budgetedCents: 0, billsCents: 0, leftCents: 0 },
 ];
 
 describe("CategoryTable", () => {
@@ -244,30 +244,9 @@ describe("CategoryTable", () => {
     expect(html).not.toMatch(/>Spent</);
   });
 
-  it("has no group headers or subtotals when every row is the same type", () => {
+  it("is a flat table, with no type grouping (spec 014: Saving/Debt payoff moved to goals)", () => {
     expect(html).not.toContain("Spending total");
     expect(html).not.toMatch(/<th scope="rowgroup"/);
-  });
-
-  it("groups rows by type with a header and subtotal per group (spec 012)", () => {
-    const mixed: OverviewCategory[] = [
-      ...rows,
-      { id: "4", name: "Roth IRA", type: "saving", budgetedCents: 50000, billsCents: 0, leftCents: 50000 },
-      { id: "5", name: "Credit card", type: "debt payoff", budgetedCents: 20000, billsCents: 20000, leftCents: 0 },
-    ];
-    const grouped = renderToStaticMarkup(<CategoryTable rows={mixed} currency="USD" />);
-    expect(grouped).toMatch(/<th scope="rowgroup"[^>]*>Spending<\/th>/);
-    expect(grouped).toMatch(/<th scope="rowgroup"[^>]*>Saving<\/th>/);
-    expect(grouped).toMatch(/<th scope="rowgroup"[^>]*>Debt payoff<\/th>/);
-    expect(grouped).toContain("Spending total");
-    expect(grouped).toContain("Saving total");
-    expect(grouped).toContain("Debt payoff total");
-    // Spending order comes before Saving before Debt payoff regardless of row order.
-    expect(grouped.indexOf("Spending total")).toBeLessThan(grouped.indexOf("Saving total"));
-    expect(grouped.indexOf("Saving total")).toBeLessThan(grouped.indexOf("Debt payoff total"));
-    // Grand total (tfoot) is still the sum across every type: budgeted
-    // 2,150 (spending) + 500 (saving) + 200 (debt payoff) = 2,850.
-    expect(grouped).toContain("$2,850.00");
   });
 });
 

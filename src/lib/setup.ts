@@ -2,6 +2,7 @@ import { getDb } from "@/db";
 import { householdMembers, households } from "@/db/schema";
 import { insertUserWithPassword } from "./accounts";
 import { insertStarterCategories } from "./categories";
+import { insertStarterGoals } from "./goals";
 import { HttpError, isUniqueViolation } from "./http";
 
 // First run: no household exists yet.
@@ -29,6 +30,7 @@ export async function runSetup(input: {
         .values({ name: input.householdName, currency: input.currency })
         .returning({ id: households.id });
       await insertStarterCategories(tx, household.id);
+      await insertStarterGoals(tx, household.id);
       const userId = await insertUserWithPassword(tx, input);
       await tx
         .insert(householdMembers)

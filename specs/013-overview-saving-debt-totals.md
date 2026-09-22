@@ -2,6 +2,16 @@
 
 **Status:** implemented
 
+**Addendum (spec 014):** the Saving/Debt payoff figures and the bar's type
+split described below are unchanged in behavior and appearance, but their
+data source moved — spec 014 took Saving and Debt payoff out of
+`categories` entirely into their own `goals` tables, so `cashFlow.savingCents`/
+`debtPayoffCents`/`rest*` are now sums over goals, not category types. One
+simplification fell out of that move: goals have no bills at all, so a
+goal's `rest*` is always identical to its full amount — the "own bill"
+edge case this spec originally handled for a saving-type *category* no
+longer applies to a goal.
+
 ## Goal
 Spec 012 gave every category a type and grouped the Overview's Categories
 table by Spending / Saving / Debt payoff, but the Cash flow card above it —

@@ -164,10 +164,6 @@ export const categories = pgTable(
       .notNull()
       .references(() => households.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
-    // What kind of budget line this is (spec 012). A classification, not a
-    // monetary amount, so unlike allocations it is not time-versioned:
-    // changing it reclassifies the category past and future alike.
-    type: text("type").notNull().default("spending"),
     position: integer("position").notNull(),
     // First month the category appears in.
     startMonth: date("start_month", { mode: "string" }).notNull(),
@@ -183,10 +179,6 @@ export const categories = pgTable(
       .on(t.householdId, sql`lower(${t.name})`)
       .where(sql`${t.archivedFrom} is null`),
     index("categories_household_id_idx").on(t.householdId),
-    check(
-      "categories_type_check",
-      sql`${t.type} in ('spending', 'saving', 'debt payoff')`,
-    ),
   ],
 );
 
@@ -216,6 +208,87 @@ export const budgetAllocations = pgTable(
     ),
     check("budget_allocations_amount_check", sql`${t.amountCents} >= 0`),
   ],
+);
+
+// --- Savings and Debt payoff goals (spec 014) ---
+//
+// A goal is unobservable money: a transfer that happens outside this app
+// (a bank, a brokerage, a creditor), unlike an Expense category whose actual
+// spend can eventually be verified via transactions. So a goal gets a
+// monthly target amount (time-versioned, same rule as budget_allocations)
+// and a monthly checkmark instead of anything the app claims to verify.
+export const goals = pgTable(
+  "goals",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    householdId: uuid("household_id")
+      .notNull()
+      .references(() => households.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    type: text("type").notNull(),
+    position: integer("position").notNull(),
+    startMonth: date("start_month", { mode: "string" }).notNull(),
+    archivedFrom: date("archived_from", { mode: "string" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("goals_active_name_idx")
+      .on(t.householdId, sql`lower(${t.name})`)
+      .where(sql`${t.archivedFrom} is null`),
+    index("goals_household_id_idx").on(t.householdId),
+    check("goals_type_check", sql`${t.type} in ('saving', 'debt payoff')`),
+  ],
+);
+
+// Time-versioned exactly like budget_allocations: the amount for a month is
+// the row with the latest effective_month on or before it.
+export const goalAmounts = pgTable(
+  "goal_amounts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    goalId: uuid("goal_id")
+      .notNull()
+      .references(() => goals.id, { onDelete: "cascade" }),
+    effectiveMonth: date("effective_month", { mode: "string" }).notNull(),
+    amountCents: integer("amount_cents").notNull(),
+    createdBy: text("created_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("goal_amounts_goal_month_idx").on(
+      t.goalId,
+      t.effectiveMonth,
+    ),
+    check("goal_amounts_amount_check", sql`${t.amountCents} >= 0`),
+  ],
+);
+
+// A row's presence means the goal was checked off for that month; toggling
+// is insert/delete, so there is no boolean column. Unlike goal_amounts,
+// there is no read-only-past rule — a checkmark records a fact, often
+// confirmed after the month closes, not a plan being rewritten.
+export const goalCheckins = pgTable(
+  "goal_checkins",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    goalId: uuid("goal_id")
+      .notNull()
+      .references(() => goals.id, { onDelete: "cascade" }),
+    month: date("month", { mode: "string" }).notNull(),
+    checkedBy: text("checked_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    checkedAt: timestamp("checked_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [uniqueIndex("goal_checkins_goal_month_idx").on(t.goalId, t.month)],
 );
 
 // --- Income (spec 006) ---

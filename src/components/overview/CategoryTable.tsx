@@ -1,4 +1,3 @@
-import { groupByType } from "@/lib/categoryTypes";
 import { formatMoney } from "@/lib/money";
 import type { OverviewCategory } from "@/lib/overview";
 
@@ -48,7 +47,6 @@ export default function CategoryTable({
     }),
     { budgeted: 0, bills: 0 },
   );
-  const groups = groupByType(rows);
 
   return (
     <section aria-labelledby="categories-heading" className="space-y-2">
@@ -71,75 +69,34 @@ export default function CategoryTable({
               </th>
             </tr>
           </thead>
-          {groups.map((group) => {
-            const groupTotals = group.lines.reduce(
-              (t, r) => ({
-                budgeted: t.budgeted + r.budgetedCents,
-                bills: t.bills + r.billsCents,
-              }),
-              { budgeted: 0, bills: 0 },
-            );
-            return (
-              // Each type gets its own tbody so the header cell's `scope`
-              // ("rowgroup") correctly associates it with just these rows.
-              <tbody key={group.type}>
-                {groups.length > 1 && (
-                  <tr className="border-t border-border bg-surface-subtle">
-                    <th
-                      scope="rowgroup"
-                      colSpan={5}
-                      className="px-4 py-1.5 text-left text-xs font-semibold text-muted"
-                    >
-                      {group.label}
-                    </th>
-                  </tr>
-                )}
-                {group.lines.map((r) => (
-                  <tr key={r.id} className="border-t border-border">
-                    <th scope="row" className="px-4 py-3 text-left font-medium">
-                      {r.name}
-                      <span className="block text-xs font-normal text-muted sm:hidden">
-                        Budgeted {money(r.budgetedCents)} · Bills {money(r.billsCents)}
-                      </span>
-                    </th>
-                    <td className="hidden px-2 py-3 text-right tabular-nums sm:table-cell">
-                      {money(r.budgetedCents)}
-                    </td>
-                    <td className="hidden px-2 py-3 text-right tabular-nums text-muted sm:table-cell">
-                      {money(r.billsCents)}
-                    </td>
-                    <td
-                      className={`px-2 py-3 text-right tabular-nums ${
-                        r.leftCents < 0 ? "text-danger" : ""
-                      }`}
-                    >
-                      {money(r.leftCents)}
-                    </td>
-                    <td className="hidden py-3 pl-2 pr-4 sm:table-cell">
-                      <BudgetBar budgeted={r.budgetedCents} bills={r.billsCents} />
-                    </td>
-                  </tr>
-                ))}
-                {groups.length > 1 && (
-                  <tr className="border-t border-border bg-surface font-medium">
-                    <th scope="row" className="px-4 py-2 text-left text-sm">
-                      {group.label} total
-                    </th>
-                    <td className="hidden px-2 py-2 text-right text-sm tabular-nums sm:table-cell">
-                      {money(groupTotals.budgeted)}
-                    </td>
-                    <td className="hidden px-2 py-2 text-right text-sm tabular-nums sm:table-cell">
-                      {money(groupTotals.bills)}
-                    </td>
-                    <td className="px-2 py-2 text-right text-sm tabular-nums">
-                      {money(groupTotals.budgeted - groupTotals.bills)}
-                    </td>
-                    <td className="hidden sm:table-cell" />
-                  </tr>
-                )}
-              </tbody>
-            );
-          })}
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.id} className="border-t border-border">
+                <th scope="row" className="px-4 py-3 text-left font-medium">
+                  {r.name}
+                  <span className="block text-xs font-normal text-muted sm:hidden">
+                    Budgeted {money(r.budgetedCents)} · Bills {money(r.billsCents)}
+                  </span>
+                </th>
+                <td className="hidden px-2 py-3 text-right tabular-nums sm:table-cell">
+                  {money(r.budgetedCents)}
+                </td>
+                <td className="hidden px-2 py-3 text-right tabular-nums text-muted sm:table-cell">
+                  {money(r.billsCents)}
+                </td>
+                <td
+                  className={`px-2 py-3 text-right tabular-nums ${
+                    r.leftCents < 0 ? "text-danger" : ""
+                  }`}
+                >
+                  {money(r.leftCents)}
+                </td>
+                <td className="hidden py-3 pl-2 pr-4 sm:table-cell">
+                  <BudgetBar budgeted={r.budgetedCents} bills={r.billsCents} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
           <tfoot>
             <tr className="border-t border-border bg-surface font-semibold">
               <th scope="row" className="px-4 py-3 text-left">Total</th>

@@ -1,6 +1,6 @@
 import { getBillsMonth } from "./bills";
 import { getBudget } from "./budgets";
-import type { CategoryType } from "./categoryTypes";
+import type { GoalType } from "./goalTypes";
 import type { HouseholdContext } from "./household";
 import { getIncomeMonth } from "./income";
 import { formatMoney } from "./money";
@@ -27,7 +27,6 @@ export type AttentionItem = {
 export type OverviewCategory = {
   id: string;
   name: string;
-  type: CategoryType;
   budgetedCents: number;
   billsCents: number;
   leftCents: number;
@@ -58,10 +57,13 @@ export type Overview = {
       intervalMonths: number;
     }[];
   };
+  // Expense categories plus goals (spec 014) — everything earmarked.
   budget: { budgetedCents: number; unallocatedCents: number };
   // Splits the month's income for the stacked bar. `billsWithinBudgetCents +
-  // restOfBudgetCents` always equals the budgeted total; `unallocatedCents` is
-  // income minus budgeted when positive, `overAllocatedCents` when negative.
+  // restOfBudgetCents` always equals the Expense budgeted total (goals are
+  // never billed, so they never enter this split); `unallocatedCents` is
+  // income minus budgeted (Expenses + goals) when positive, `overAllocatedCents`
+  // when negative.
   cashFlow: {
     incomeCents: number;
     billsWithinBudgetCents: number;
@@ -69,17 +71,16 @@ export type Overview = {
     unallocatedCents: number;
     overAllocatedCents: number;
     leftAfterBillsCents: number;
-    // Full budgeted total by category type (spec 013), for the headline
-    // Saving/Debt payoff stats — includes any bills in that category, so it
-    // can exceed the "rest" figures below (same relationship as the
-    // existing Bills stat vs. "Bills within budget").
+    // Full amounts by goal type (spec 013/014), for the headline Saving/Debt
+    // payoff stats. Goals have no bills, so unlike a category these are
+    // already the "unbilled" amount — see rest* below.
     spendingCents: number;
     savingCents: number;
     debtPayoffCents: number;
-    // `restOfBudgetCents`, split by type instead of left whole — always
-    // sums back to it. This is what the bar actually draws for the
-    // non-bill portion, so a saving category's own bills (if any) still
-    // land in `billsWithinBudgetCents`, never double-counted here.
+    // What the bar actually draws for the non-bill portion. For Expenses
+    // this is `restOfBudgetCents` (there is only one type of category now);
+    // for goals it's identical to the full amount above, since a goal is
+    // never partly consumed by a bill the way a category can be.
     restSpendingCents: number;
     restSavingCents: number;
     restDebtPayoffCents: number;
@@ -109,7 +110,6 @@ export async function getOverview(
   const categories: OverviewCategory[] = budget.categories.map((c) => ({
     id: c.id,
     name: c.name,
-    type: c.type,
     budgetedCents: c.amountCents,
     billsCents: c.billsCents,
     leftCents: c.remainingCents,
@@ -128,20 +128,15 @@ export async function getOverview(
     0,
   );
   const incomeCents = budget.incomeCents;
-  const budgetedCents = budget.totalCents;
-  const unallocatedCents = incomeCents - budgetedCents;
-  const sumByType = (type: CategoryType) =>
-    categories.filter((c) => c.type === type).reduce((t, c) => t + c.budgetedCents, 0);
-  const spendingCents = sumByType("spending");
-  const savingCents = sumByType("saving");
-  const debtPayoffCents = sumByType("debt payoff");
-  const restByType = (type: CategoryType) =>
-    categories
-      .filter((c) => c.type === type)
-      .reduce((t, c) => t + Math.max(c.budgetedCents - c.billsCents, 0), 0);
-  const restSpendingCents = restByType("spending");
-  const restSavingCents = restByType("saving");
-  const restDebtPayoffCents = restByType("debt payoff");
+  // Everything earmarked: Expense budgets and goal amounts alike (spec 014).
+  const budgetedCents = budget.totalCents + budget.goalsTotalCents;
+  const unallocatedCents = budget.unallocatedCents;
+  const spendingCents = budget.totalCents;
+  const restSpendingCents = restOfBudgetCents;
+  const sumGoalsByType = (type: GoalType) =>
+    budget.goals.filter((g) => g.type === type).reduce((t, g) => t + g.amountCents, 0);
+  const savingCents = sumGoalsByType("saving");
+  const debtPayoffCents = sumGoalsByType("debt payoff");
 
   const attention: AttentionItem[] = [];
   // Income that may still grow (variable deposits not recorded yet) makes a
@@ -257,8 +252,8 @@ export async function getOverview(
       savingCents,
       debtPayoffCents,
       restSpendingCents,
-      restSavingCents,
-      restDebtPayoffCents,
+      restSavingCents: savingCents,
+      restDebtPayoffCents: debtPayoffCents,
     },
     categories,
     attention,
