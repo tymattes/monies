@@ -38,12 +38,17 @@ export const SIGNED_IN_PAGES = [
 ];
 export const SIGNED_OUT_PAGES = [{ name: "sign-in", path: "/sign-in" }];
 
-// Dracula (dark) and Alucard (light) as computed by the browser.
-export const DARK_BG = "rgb(40, 42, 54)";
-export const LIGHT_BG = "rgb(255, 251, 235)";
+// Dracula (dark) and Alucard (light) as computed by the browser. The page is the
+// canvas behind everything; cards (panels, lists, tables) are raised above it.
+export const DARK_PAGE = "rgb(33, 34, 44)";
+export const LIGHT_PAGE = "rgb(242, 239, 228)";
+export const DARK_CARD = "rgb(40, 42, 54)";
+export const LIGHT_CARD = "rgb(255, 251, 235)";
+export const DARK_SUBTLE = "rgb(52, 55, 70)";
+export const LIGHT_SUBTLE = "rgb(247, 244, 232)";
 export const DARK_ACCENT = "rgb(80, 250, 123)";
 export const LIGHT_ACCENT = "rgb(20, 113, 10)";
-export const LIGHT_DANGER = "rgb(203, 58, 42)";
+export const LIGHT_DANGER = "rgb(200, 55, 31)";
 
 // "$1,234.50" or "-$70.00" -> cents.
 export function cents(text: string): number {

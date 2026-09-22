@@ -271,7 +271,7 @@ export default function BudgetEditor({
     return (
       <div className="space-y-3">
         {summary}
-        <p className="rounded-lg border border-border p-6 text-sm text-muted">
+        <p className="rounded-xl border border-border bg-background shadow-sm p-6 text-sm text-muted">
           No categories in {monthName}. Add some below, or go to a later month.
         </p>
       </div>
@@ -289,10 +289,10 @@ export default function BudgetEditor({
           ? `Changes apply from ${monthName} onward. Earlier months are not affected.`
           : "Past months are read-only so history stays accurate."}
       </p>
-      <ul className="divide-y divide-border rounded-lg border border-border">
+      <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-background shadow-sm">
         <li
           aria-hidden="true"
-          className="hidden items-center justify-between gap-4 px-4 py-2 text-xs text-muted sm:flex"
+          className="hidden items-center justify-between gap-4 bg-surface-subtle px-4 py-2 text-xs text-muted sm:flex"
         >
           <span>Category</span>
           <div className="flex items-center gap-4">

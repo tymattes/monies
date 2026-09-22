@@ -1,9 +1,9 @@
 import { expect, test } from "@playwright/test";
 import {
   DARK_ACCENT,
-  DARK_BG,
+  DARK_PAGE,
   LIGHT_ACCENT,
-  LIGHT_BG,
+  LIGHT_PAGE,
   bodyBackground,
   isDark,
   waitHydrated,
@@ -18,7 +18,7 @@ test.describe("follows the OS when nothing is saved", () => {
     test("uses the Dracula palette", async ({ page }) => {
       await page.goto("/sign-in");
       expect(await isDark(page)).toBe(true);
-      expect(await bodyBackground(page)).toBe(DARK_BG);
+      expect(await bodyBackground(page)).toBe(DARK_PAGE);
     });
   });
 
@@ -27,7 +27,7 @@ test.describe("follows the OS when nothing is saved", () => {
     test("uses the Alucard palette", async ({ page }) => {
       await page.goto("/sign-in");
       expect(await isDark(page)).toBe(false);
-      expect(await bodyBackground(page)).toBe(LIGHT_BG);
+      expect(await bodyBackground(page)).toBe(LIGHT_PAGE);
     });
   });
 
@@ -39,7 +39,7 @@ test.describe("follows the OS when nothing is saved", () => {
       await expect(page.locator("html")).toHaveClass(/\bdark\b/);
       await page.emulateMedia({ colorScheme: "light" });
       await expect(page.locator("html")).not.toHaveClass(/\bdark\b/);
-      expect(await bodyBackground(page)).toBe(LIGHT_BG);
+      expect(await bodyBackground(page)).toBe(LIGHT_PAGE);
       await page.emulateMedia({ colorScheme: "dark" });
       await expect(page.locator("html")).toHaveClass(/\bdark\b/);
     });
@@ -79,7 +79,7 @@ test.describe("explicit choice", () => {
     await page.route(/\.js(\?.*)?$/, (route) => route.abort());
     await page.goto("/sign-in", { waitUntil: "domcontentloaded" });
     expect(await isDark(page)).toBe(true);
-    expect(await bodyBackground(page)).toBe(DARK_BG);
+    expect(await bodyBackground(page)).toBe(DARK_PAGE);
   });
 
   test("the control works by keyboard", async ({ page }) => {
@@ -114,4 +114,17 @@ test.describe("input focus uses the accent color", () => {
       await expect(page.getByLabel("Email")).toHaveCSS("border-top-color", LIGHT_ACCENT);
     });
   });
+});
+
+test.describe("theme switch placement on signed-out screens", () => {
+  for (const path of ["/sign-in"]) {
+    test(`${path}: the switch is at the right edge of the header, away from the logo`, async ({ page }) => {
+      await page.goto(path);
+      const logo = (await page.getByRole("link", { name: "Monies home" }).boundingBox())!;
+      const toggle = (await page.getByRole("group", { name: "Theme" }).boundingBox())!;
+      // Far to the right of the logo, and inside the header's content width.
+      expect(toggle.x).toBeGreaterThan(logo.x + logo.width + 300);
+      expect(toggle.y).toBeLessThan(60);
+    });
+  }
 });

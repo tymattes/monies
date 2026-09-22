@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Header from "@/components/Header";
+import { themeScript } from "@/lib/themeScript";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -18,9 +19,6 @@ export const metadata: Metadata = {
   description: "Self-hosted household budgeting",
 };
 
-// Runs synchronously while the HTML is parsed, so the right theme is applied
-// before first paint (no light-to-dark flash). Keep in sync with ThemeToggle.
-const themeScript = `(function(){var t=null;try{t=localStorage.getItem("theme")}catch(e){}var d=t==="dark"||(t!=="light"&&window.matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.classList.toggle("dark",d)})()`;
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (

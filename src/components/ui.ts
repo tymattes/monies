@@ -11,3 +11,9 @@ export const labelCls = "block text-sm font-medium";
 
 export const navCls =
   "rounded-md border border-border-strong px-3 py-1.5 text-sm hover:bg-surface";
+
+// A raised panel: card color on the deeper page, with a border and (in light) a
+// soft shadow. Lists and tables also need `overflow-hidden` so header and total
+// fills follow the rounded corners.
+export const cardCls =
+  "rounded-xl border border-border bg-background shadow-sm";

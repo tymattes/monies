@@ -149,7 +149,7 @@ function AddBillForm({
     <form
       onSubmit={add}
       aria-label="Add a bill"
-      className="space-y-3 rounded-lg border border-border p-4"
+      className="space-y-3 rounded-xl border border-border bg-background shadow-sm p-4"
     >
       <h2 className="font-semibold tracking-tight">Add a bill</h2>
       <div className="flex flex-wrap items-end gap-3">
@@ -484,7 +484,7 @@ export default function BillsView({
         </p>
       </div>
 
-      <div className="flex items-center justify-between rounded-lg bg-surface px-4 py-3 font-semibold">
+      <div className="flex items-center justify-between rounded-xl bg-surface px-4 py-3 font-semibold">
         <span>Bills in {monthName}</span>
         <span className="tabular-nums">{formatMoney(data.totalCents, currency)} / month</span>
       </div>
@@ -499,7 +499,7 @@ export default function BillsView({
       )}
 
       {data.bills.length === 0 ? (
-        <p className="rounded-lg border border-border p-6 text-sm text-muted">
+        <p className="rounded-xl border border-border bg-background shadow-sm p-6 text-sm text-muted">
           No bills in {monthName}.
           {editable ? " Add your first one above." : ""}
         </p>
@@ -512,7 +512,7 @@ export default function BillsView({
                 {formatMoney(group.totalCents, currency)} / month
               </span>
             </div>
-            <ul className="divide-y divide-border rounded-lg border border-border">
+            <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-background shadow-sm">
               {data.bills
                 .filter((b) => b.categoryId === group.categoryId)
                 .map((b) => (

@@ -10,25 +10,35 @@
 
    Dark is the Dracula palette and light is Alucard, Dracula's official light
    variant (https://draculatheme.com/contribute, https://draculatheme.com/spec):
-     dark : background #282A36, foreground #F8F8F2, selection #44475A,
-            comment #6272A4, red #FF5555, green #50FA7B
+     dark : background #282A36, foreground #F8F8F2, comment #6272A4,
+            red #FF5555, green #50FA7B, and the layered backgrounds Darker
+            #21222C, Light #343746 and Lighter #424450
      light: background #FFFBEB, foreground #1F1F1F, comment #6C664B,
             red #CB3A2A, green #14710A
    Deliberate deviations: dark --muted is lighter than Dracula's comment color
-   (3.0:1 on the background, below AA); light --surface, --border and
-   --border-strong are derived from the cream background.
+   (3.0:1 on the background, below AA); light --danger is #C8371F, a hair darker
+   than Alucard's red, so error text stays at 4.5:1 on the deeper light page;
+   light --page, --surface-subtle, --surface, --border and --border-strong are
+   derived from the cream background.
 
-   Do not put --danger text on --surface: red on the surface is below 4.5:1 in
-   the dark theme. */
+   Layers, from back to front:
+     --page            the canvas behind everything (body)
+     --background      cards: every panel, list, table, form and header bar
+     --surface-subtle  quiet fills inside a card (table header rows)
+     --surface         emphasis fills inside a card (total rows)
+   Do not put --danger text on --surface or --surface-subtle: red is below
+   4.5:1 there in the dark theme. Avoid row hover fills for the same reason. */
 :root {
   color-scheme: light;
+  --page: #f2efe4;
   --background: #fffbeb;
   --foreground: #1f1f1f;
   --muted: #6c664b;
-  --danger: #cb3a2a;
+  --danger: #c8371f;
   --accent: #14710a;
-  --surface: #efe9cf;
-  --border: #ddd6b8;
+  --surface-subtle: #f7f4e8;
+  --surface: #ebe8dc;
+  --border: #d3cdb0;
   --border-strong: #8a8467;
   /* Chart colors: Alucard purple, cyan, pink, orange (each >= 3:1 on the background). */
   --chart-1: #644ac9;
@@ -39,12 +49,14 @@
 
 :root.dark {
   color-scheme: dark;
+  --page: #21222c;
   --background: #282a36;
   --foreground: #f8f8f2;
   --muted: #b4bbdb;
   --danger: #ff5555;
   --accent: #50fa7b;
-  --surface: #44475a;
+  --surface-subtle: #343746;
+  --surface: #424450;
   --border: #44475a;
   --border-strong: #6272a4;
   /* Chart colors: Dracula purple, cyan, pink, orange. */
@@ -55,11 +67,13 @@
 }
 
 @theme inline {
+  --color-page: var(--page);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
   --color-danger: var(--danger);
   --color-accent: var(--accent);
+  --color-surface-subtle: var(--surface-subtle);
   --color-surface: var(--surface);
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
@@ -71,8 +85,12 @@
   --font-mono: var(--font-geist-mono);
 }
 
+html {
+  background: var(--page);
+}
+
 body {
-  background: var(--background);
+  background: var(--page);
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }

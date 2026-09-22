@@ -28,7 +28,7 @@ export default async function MembersPage() {
       </section>
 
       <section>
-        <ul className="divide-y divide-border rounded-lg border border-border">
+        <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-background shadow-sm">
           {members.map((m) => (
             <li
               key={m.userId}
