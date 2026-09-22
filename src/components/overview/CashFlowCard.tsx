@@ -70,10 +70,10 @@ export default function CashFlowCard({
       `${money(cf.restSpendingCents)} spending` +
       (cf.restSavingCents > 0 ? `, ${money(cf.restSavingCents)} saving` : "") +
       (cf.restDebtPayoffCents > 0 ? `, ${money(cf.restDebtPayoffCents)} debt payoff` : "") +
-      `, ${money(cf.unallocatedCents)} unallocated` +
+      `, ${money(cf.unallocatedCents)} unallocated income` +
       (over ? `, ${overWord} by ${money(cf.overAllocatedCents)}` : "")
     : `Income ${money(cf.incomeCents)}: ${money(cf.billsWithinBudgetCents)} bills within budget, ` +
-      `${money(cf.restOfBudgetCents)} rest of budget, ${money(cf.unallocatedCents)} unallocated` +
+      `${money(cf.restOfBudgetCents)} rest of budget, ${money(cf.unallocatedCents)} unallocated income` +
       (over ? `, ${overWord} by ${money(cf.overAllocatedCents)}` : "");
 
   return (
@@ -106,7 +106,7 @@ export default function CashFlowCard({
               ? incomeProvisional
                 ? "Over recorded income by"
                 : "Over-allocated by"
-              : "Unallocated"
+              : "Unallocated Income"
           }
           value={money(over ? cf.overAllocatedCents : cf.unallocatedCents)}
           danger={overIsError}
@@ -233,7 +233,7 @@ export default function CashFlowCard({
             }}
           />
           <span>
-            <span className="block text-muted">Unallocated</span>
+            <span className="block text-muted">Unallocated Income</span>
             <span className="block font-medium tabular-nums">{money(cf.unallocatedCents)}</span>
           </span>
         </li>

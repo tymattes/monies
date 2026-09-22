@@ -12,7 +12,8 @@ export type AttentionCode =
   | "category_bills_over_budget"
   | "unallocated"
   | "no_income"
-  | "no_bills";
+  | "no_bills"
+  | "goal_not_checked";
 
 export type AttentionItem = {
   code: AttentionCode;
@@ -22,6 +23,7 @@ export type AttentionItem = {
   actionLabel: string;
   amountCents?: number;
   categoryId?: string;
+  goalId?: string;
 };
 
 export type OverviewCategory = {
@@ -30,6 +32,14 @@ export type OverviewCategory = {
   budgetedCents: number;
   billsCents: number;
   leftCents: number;
+};
+
+export type OverviewGoal = {
+  id: string;
+  name: string;
+  type: GoalType;
+  amountCents: number;
+  checked: boolean;
 };
 
 export type Overview = {
@@ -86,6 +96,9 @@ export type Overview = {
     restDebtPayoffCents: number;
   };
   categories: OverviewCategory[];
+  // Saving/Debt payoff goals for the month (spec 015 — Overview's Goals
+  // card), same shape `getGoalsMonth`/`getBudget` already produce.
+  goals: OverviewGoal[];
   attention: AttentionItem[];
 };
 
@@ -186,7 +199,7 @@ export async function getOverview(
       code: "unallocated",
       severity: "info",
       message: `${money(unallocatedCents)} is not assigned to a category yet.`,
-      href: `/budget${q}#assign`,
+      href: `/income${q}#assign`,
       actionLabel: "Assign",
       amountCents: unallocatedCents,
     });
@@ -209,6 +222,25 @@ export async function getOverview(
       href: `/bills${q}`,
       actionLabel: "Add bills",
     });
+  }
+  // A reminder to confirm a funded goal actually happened (spec 015). Only
+  // for the current month: a past month is for review, and a future month
+  // has nothing to confirm yet (the checkmark records something that already
+  // happened), same reasoning as the setup prompts above.
+  if (month === currentMonth()) {
+    for (const g of budget.goals) {
+      if (g.amountCents > 0 && !g.checked) {
+        attention.push({
+          code: "goal_not_checked",
+          severity: "info",
+          message: `${g.name} hasn't been checked off yet this month.`,
+          href: "/goals",
+          actionLabel: "Check off",
+          amountCents: g.amountCents,
+          goalId: g.id,
+        });
+      }
+    }
   }
 
   return {
@@ -256,6 +288,7 @@ export async function getOverview(
       restDebtPayoffCents: debtPayoffCents,
     },
     categories,
+    goals: budget.goals,
     attention,
   };
 }

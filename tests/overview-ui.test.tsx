@@ -5,8 +5,9 @@ import BillsCard from "@/components/overview/BillsCard";
 import CashFlowCard from "@/components/overview/CashFlowCard";
 import CategoryTable from "@/components/overview/CategoryTable";
 import GetStarted from "@/components/overview/GetStarted";
+import GoalsCard from "@/components/overview/GoalsCard";
 import IncomeCard from "@/components/overview/IncomeCard";
-import type { AttentionItem, Overview, OverviewCategory } from "@/lib/overview";
+import type { AttentionItem, Overview, OverviewCategory, OverviewGoal } from "@/lib/overview";
 
 const cashFlow = {
   incomeCents: 400000,
@@ -29,7 +30,7 @@ const card = (o: Partial<typeof base> = {}, cf: Partial<typeof cashFlow> = {}) =
       overview={{ ...base, ...o, cashFlow: { ...cashFlow, ...cf } }}
       billsTotalCents={163000}
       monthName="September 2026"
-      assignHref="/budget#assign"
+      assignHref="/income#assign"
     />,
   );
 
@@ -41,13 +42,13 @@ describe("CashFlowCard", () => {
       expect(html).toContain(v);
     }
     expect(html).toContain("Left after bills");
-    expect(html).toContain("Unallocated");
+    expect(html).toContain("Unallocated Income");
     expect(html).not.toContain("Over-allocated");
   });
 
   it("has a text equivalent for the bar and never uses a pie or gauge", () => {
     const html = card();
-    expect(html).toMatch(/role="img"[^>]*aria-label="Income \$4,000\.00: \$1,600\.00 bills within budget, \$1,000\.00 rest of budget, \$1,400\.00 unallocated"/);
+    expect(html).toMatch(/role="img"[^>]*aria-label="Income \$4,000\.00: \$1,600\.00 bills within budget, \$1,000\.00 rest of budget, \$1,400\.00 unallocated income"/);
     expect(html).not.toMatch(/<svg|<canvas|conic-gradient|radial-gradient/);
   });
 
@@ -59,7 +60,7 @@ describe("CashFlowCard", () => {
   });
 
   it("offers Assign only for an editable month with money left", () => {
-    expect(card()).toMatch(/<a[^>]*href="\/budget#assign"[^>]*>Assign<\/a>/);
+    expect(card()).toMatch(/<a[^>]*href="\/income#assign"[^>]*>Assign<\/a>/);
     expect(card({ editable: false })).not.toContain(">Assign<");
     expect(card({}, { unallocatedCents: 0, overAllocatedCents: 0 })).not.toContain(">Assign<");
   });
@@ -185,7 +186,7 @@ describe("CashFlowCard", () => {
       expect(label).toContain("$250.00 spending");
       expect(label).toContain("$500.00 saving");
       expect(label).toContain("$250.00 debt payoff");
-      expect(label).toContain("unallocated");
+      expect(label).toContain("unallocated income");
     });
 
     it("the split segments take up the same total width as the one it replaces", () => {
@@ -252,7 +253,7 @@ describe("CategoryTable", () => {
 
 const items: AttentionItem[] = [
   { code: "category_bills_over_budget", severity: "warning", message: "Utilities: bills are $70.00 over its budget.", href: "/budget", actionLabel: "Adjust budget", categoryId: "c1", amountCents: 7000 },
-  { code: "unallocated", severity: "info", message: "$900.00 is not assigned to a category yet.", href: "/budget#assign", actionLabel: "Assign", amountCents: 90000 },
+  { code: "unallocated", severity: "info", message: "$900.00 is not assigned to a category yet.", href: "/income#assign", actionLabel: "Assign", amountCents: 90000 },
 ];
 
 describe("AttentionList", () => {
@@ -264,7 +265,7 @@ describe("AttentionList", () => {
     const html = renderToStaticMarkup(<AttentionList items={items} />);
     expect(html).toContain("Needs attention");
     expect(html).toMatch(/<a[^>]*href="\/budget"[^>]*>Adjust budget<\/a>/);
-    expect(html).toMatch(/<a[^>]*href="\/budget#assign"[^>]*>Assign<\/a>/);
+    expect(html).toMatch(/<a[^>]*href="\/income#assign"[^>]*>Assign<\/a>/);
     expect(html.match(/Warning: /g)?.length).toBe(1);
     expect(html).toContain("border-l-danger");
   });
@@ -314,6 +315,46 @@ describe("BillsCard", () => {
   it("explains a month with no bills", () => {
     const html = renderToStaticMarkup(<BillsCard bills={{ totalCents: 0, byCategory: [], largest: [] }} currency="USD" href="/bills" />);
     expect(html).toContain("No recurring bills yet.");
+  });
+});
+
+describe("GoalsCard (spec 015)", () => {
+  const goals: OverviewGoal[] = [
+    { id: "1", name: "Roth IRA", type: "saving", amountCents: 30000, checked: true },
+    { id: "2", name: "Emergency fund", type: "saving", amountCents: 50000, checked: false },
+    { id: "3", name: "Credit card", type: "debt payoff", amountCents: 15000, checked: false },
+    { id: "4", name: "Unfunded goal", type: "saving", amountCents: 0, checked: false },
+  ];
+
+  it("totals only funded goals, split by type", () => {
+    const html = renderToStaticMarkup(<GoalsCard goals={goals} currency="USD" href="/goals" />);
+    expect(html).toContain("$950.00"); // 300 + 500 + 150, funded only
+    expect(html).toContain(">Saving<");
+    expect(html).toContain("$800.00"); // 300 + 500
+    expect(html).toContain(">Debt payoff<");
+    expect(html).toContain("$150.00");
+  });
+
+  it("lists each funded goal with its check-off status, and skips unfunded ones", () => {
+    const html = renderToStaticMarkup(<GoalsCard goals={goals} currency="USD" href="/goals" />);
+    expect(html).toContain("Roth IRA");
+    expect(html).toContain("Checked off");
+    expect(html).toContain("Emergency fund");
+    expect(html).toContain("Credit card");
+    expect(html.match(/Not checked off yet/g)?.length).toBe(2); // Emergency fund + Credit card
+    expect(html).not.toContain("Unfunded goal");
+  });
+
+  it("explains a month with nothing funded", () => {
+    const html = renderToStaticMarkup(
+      <GoalsCard goals={goals.map((g) => ({ ...g, amountCents: 0 }))} currency="USD" href="/goals" />,
+    );
+    expect(html).toContain("No goals funded this month yet.");
+  });
+
+  it("links Manage to the Goals page", () => {
+    const html = renderToStaticMarkup(<GoalsCard goals={goals} currency="USD" href="/goals?month=2026-10" />);
+    expect(html).toMatch(/<a[^>]*href="\/goals\?month=2026-10"[^>]*>Manage/);
   });
 });
 

@@ -11,6 +11,7 @@ import * as allocationRoute from "@/app/api/budgets/[month]/allocations/[categor
 import * as budgetRoute from "@/app/api/budgets/[month]/route";
 import * as billsRoute from "@/app/api/bills/route";
 import * as goalAmountRoute from "@/app/api/goals/month/[month]/amounts/[id]/route";
+import * as goalCheckinRoute from "@/app/api/goals/month/[month]/checkins/[id]/route";
 import * as goalsRoute from "@/app/api/goals/route";
 import * as depositsRoute from "@/app/api/income/sources/[id]/deposits/route";
 import * as incomeAmountRoute from "@/app/api/income/[month]/sources/[id]/route";
@@ -53,6 +54,15 @@ async function goalBudget(cookie: string, name: string, amountCents: number) {
     method: "PUT", cookie, params: { month: "2026-09", id }, body: { amountCents },
   });
   expect(r.status).toBe(200);
+}
+
+async function checkGoal(cookie: string, name: string, month: string, checked: boolean) {
+  const id = await goalId(cookie, name);
+  const r = await call(goalCheckinRoute.PUT, `/api/goals/month/${month}/checkins/${id}`, {
+    method: "PUT", cookie, params: { month, id }, body: { checked },
+  });
+  expect(r.status).toBe(200);
+  return id;
 }
 
 async function budget(cookie: string, name: string, amountCents: number) {
@@ -162,6 +172,20 @@ describe("overview numbers", () => {
     expect(restSpendingCents).toBe(restOfBudgetCents);
   });
 
+  it("exposes the month's goals (spec 015 — Overview's Goals card)", async () => {
+    const owner = await setupOwner();
+    await addGoal(owner, "Roth IRA", "saving");
+    await goalBudget(owner, "Savings", 30000);
+    await goalBudget(owner, "Roth IRA", 20000);
+    await checkGoal(owner, "Savings", "2026-09", true);
+
+    const { data } = await overview(owner);
+    expect(data.goals).toEqual([
+      { id: await goalId(owner, "Savings"), name: "Savings", type: "saving", amountCents: 30000, checked: true },
+      { id: await goalId(owner, "Roth IRA"), name: "Roth IRA", type: "saving", amountCents: 20000, checked: false },
+    ]);
+  });
+
   it("always splits the budget exactly, and income exactly when not over-allocated", async () => {
     const owner = await setupOwner();
     const member = await joinAsMember(owner);
@@ -233,7 +257,7 @@ describe("attention items", () => {
     expect(over.message).toBe("Utilities: bills are $30.00 over its budget.");
     expect(over.categoryId).toBe(await categoryId(owner, "Utilities"));
 
-    expect(attention[1]).toMatchObject({ severity: "info", amountCents: 140000, href: "/budget#assign", actionLabel: "Assign" });
+    expect(attention[1]).toMatchObject({ severity: "info", amountCents: 140000, href: "/income#assign", actionLabel: "Assign" });
     expect(attention[1].message).toBe("$1,400.00 is not assigned to a category yet.");
   });
 
@@ -285,7 +309,7 @@ describe("attention items", () => {
     await salary(owner, 400000);
     const next = await overview(owner, "2026-10"); // income carries forward, nothing budgeted yet
     const unallocated = next.data.attention.find((i) => i.code === "unallocated")!;
-    expect(unallocated.href).toBe("/budget?month=2026-10#assign");
+    expect(unallocated.href).toBe("/income?month=2026-10#assign");
   });
 
   it("offers no Assign or setup prompts for a past month", async () => {
@@ -316,6 +340,59 @@ describe("attention items", () => {
     const { data } = await overview(owner);
     expect(data.currency).toBe("EUR");
     expect(data.attention.find((i) => i.code === "unallocated")!.message).toBe("€800.00 is not assigned to a category yet.");
+  });
+});
+
+describe("goal check-off reminder (spec 015)", () => {
+  it("reminds for an unchecked, funded goal in the current month, and clears once checked", async () => {
+    const owner = await setupOwner();
+    await goalBudget(owner, "Savings", 30000); // the starter goal
+
+    const before = (await overview(owner)).data.attention;
+    const reminder = before.find((i) => i.code === "goal_not_checked")!;
+    expect(reminder).toMatchObject({
+      severity: "info", href: "/goals", actionLabel: "Check off", amountCents: 30000,
+    });
+    expect(reminder.message).toBe("Savings hasn't been checked off yet this month.");
+    expect(reminder.goalId).toBe(await goalId(owner, "Savings"));
+
+    await checkGoal(owner, "Savings", "2026-09", true);
+    const after = (await overview(owner)).data.attention;
+    expect(after.some((i) => i.code === "goal_not_checked")).toBe(false);
+  });
+
+  it("reminds for both Saving and Debt payoff goals, one item each", async () => {
+    const owner = await setupOwner();
+    await addGoal(owner, "Credit card", "debt payoff");
+    await goalBudget(owner, "Savings", 30000);
+    await goalBudget(owner, "Credit card", 15000);
+
+    const { attention } = (await overview(owner)).data;
+    const reminders = attention.filter((i) => i.code === "goal_not_checked");
+    expect(reminders.map((r) => r.message).sort()).toEqual([
+      "Credit card hasn't been checked off yet this month.",
+      "Savings hasn't been checked off yet this month.",
+    ]);
+  });
+
+  it("skips a goal with nothing budgeted this month", async () => {
+    const owner = await setupOwner();
+    // The starter goal exists but has $0 budgeted.
+    const { attention } = (await overview(owner)).data;
+    expect(attention.some((i) => i.code === "goal_not_checked")).toBe(false);
+  });
+
+  it("never shows for a past or future month", async () => {
+    const owner = await setupOwner();
+    await goalBudget(owner, "Savings", 30000);
+
+    clock.month = "2026-10";
+    const past = (await overview(owner, "2026-09")).data.attention;
+    expect(past.some((i) => i.code === "goal_not_checked")).toBe(false);
+
+    clock.month = "2026-09";
+    const future = (await overview(owner, "2026-10")).data.attention;
+    expect(future.some((i) => i.code === "goal_not_checked")).toBe(false);
   });
 });
 

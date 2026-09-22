@@ -1,0 +1,2 @@
+# Kept so the Dockerfile's `COPY --from=build /app/public ./public` has a target.
+# App icons live in src/app/ (icon.svg, favicon.ico, apple-icon.png), not here.

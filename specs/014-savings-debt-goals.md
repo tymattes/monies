@@ -182,7 +182,12 @@ Transactions), which only needs to reason about one kind of category.
   components, following the Budget/Bills/Income page shape (`PlanHeader`-like
   header with month nav, though goals get their own small header since they
   aren't part of the existing three-tab Plan group). `HeaderNav` gains
-  "Goals" as a 4th top-level destination (still ≤ 5).
+  "Goals" as a 4th top-level destination (still ≤ 5). **Superseded by spec
+  015**, which moved Goals into the Plan tab group as a 4th tab (`PlanTabs`,
+  `PlanHeader`) and dropped it back out of `HeaderNav` — in practice it read
+  as an orphaned destination rather than a genuinely different kind of thing
+  from Budget/Bills/Income. Spec 015 also moved the Assign panel from the
+  Budget page to Income.
 - **Tests**: new `tests/goals.test.ts` (CRUD, time-versioned amounts,
   checkins editable in the past, starter goal); extend
   `tests/budgets.test.ts`/`tests/assign.test.ts` for the combined
