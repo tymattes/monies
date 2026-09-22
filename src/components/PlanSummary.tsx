@@ -83,7 +83,7 @@ export default function PlanSummary({
             </button>
           ) : (
             <Link
-              href={`/budget?month=${month}#assign`}
+              href={`/income?month=${month}#assign`}
               className={`${buttonCls} inline-block`}
             >
               Assign

@@ -13,7 +13,7 @@ export default function PlanHeader({
   now,
   summary,
 }: {
-  title: "Budget" | "Bills" | "Income";
+  title: "Budget" | "Bills" | "Income" | "Goals";
   month: string;
   now: string;
   summary?: PlanSummaryData;

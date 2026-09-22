@@ -54,7 +54,7 @@ export default async function OverviewPage(props: PageProps<"/">) {
             overview={o}
             billsTotalCents={o.bills.totalCents}
             monthName={monthLabel(month)}
-            assignHref={`/budget${q}#assign`}
+            assignHref={`/income${q}#assign`}
           />
           {o.categories.length > 0 && (
             <CategoryTable rows={o.categories} currency={o.currency} />

@@ -29,7 +29,7 @@ const card = (o: Partial<typeof base> = {}, cf: Partial<typeof cashFlow> = {}) =
       overview={{ ...base, ...o, cashFlow: { ...cashFlow, ...cf } }}
       billsTotalCents={163000}
       monthName="September 2026"
-      assignHref="/budget#assign"
+      assignHref="/income#assign"
     />,
   );
 
@@ -59,7 +59,7 @@ describe("CashFlowCard", () => {
   });
 
   it("offers Assign only for an editable month with money left", () => {
-    expect(card()).toMatch(/<a[^>]*href="\/budget#assign"[^>]*>Assign<\/a>/);
+    expect(card()).toMatch(/<a[^>]*href="\/income#assign"[^>]*>Assign<\/a>/);
     expect(card({ editable: false })).not.toContain(">Assign<");
     expect(card({}, { unallocatedCents: 0, overAllocatedCents: 0 })).not.toContain(">Assign<");
   });
@@ -252,7 +252,7 @@ describe("CategoryTable", () => {
 
 const items: AttentionItem[] = [
   { code: "category_bills_over_budget", severity: "warning", message: "Utilities: bills are $70.00 over its budget.", href: "/budget", actionLabel: "Adjust budget", categoryId: "c1", amountCents: 7000 },
-  { code: "unallocated", severity: "info", message: "$900.00 is not assigned to a category yet.", href: "/budget#assign", actionLabel: "Assign", amountCents: 90000 },
+  { code: "unallocated", severity: "info", message: "$900.00 is not assigned to a category yet.", href: "/income#assign", actionLabel: "Assign", amountCents: 90000 },
 ];
 
 describe("AttentionList", () => {
@@ -264,7 +264,7 @@ describe("AttentionList", () => {
     const html = renderToStaticMarkup(<AttentionList items={items} />);
     expect(html).toContain("Needs attention");
     expect(html).toMatch(/<a[^>]*href="\/budget"[^>]*>Adjust budget<\/a>/);
-    expect(html).toMatch(/<a[^>]*href="\/budget#assign"[^>]*>Assign<\/a>/);
+    expect(html).toMatch(/<a[^>]*href="\/income#assign"[^>]*>Assign<\/a>/);
     expect(html.match(/Warning: /g)?.length).toBe(1);
     expect(html).toContain("border-l-danger");
   });
