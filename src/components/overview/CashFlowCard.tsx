@@ -101,6 +101,13 @@ export default function CashFlowCard({
             </Link>
           )}
         </Stat>
+        {/* Extra lens on money already counted above (spec 013), hidden when
+            zero so a household that hasn't used the type does not see a
+            permanent "$0.00" — the grid wraps these onto their own row. */}
+        {cf.savingCents > 0 && <Stat label="Saving" value={money(cf.savingCents)} />}
+        {cf.debtPayoffCents > 0 && (
+          <Stat label="Debt payoff" value={money(cf.debtPayoffCents)} />
+        )}
       </div>
 
       <div

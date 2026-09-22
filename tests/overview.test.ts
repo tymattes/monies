@@ -10,6 +10,7 @@ vi.mock("@/lib/months", async (importOriginal) => ({
 import * as allocationRoute from "@/app/api/budgets/[month]/allocations/[categoryId]/route";
 import * as budgetRoute from "@/app/api/budgets/[month]/route";
 import * as billsRoute from "@/app/api/bills/route";
+import * as categoriesRoute from "@/app/api/categories/route";
 import * as depositsRoute from "@/app/api/income/sources/[id]/deposits/route";
 import * as incomeAmountRoute from "@/app/api/income/[month]/sources/[id]/route";
 import * as incomeSourceRoute from "@/app/api/income/sources/[id]/route";
@@ -31,6 +32,13 @@ const codes = (items: AttentionItem[]) => items.map((i) => i.code);
 async function categoryId(cookie: string, name: string) {
   const r = await call(budgetRoute.GET, "/api/budgets/2026-09", { cookie, params: { month: "2026-09" } });
   return (r.json.categories as { id: string; name: string }[]).find((c) => c.name === name)!.id;
+}
+
+async function addCategory(cookie: string, name: string, type: string) {
+  const r = await call(categoriesRoute.POST, "/api/categories", {
+    method: "POST", cookie, body: { name, type },
+  });
+  expect(r.status).toBe(201);
 }
 
 async function budget(cookie: string, name: string, amountCents: number) {
@@ -103,7 +111,28 @@ describe("overview numbers", () => {
       unallocatedCents: 140000,
       overAllocatedCents: 0,
       leftAfterBillsCents: 237000, // 4,000 - 1,630
+      savingCents: 0, // "Savings" exists (a starter category) but nothing is budgeted into it
+      debtPayoffCents: 0, // no debt payoff category in this scenario
     });
+  });
+
+  it("sums budgeted amounts by type into savingCents and debtPayoffCents (spec 013)", async () => {
+    const owner = await setupOwner();
+    const member = await joinAsMember(owner);
+    await scenario(owner, member.cookie);
+    await addCategory(owner, "Roth IRA", "saving");
+    await addCategory(owner, "Credit card", "debt payoff");
+    await budget(owner, "Savings", 30000); // the starter category, type saving
+    await budget(owner, "Roth IRA", 20000);
+    await budget(owner, "Credit card", 15000);
+
+    const { data } = await overview(owner);
+    expect(data.cashFlow.savingCents).toBe(50000); // Savings 300 + Roth IRA 200
+    expect(data.cashFlow.debtPayoffCents).toBe(15000);
+    // Still counted within the existing totals, not extra money.
+    expect(data.cashFlow.billsWithinBudgetCents + data.cashFlow.restOfBudgetCents).toBe(
+      data.budget.budgetedCents,
+    );
   });
 
   it("always splits the budget exactly, and income exactly when not over-allocated", async () => {
@@ -210,6 +239,7 @@ describe("attention items", () => {
     expect(data.cashFlow).toEqual({
       incomeCents: 0, billsWithinBudgetCents: 0, restOfBudgetCents: 0,
       unallocatedCents: 0, overAllocatedCents: 0, leftAfterBillsCents: 0,
+      savingCents: 0, debtPayoffCents: 0,
     });
     expect(data.income.byMember.map((m) => m.name)).toEqual(["Olive Owner"]);
   });

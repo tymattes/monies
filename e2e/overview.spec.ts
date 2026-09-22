@@ -52,6 +52,13 @@ test.describe("with a seeded household", () => {
     await expect(card).toContainText(money(SEED.unallocatedCents));
   });
 
+  test("shows Saving (from the seeded budget) but not Debt payoff, since no such category exists (spec 013)", async ({ page }) => {
+    const card = cashFlow(page);
+    await expect(card).toContainText("Saving");
+    await expect(card).toContainText(money(SEED.budgets.Savings));
+    await expect(card).not.toContainText("Debt payoff");
+  });
+
   test("the bar's segments add up to the income, and its text equivalent says so", async ({ page }) => {
     const items = await legend(page).getByRole("listitem").allTextContents();
     const [billsWithin, rest, unallocated] = items.slice(0, 3).map(cents);
@@ -173,6 +180,26 @@ test.describe("with a seeded household", () => {
     await expect(page.getByRole("link", { name: "Assign" })).toHaveCount(0);
     await expect(page.getByRole("region", { name: "Needs attention" })).toHaveCount(0);
     await expect(page.getByRole("heading", { name: /get your month set up/ })).toHaveCount(0);
+  });
+});
+
+test.describe("adding a Debt payoff category (spec 013)", () => {
+  test.beforeEach(async ({ page }) => {
+    await resetAndSeed();
+    await signIn(page, OWNER);
+    const M = monthKey();
+    const created = await (
+      await page.request.post("/api/categories", { data: { name: "Credit card", type: "debt payoff" } })
+    ).json();
+    await page.request.put(`/api/budgets/${M}/allocations/${created.category.id}`, { data: { amountCents: 15000 } });
+    await page.goto("/");
+  });
+
+  test("shows Debt payoff alongside Saving on the cash-flow card", async ({ page }) => {
+    const card = cashFlow(page);
+    await expect(card).toContainText("Saving");
+    await expect(card).toContainText("Debt payoff");
+    await expect(card).toContainText(money(15000));
   });
 });
 

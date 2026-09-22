@@ -15,6 +15,8 @@ const cashFlow = {
   unallocatedCents: 140000,
   overAllocatedCents: 0,
   leftAfterBillsCents: 237000,
+  savingCents: 0,
+  debtPayoffCents: 0,
 };
 const base = { cashFlow, currency: "USD", editable: true, incomeProvisional: false };
 const card = (o: Partial<typeof base> = {}, cf: Partial<typeof cashFlow> = {}) =>
@@ -110,6 +112,35 @@ describe("CashFlowCard", () => {
     const html = card({}, { incomeCents: 0, billsWithinBudgetCents: 0, restOfBudgetCents: 0, unallocatedCents: 0, overAllocatedCents: 0, leftAfterBillsCents: 0 });
     expect(html).not.toContain("NaN");
     expect(html).not.toContain("Infinity");
+  });
+
+  describe("Saving and Debt payoff stats (spec 013)", () => {
+    it("shows neither when both are zero", () => {
+      const html = card();
+      expect(html).not.toContain(">Saving<");
+      expect(html).not.toContain(">Debt payoff<");
+    });
+
+    it("shows only the nonzero one", () => {
+      const savingOnly = card({}, { savingCents: 50000 });
+      expect(savingOnly).toContain(">Saving<");
+      expect(savingOnly).toContain("$500.00");
+      expect(savingOnly).not.toContain(">Debt payoff<");
+
+      const debtOnly = card({}, { debtPayoffCents: 25000 });
+      expect(debtOnly).toContain(">Debt payoff<");
+      expect(debtOnly).toContain("$250.00");
+      expect(debtOnly).not.toContain(">Saving<");
+    });
+
+    it("shows both together, without changing any other figure", () => {
+      const html = card({}, { savingCents: 50000, debtPayoffCents: 25000 });
+      expect(html).toContain(">Saving<");
+      expect(html).toContain(">Debt payoff<");
+      // The always-present figures are untouched by the new stats.
+      expect(html).toContain("$4,000.00"); // income
+      expect(html).toContain("$1,400.00"); // unallocated
+    });
   });
 });
 
