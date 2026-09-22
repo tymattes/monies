@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { GoalType } from "@/lib/goalTypes";
 import { api, focusAssignPanel } from "@/lib/client";
+import { addMonths, monthLabel } from "@/lib/months";
 import { formatMoney, parseMoney, toInputString } from "@/lib/money";
 import { buttonCls, cardCls, inputCls, secondaryButtonCls } from "./ui";
 
@@ -74,6 +75,9 @@ export default function AssignUnallocated({
   const parsed = rows.map((r) => ({ ...r, minor: parseMoney(r.amount, currency) }));
   const total = parsed.reduce((sum, r) => sum + (r.minor ?? 0), 0);
   const left = unallocated - total;
+  // Assign is a one-month top-up (spec 017): each target reverts to its
+  // earlier amount the following month unless already changed there.
+  const nextMonthName = monthLabel(addMonths(month, 1));
   const chosen = rows.map((r) => r.target).filter(Boolean);
   const valid =
     parsed.every((r) => r.target !== "" && r.minor !== null && r.minor > 0) &&
@@ -241,8 +245,8 @@ export default function AssignUnallocated({
         {left < 0
           ? `That is ${formatMoney(-left, currency)} more than the unallocated amount.`
           : left === 0
-            ? `Assigning all of it from ${monthName} onward. You can change any amount afterwards.`
-            : `Assigning ${formatMoney(total, currency)}; ${formatMoney(left, currency)} stays unallocated. Applies from ${monthName} onward.`}
+            ? `Assigning all of it to ${monthName}; ${nextMonthName} goes back to the earlier amount unless you change it.`
+            : `Assigning ${formatMoney(total, currency)} to ${monthName}; ${formatMoney(left, currency)} stays unallocated. ${nextMonthName} goes back to the earlier amount unless you change it.`}
       </p>
       {error && (
         <p role="alert" className="text-xs text-danger">
