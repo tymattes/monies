@@ -1,6 +1,6 @@
 # 015: Goals under Plan, Assign moves to Income, a check-off reminder
 
-**Status:** implemented
+**Status:** draft
 
 ## Goal
 Three small corrections to spec 014's shape, based on using it: Goals felt
