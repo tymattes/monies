@@ -146,25 +146,24 @@ export async function setAllocation(
     });
 }
 
-// A row targets either a category or a goal, never both (spec 014).
-export type Assignment =
-  | { categoryId: string; amountCents: number }
-  | { goalId: string; amountCents: number };
+// A row targets a goal, the only kind Assign supports (spec 020).
+export type Assignment = { goalId: string; amountCents: number };
 
 export const MAX_ASSIGNMENTS = 50;
 
-// Adds part or all of the month's unallocated amount to one or more
-// categories or goals, from `month` onward, as ordinary allocations, all in
-// one transaction (either every assignment applies or none does). `request`
-// is either explicit `assignments`, or `{ categoryId }`/`{ goalId }` meaning
-// "all of it to this one." A per-household-and-month advisory lock
-// serializes concurrent assigns: the loser waits, then sees the new
-// unallocated amount and is rejected if it no longer fits, so money can
-// never be assigned twice.
+// Adds part or all of the month's unallocated amount to one or more goals,
+// from `month` onward, as ordinary goal allocations, all in one transaction
+// (either every assignment applies or none does). `request` is either
+// explicit `assignments`, or `{ goalId }` meaning "all of it to this one."
+// A per-household-and-month advisory lock serializes concurrent assigns: the
+// loser waits, then sees the new unallocated amount and is rejected if it no
+// longer fits, so money can never be assigned twice. Categories are not a
+// valid target (spec 020) — a category's budget is set by hand on Budget or
+// reflects what it actually costs, never by leftover income routed into it.
 export async function assignUnallocated(
   ctx: HouseholdContext,
   month: string,
-  request: { categoryId: string } | { goalId: string } | { assignments: Assignment[] },
+  request: { goalId: string } | { assignments: Assignment[] },
 ) {
   if (month < currentMonth()) {
     throw new HttpError(400, "Past months are read-only");
@@ -182,53 +181,35 @@ export async function assignUnallocated(
     const assignments: Assignment[] =
       "assignments" in request
         ? request.assignments
-        : "goalId" in request
-          ? [{ goalId: request.goalId, amountCents: budget.unallocatedCents }]
-          : [{ categoryId: request.categoryId, amountCents: budget.unallocatedCents }];
+        : [{ goalId: request.goalId, amountCents: budget.unallocatedCents }];
 
     const seen = new Set<string>();
     let assignedCents = 0;
-    const results: (
-      | { kind: "category"; categoryId: string; assignedCents: number; amountCents: number; beforeCents: number }
-      | { kind: "goal"; goalId: string; assignedCents: number; amountCents: number; beforeCents: number }
-    )[] = [];
+    const results: {
+      goalId: string;
+      assignedCents: number;
+      amountCents: number;
+      beforeCents: number;
+    }[] = [];
     for (const a of assignments) {
-      const key = "goalId" in a ? `goal:${a.goalId}` : `cat:${a.categoryId}`;
+      const key = `goal:${a.goalId}`;
       if (seen.has(key)) {
-        throw new HttpError(400, "Each category or goal can only appear once");
+        throw new HttpError(400, "Each goal can only appear once");
       }
       seen.add(key);
-      if ("goalId" in a) {
-        const line = budget.goals.find((g) => g.id === a.goalId);
-        if (!line) throw new HttpError(404, "Goal not found for this month");
-        const amountCents = line.amountCents + a.amountCents;
-        if (amountCents > MAX_AMOUNT) {
-          throw new HttpError(400, "That would exceed the maximum amount");
-        }
-        assignedCents += a.amountCents;
-        results.push({
-          kind: "goal",
-          goalId: a.goalId,
-          assignedCents: a.amountCents,
-          amountCents,
-          beforeCents: line.amountCents,
-        });
-      } else {
-        const line = budget.categories.find((c) => c.id === a.categoryId);
-        if (!line) throw new HttpError(404, "Category not found for this month");
-        const amountCents = line.amountCents + a.amountCents;
-        if (amountCents > MAX_AMOUNT) {
-          throw new HttpError(400, "That would exceed the maximum amount");
-        }
-        assignedCents += a.amountCents;
-        results.push({
-          kind: "category",
-          categoryId: a.categoryId,
-          assignedCents: a.amountCents,
-          amountCents,
-          beforeCents: line.amountCents,
-        });
+      const line = budget.goals.find((g) => g.id === a.goalId);
+      if (!line) throw new HttpError(404, "Goal not found for this month");
+      const amountCents = line.amountCents + a.amountCents;
+      if (amountCents > MAX_AMOUNT) {
+        throw new HttpError(400, "That would exceed the maximum amount");
       }
+      assignedCents += a.amountCents;
+      results.push({
+        goalId: a.goalId,
+        assignedCents: a.amountCents,
+        amountCents,
+        beforeCents: line.amountCents,
+      });
     }
     if (assignedCents > budget.unallocatedCents) {
       throw new HttpError(
@@ -239,7 +220,7 @@ export async function assignUnallocated(
 
     // Money assigned from unallocated is this month's leftover, not a
     // deliberate raise (spec 017) — so besides the normal bump for `month`,
-    // each target also gets a companion row for `month + 1` reverting it to
+    // each goal also gets a companion row for `month + 1` reverting it to
     // its pre-assign amount, unless one already exists there (a deliberate
     // future plan, or an earlier assign's own revert this same month) —
     // onConflictDoNothing leaves that alone rather than overwrite it.
@@ -247,55 +228,29 @@ export async function assignUnallocated(
     // normal "latest effective row on or before it" rule.
     const nextMonth = monthStart(addMonths(month, 1));
     for (const r of results) {
-      if (r.kind === "goal") {
-        await tx
-          .insert(goalAmounts)
-          .values({
-            goalId: r.goalId,
-            effectiveMonth: monthStart(month),
-            amountCents: r.amountCents,
-            createdBy: ctx.user.id,
-          })
-          .onConflictDoUpdate({
-            target: [goalAmounts.goalId, goalAmounts.effectiveMonth],
-            set: { amountCents: r.amountCents, createdBy: ctx.user.id },
-          });
-        await tx
-          .insert(goalAmounts)
-          .values({
-            goalId: r.goalId,
-            effectiveMonth: nextMonth,
-            amountCents: r.beforeCents,
-            createdBy: ctx.user.id,
-          })
-          .onConflictDoNothing({
-            target: [goalAmounts.goalId, goalAmounts.effectiveMonth],
-          });
-      } else {
-        await tx
-          .insert(budgetAllocations)
-          .values({
-            categoryId: r.categoryId,
-            effectiveMonth: monthStart(month),
-            amountCents: r.amountCents,
-            createdBy: ctx.user.id,
-          })
-          .onConflictDoUpdate({
-            target: [budgetAllocations.categoryId, budgetAllocations.effectiveMonth],
-            set: { amountCents: r.amountCents, createdBy: ctx.user.id },
-          });
-        await tx
-          .insert(budgetAllocations)
-          .values({
-            categoryId: r.categoryId,
-            effectiveMonth: nextMonth,
-            amountCents: r.beforeCents,
-            createdBy: ctx.user.id,
-          })
-          .onConflictDoNothing({
-            target: [budgetAllocations.categoryId, budgetAllocations.effectiveMonth],
-          });
-      }
+      await tx
+        .insert(goalAmounts)
+        .values({
+          goalId: r.goalId,
+          effectiveMonth: monthStart(month),
+          amountCents: r.amountCents,
+          createdBy: ctx.user.id,
+        })
+        .onConflictDoUpdate({
+          target: [goalAmounts.goalId, goalAmounts.effectiveMonth],
+          set: { amountCents: r.amountCents, createdBy: ctx.user.id },
+        });
+      await tx
+        .insert(goalAmounts)
+        .values({
+          goalId: r.goalId,
+          effectiveMonth: nextMonth,
+          amountCents: r.beforeCents,
+          createdBy: ctx.user.id,
+        })
+        .onConflictDoNothing({
+          target: [goalAmounts.goalId, goalAmounts.effectiveMonth],
+        });
     }
 
     return {
