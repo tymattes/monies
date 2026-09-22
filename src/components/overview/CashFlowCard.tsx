@@ -28,9 +28,11 @@ function Stat({
   );
 }
 
-// Income split into bills, the rest of the budget, and money not yet assigned.
-// A stacked bar (never a pie or gauge) with a legend that repeats every number,
-// so nothing depends on color alone. Unallocated is drawn as a hatched gap.
+// Income split into bills, the rest of the budget (further split into
+// spending/saving/debt payoff once a household uses those types — spec 013),
+// and money not yet assigned. A stacked bar (never a pie or gauge) with a
+// legend that repeats every number, so nothing depends on color alone.
+// Unallocated is drawn as a hatched gap.
 export default function CashFlowCard({
   overview,
   billsTotalCents,
@@ -55,22 +57,24 @@ export default function CashFlowCard({
   const billsIsError = billsExceedIncome && !incomeProvisional;
   const overWord = incomeProvisional ? "above recorded income" : "over-allocated";
 
-  const summary =
-    `Income ${money(cf.incomeCents)}: ${money(cf.billsWithinBudgetCents)} bills within budget, ` +
-    `${money(cf.restOfBudgetCents)} rest of budget, ${money(cf.unallocatedCents)} unallocated` +
-    (over ? `, ${overWord} by ${money(cf.overAllocatedCents)}` : "");
+  // The non-bill part of the budget splits into spending/saving/debt payoff
+  // only once there is actually money to show there — a saving category
+  // fully consumed by its own bill has nothing left to draw here (that
+  // money is already inside "bills within budget"). Otherwise the bar keeps
+  // its original two-segment shape and label, unchanged for the common case
+  // of a household that has not used these types.
+  const showType = cf.restSavingCents > 0 || cf.restDebtPayoffCents > 0;
 
-  // A second, independent split of the same income — by type instead of by
-  // bills — only worth drawing once a household actually uses Saving or
-  // Debt payoff categories (spec 013); otherwise it would just repeat the
-  // first bar's shape with "Spending" standing in for everything.
-  const showByType = cf.savingCents > 0 || cf.debtPayoffCents > 0;
-  const typeSummary =
-    `Income ${money(cf.incomeCents)}: ${money(cf.spendingCents)} spending` +
-    (cf.savingCents > 0 ? `, ${money(cf.savingCents)} saving` : "") +
-    (cf.debtPayoffCents > 0 ? `, ${money(cf.debtPayoffCents)} debt payoff` : "") +
-    `, ${money(cf.unallocatedCents)} unallocated` +
-    (over ? `, ${overWord} by ${money(cf.overAllocatedCents)}` : "");
+  const summary = showType
+    ? `Income ${money(cf.incomeCents)}: ${money(cf.billsWithinBudgetCents)} bills within budget, ` +
+      `${money(cf.restSpendingCents)} spending` +
+      (cf.restSavingCents > 0 ? `, ${money(cf.restSavingCents)} saving` : "") +
+      (cf.restDebtPayoffCents > 0 ? `, ${money(cf.restDebtPayoffCents)} debt payoff` : "") +
+      `, ${money(cf.unallocatedCents)} unallocated` +
+      (over ? `, ${overWord} by ${money(cf.overAllocatedCents)}` : "")
+    : `Income ${money(cf.incomeCents)}: ${money(cf.billsWithinBudgetCents)} bills within budget, ` +
+      `${money(cf.restOfBudgetCents)} rest of budget, ${money(cf.unallocatedCents)} unallocated` +
+      (over ? `, ${overWord} by ${money(cf.overAllocatedCents)}` : "");
 
   return (
     <section aria-labelledby="cash-flow-heading" className="space-y-4 rounded-xl border border-border bg-background shadow-sm p-5">
@@ -113,9 +117,11 @@ export default function CashFlowCard({
             </Link>
           )}
         </Stat>
-        {/* Extra lens on money already counted above (spec 013), hidden when
-            zero so a household that hasn't used the type does not see a
-            permanent "$0.00" — the grid wraps these onto their own row. */}
+        {/* Full per-type totals, including any bills (spec 013) — a different,
+            still-useful number from the bar's "rest" segments below, the same
+            relationship the Bills stat already has to "bills within budget".
+            Hidden when zero so a household that hasn't used the type does not
+            see a permanent "$0.00" — the grid wraps these onto their own row. */}
         {cf.savingCents > 0 && <Stat label="Saving" value={money(cf.savingCents)} />}
         {cf.debtPayoffCents > 0 && (
           <Stat label="Debt payoff" value={money(cf.debtPayoffCents)} />
@@ -131,10 +137,31 @@ export default function CashFlowCard({
           className="h-full border-r-2 border-background bg-chart-1"
           style={{ width: pct(cf.billsWithinBudgetCents) }}
         />
-        <div
-          className="h-full border-r-2 border-background bg-chart-2"
-          style={{ width: pct(cf.restOfBudgetCents) }}
-        />
+        {showType ? (
+          <>
+            <div
+              className="h-full border-r-2 border-background bg-chart-2"
+              style={{ width: pct(cf.restSpendingCents) }}
+            />
+            {cf.restSavingCents > 0 && (
+              <div
+                className="h-full border-r-2 border-background bg-chart-3"
+                style={{ width: pct(cf.restSavingCents) }}
+              />
+            )}
+            {cf.restDebtPayoffCents > 0 && (
+              <div
+                className="h-full border-r-2 border-background bg-chart-4"
+                style={{ width: pct(cf.restDebtPayoffCents) }}
+              />
+            )}
+          </>
+        ) : (
+          <div
+            className="h-full border-r-2 border-background bg-chart-2"
+            style={{ width: pct(cf.restOfBudgetCents) }}
+          />
+        )}
         <div
           className="h-full"
           style={{
@@ -159,13 +186,43 @@ export default function CashFlowCard({
             <span className="block font-medium tabular-nums">{money(cf.billsWithinBudgetCents)}</span>
           </span>
         </li>
-        <li className="flex items-start gap-2">
-          <span aria-hidden="true" className="mt-1 h-3 w-3 shrink-0 rounded-sm bg-chart-2" />
-          <span>
-            <span className="block text-muted">Rest of budget</span>
-            <span className="block font-medium tabular-nums">{money(cf.restOfBudgetCents)}</span>
-          </span>
-        </li>
+        {showType ? (
+          <>
+            <li className="flex items-start gap-2">
+              <span aria-hidden="true" className="mt-1 h-3 w-3 shrink-0 rounded-sm bg-chart-2" />
+              <span>
+                <span className="block text-muted">Spending</span>
+                <span className="block font-medium tabular-nums">{money(cf.restSpendingCents)}</span>
+              </span>
+            </li>
+            {cf.restSavingCents > 0 && (
+              <li className="flex items-start gap-2">
+                <span aria-hidden="true" className="mt-1 h-3 w-3 shrink-0 rounded-sm bg-chart-3" />
+                <span>
+                  <span className="block text-muted">Saving</span>
+                  <span className="block font-medium tabular-nums">{money(cf.restSavingCents)}</span>
+                </span>
+              </li>
+            )}
+            {cf.restDebtPayoffCents > 0 && (
+              <li className="flex items-start gap-2">
+                <span aria-hidden="true" className="mt-1 h-3 w-3 shrink-0 rounded-sm bg-chart-4" />
+                <span>
+                  <span className="block text-muted">Debt payoff</span>
+                  <span className="block font-medium tabular-nums">{money(cf.restDebtPayoffCents)}</span>
+                </span>
+              </li>
+            )}
+          </>
+        ) : (
+          <li className="flex items-start gap-2">
+            <span aria-hidden="true" className="mt-1 h-3 w-3 shrink-0 rounded-sm bg-chart-2" />
+            <span>
+              <span className="block text-muted">Rest of budget</span>
+              <span className="block font-medium tabular-nums">{money(cf.restOfBudgetCents)}</span>
+            </span>
+          </li>
+        )}
         <li className="flex items-start gap-2">
           <span
             aria-hidden="true"
@@ -197,106 +254,6 @@ export default function CashFlowCard({
           </li>
         )}
       </ul>
-
-      {showByType && (
-        <div className="space-y-3 border-t border-border pt-4">
-          <p className="text-sm font-medium">By type</p>
-          <div
-            role="img"
-            aria-label={typeSummary}
-            className="relative flex h-6 overflow-hidden rounded-md border border-border-strong bg-background"
-          >
-            <div
-              className="h-full border-r-2 border-background bg-muted"
-              style={{ width: pct(cf.spendingCents) }}
-            />
-            {cf.savingCents > 0 && (
-              <div
-                className="h-full border-r-2 border-background bg-chart-3"
-                style={{ width: pct(cf.savingCents) }}
-              />
-            )}
-            {cf.debtPayoffCents > 0 && (
-              <div
-                className="h-full border-r-2 border-background bg-chart-4"
-                style={{ width: pct(cf.debtPayoffCents) }}
-              />
-            )}
-            <div
-              className="h-full"
-              style={{
-                width: pct(cf.unallocatedCents),
-                backgroundImage:
-                  "repeating-linear-gradient(45deg, var(--border-strong) 0 2px, transparent 2px 7px)",
-              }}
-            />
-            {over && (
-              <div
-                className={`absolute inset-y-0 w-0.5 ${overIsError ? "bg-danger" : "bg-foreground"}`}
-                style={{ left: pct(cf.incomeCents) }}
-              />
-            )}
-          </div>
-
-          <ul className="grid gap-3 text-sm sm:grid-cols-3">
-            <li className="flex items-start gap-2">
-              <span aria-hidden="true" className="mt-1 h-3 w-3 shrink-0 rounded-sm bg-muted" />
-              <span>
-                <span className="block text-muted">Spending</span>
-                <span className="block font-medium tabular-nums">{money(cf.spendingCents)}</span>
-              </span>
-            </li>
-            {cf.savingCents > 0 && (
-              <li className="flex items-start gap-2">
-                <span aria-hidden="true" className="mt-1 h-3 w-3 shrink-0 rounded-sm bg-chart-3" />
-                <span>
-                  <span className="block text-muted">Saving</span>
-                  <span className="block font-medium tabular-nums">{money(cf.savingCents)}</span>
-                </span>
-              </li>
-            )}
-            {cf.debtPayoffCents > 0 && (
-              <li className="flex items-start gap-2">
-                <span aria-hidden="true" className="mt-1 h-3 w-3 shrink-0 rounded-sm bg-chart-4" />
-                <span>
-                  <span className="block text-muted">Debt payoff</span>
-                  <span className="block font-medium tabular-nums">{money(cf.debtPayoffCents)}</span>
-                </span>
-              </li>
-            )}
-            <li className="flex items-start gap-2">
-              <span
-                aria-hidden="true"
-                className="mt-1 h-3 w-3 shrink-0 rounded-sm border border-border-strong"
-                style={{
-                  backgroundImage:
-                    "repeating-linear-gradient(45deg, var(--border-strong) 0 2px, transparent 2px 5px)",
-                }}
-              />
-              <span>
-                <span className="block text-muted">Unallocated</span>
-                <span className="block font-medium tabular-nums">{money(cf.unallocatedCents)}</span>
-              </span>
-            </li>
-            {over && (
-              <li className={`flex items-start gap-2 sm:col-span-3 ${overIsError ? "text-danger" : ""}`}>
-                <span
-                  aria-hidden="true"
-                  className={`mt-1 h-3 w-0.5 shrink-0 ${overIsError ? "bg-danger" : "bg-foreground"}`}
-                />
-                <span>
-                  <span className="block">
-                    {incomeProvisional
-                      ? "Above recorded income (past the income line)"
-                      : "Over-allocated (past the income line)"}
-                  </span>
-                  <span className="block font-medium tabular-nums">{money(cf.overAllocatedCents)}</span>
-                </span>
-              </li>
-            )}
-          </ul>
-        </div>
-      )}
     </section>
   );
 }

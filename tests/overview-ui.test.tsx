@@ -18,6 +18,9 @@ const cashFlow = {
   spendingCents: 260000,
   savingCents: 0,
   debtPayoffCents: 0,
+  restSpendingCents: 100000,
+  restSavingCents: 0,
+  restDebtPayoffCents: 0,
 };
 const base = { cashFlow, currency: "USD", editable: true, incomeProvisional: false };
 const card = (o: Partial<typeof base> = {}, cf: Partial<typeof cashFlow> = {}) =>
@@ -144,37 +147,55 @@ describe("CashFlowCard", () => {
     });
   });
 
-  describe("the 'By type' bar", () => {
-    it("is absent when nothing is saved or paid toward debt", () => {
+  describe("the bar splits by type once Saving/Debt payoff is used (spec 013)", () => {
+    it("stays 'Rest of budget' (unchanged) when nothing is saved or paid toward debt", () => {
       const html = card();
-      expect(html).not.toContain("By type");
+      expect(html).toContain("Rest of budget");
+      expect(html).not.toMatch(/>Spending</);
       expect(html).not.toContain("bg-chart-3");
       expect(html).not.toContain("bg-chart-4");
     });
 
-    it("appears once Saving or Debt payoff is nonzero, with Spending as the baseline segment", () => {
-      const savingOnly = card({}, { savingCents: 50000, spendingCents: 210000 });
-      expect(savingOnly).toContain("By type");
-      expect(savingOnly).toContain("bg-chart-3"); // Saving segment
-      expect(savingOnly).not.toContain("bg-chart-4"); // no Debt payoff category
-      expect(savingOnly).toMatch(/bg-muted[^>]*>/); // Spending segment, a neutral fill
+    it("a saving category fully consumed by its own bill leaves nothing to show in the bar", () => {
+      // The headline stat still reflects the full budgeted amount; the bar's
+      // "rest" segments only draw money not already inside bills.
+      const html = card({}, { savingCents: 50000, restSavingCents: 0 });
+      expect(html).toContain(">Saving<"); // the headline stat
+      expect(html).toContain("Rest of budget"); // the bar stays unsplit
+      expect(html).not.toContain("bg-chart-3");
+    });
+
+    it("splits into Spending/Saving once there is saving money outside of bills", () => {
+      const html = card({}, { savingCents: 50000, restSavingCents: 50000, restSpendingCents: 50000 });
+      expect(html).toMatch(/>Spending</);
+      expect(html).toContain("bg-chart-3"); // Saving segment
+      expect(html).not.toContain("bg-chart-4"); // no Debt payoff category
+      expect(html).not.toContain("Rest of budget");
     });
 
     it("has a text equivalent naming every nonzero segment, never color alone", () => {
-      const html = card({}, { savingCents: 50000, debtPayoffCents: 25000, spendingCents: 185000 });
-      const bars = [...html.matchAll(/aria-label="([^"]*)"/g)].map((m) => m[1]);
-      const byType = bars.find((label) => label.includes("saving") && label.includes("debt payoff"));
-      expect(byType).toContain("$1,850.00 spending");
-      expect(byType).toContain("$500.00 saving");
-      expect(byType).toContain("$250.00 debt payoff");
-      expect(byType).toContain("unallocated");
+      const html = card(
+        {},
+        {
+          savingCents: 50000, debtPayoffCents: 25000,
+          restSavingCents: 50000, restDebtPayoffCents: 25000, restSpendingCents: 25000,
+        },
+      );
+      const label = html.match(/aria-label="([^"]*)"/)?.[1];
+      expect(label).toContain("$250.00 spending");
+      expect(label).toContain("$500.00 saving");
+      expect(label).toContain("$250.00 debt payoff");
+      expect(label).toContain("unallocated");
     });
 
-    it("does not change the first (bills) bar's text equivalent", () => {
-      const firstAriaLabel = (html: string) => html.match(/aria-label="([^"]*)"/)?.[1];
-      const before = card();
-      const after = card({}, { savingCents: 50000 });
-      expect(firstAriaLabel(after)).toBe(firstAriaLabel(before));
+    it("the split segments take up the same total width as the one it replaces", () => {
+      // Splitting restOfBudgetCents (100,000, 25% of the 400,000 scale) into
+      // Spending (50,000) and Saving (50,000) draws two 12.5% segments
+      // instead of one 25% segment — the bar's total shape is unchanged.
+      const split = card({}, { savingCents: 50000, restSavingCents: 50000, restSpendingCents: 50000 });
+      expect(split).toContain("width:12.5%");
+      expect((split.match(/width:12\.5%/g) ?? []).length).toBe(2);
+      expect(split).not.toContain("width:25%");
     });
   });
 });

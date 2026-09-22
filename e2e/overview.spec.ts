@@ -27,11 +27,8 @@ import {
 } from "./support/seed";
 
 const cashFlow = (page: Page) => page.getByRole("region", { name: /^Cash flow in/ });
-// The default seed budgets money into Savings, so the "By type" bar (spec
-// 013) renders alongside the original bills-based bar; `.first()` keeps
-// these two scoped to the original one.
-const legend = (page: Page) => cashFlow(page).getByRole("list").first();
-const bar = (page: Page) => cashFlow(page).getByRole("img").first();
+const legend = (page: Page) => cashFlow(page).getByRole("list");
+const bar = (page: Page) => cashFlow(page).getByRole("img");
 
 test.describe("with a seeded household", () => {
   test.beforeAll(resetAndSeed);
@@ -64,24 +61,22 @@ test.describe("with a seeded household", () => {
   });
 
   test("the bar's segments add up to the income, and its text equivalent says so", async ({ page }) => {
+    // The seeded budget has money in Savings (no bill of its own), so the
+    // bar splits its "rest of budget" segment into Spending and Saving
+    // instead of one undifferentiated segment (spec 013).
     const items = await legend(page).getByRole("listitem").allTextContents();
-    const [billsWithin, rest, unallocated] = items.slice(0, 3).map(cents);
-    expect(billsWithin + rest + unallocated).toBe(SEED.incomeCents);
+    const [billsWithin, spending, saving, unallocated] = items.slice(0, 4).map(cents);
+    expect(billsWithin + spending + saving + unallocated).toBe(SEED.incomeCents);
     // Bills are capped at each category's budget, so Utilities (bills 420, budget 350) counts 350.
     expect(billsWithin).toBe(SEED.billsCents - 7000);
+    expect(saving).toBe(SEED.budgets.Savings); // no bill of its own, so the full budgeted amount
     expect(unallocated).toBe(SEED.unallocatedCents);
 
     await expect(bar(page)).toHaveAttribute("aria-label", new RegExp(`Income ${money(SEED.incomeCents).replace("$", "\\$")}`));
+    await expect(bar(page)).toHaveAttribute("aria-label", /spending/);
+    await expect(bar(page)).toHaveAttribute("aria-label", new RegExp(`${money(SEED.budgets.Savings).replace("$", "\\$")} saving`));
     await expect(bar(page)).toHaveAttribute("aria-label", /unallocated/);
-  });
-
-  test("also draws a 'By type' bar, since the seeded budget has Saving money (spec 013)", async ({ page }) => {
-    const byType = cashFlow(page).getByRole("img").nth(1);
-    const savingLabel = money(SEED.budgets.Savings).replace("$", "\\$");
-    await expect(byType).toHaveAttribute("aria-label", new RegExp(`${savingLabel} saving`));
-    await expect(byType).toHaveAttribute("aria-label", /spending/);
-    await expect(byType).toHaveAttribute("aria-label", /unallocated/);
-    await expect(cashFlow(page)).toContainText("By type");
+    await expect(bar(page)).not.toHaveAttribute("aria-label", /debt payoff/);
   });
 
   test("Unallocated here equals the Plan summary bar's", async ({ page }) => {
@@ -213,6 +208,39 @@ test.describe("adding a Debt payoff category (spec 013)", () => {
     await expect(card).toContainText("Debt payoff");
     await expect(card).toContainText(money(15000));
   });
+
+  test("the one bar's text equivalent names all three types, never color alone", async ({ page }) => {
+    const label = new RegExp(
+      `${money(SEED.budgets.Savings).replace("$", "\\$")} saving.*${money(15000).replace("$", "\\$")} debt payoff`,
+    );
+    await expect(bar(page)).toHaveAttribute("aria-label", label);
+  });
+});
+
+test.describe("Saving fully consumed by its own bill (spec 013)", () => {
+  test.beforeEach(async ({ page }) => {
+    await resetAndSeed();
+    await signIn(page, OWNER);
+    const M = monthKey();
+    const budgetJson = await (await page.request.get(`/api/budgets/${M}`)).json();
+    const savings = budgetJson.categories.find((c: { name: string }) => c.name === "Savings").id;
+    // Model an automatic Roth contribution as a bill that exactly consumes
+    // the Savings budget, so nothing is left of it outside "bills".
+    await page.request.put(`/api/budgets/${M}/allocations/${savings}`, { data: { amountCents: SEED.budgets.Savings } });
+    await page.request.post("/api/bills", {
+      data: { name: "Roth contribution", amountCents: SEED.budgets.Savings, categoryId: savings },
+    });
+    await page.goto("/");
+  });
+
+  test("the bar keeps its original 'Rest of budget' shape, since there is nothing to split out", async ({ page }) => {
+    await expect(bar(page)).toHaveAttribute("aria-label", /rest of budget/);
+    await expect(bar(page)).not.toHaveAttribute("aria-label", /spending/);
+    // The headline stat still counts it, though — that number is the full
+    // budgeted amount, bill included.
+    await expect(cashFlow(page)).toContainText("Saving");
+    await expect(cashFlow(page)).toContainText(money(SEED.budgets.Savings));
+  });
 });
 
 test.describe("an empty household", () => {
@@ -266,7 +294,7 @@ test.describe("over budget while variable income may still arrive", () => {
     await expect(card).toContainText("Variable income counts once you record it.");
     await expect(card).not.toContainText("Over-allocated");
     await expect(card.getByText("Over recorded income by").first()).not.toHaveCSS("color", LIGHT_DANGER);
-    await expect(card.getByRole("img").first()).toHaveAttribute("aria-label", /above recorded income by \$1,000\.00/);
+    await expect(card.getByRole("img")).toHaveAttribute("aria-label", /above recorded income by \$1,000\.00/);
     await expect(card.getByRole("link", { name: "Assign" })).toHaveCount(0);
 
     const item = page.getByRole("region", { name: "Needs attention" }).getByRole("listitem").filter({ hasText: "more than the income recorded so far" });
@@ -290,7 +318,7 @@ test.describe("over budget with only fixed income", () => {
     await expect(card).toContainText(money(FIXED_ONLY.overAllocatedCents));
     await expect(card).not.toContainText("Variable income counts");
     await expect(card.getByText("Over-allocated by").first()).toHaveCSS("color", LIGHT_DANGER);
-    await expect(card.getByRole("img").first()).toHaveAttribute("aria-label", /over-allocated by \$100\.00/);
+    await expect(card.getByRole("img")).toHaveAttribute("aria-label", /over-allocated by \$100\.00/);
 
     const warning = page.getByRole("region", { name: "Needs attention" }).getByRole("listitem").filter({ hasText: "You have budgeted $100.00 more than your income." });
     await expect(warning).toContainText("Warning:");

@@ -114,6 +114,9 @@ describe("overview numbers", () => {
       spendingCents: 260000, // Housing 2,000 + Utilities 100 + Groceries 500
       savingCents: 0, // "Savings" exists (a starter category) but nothing is budgeted into it
       debtPayoffCents: 0, // no debt payoff category in this scenario
+      restSpendingCents: 100000, // Housing 500 (2,000 - 1,500 bills) + Groceries 500
+      restSavingCents: 0,
+      restDebtPayoffCents: 0,
     });
   });
 
@@ -136,6 +139,29 @@ describe("overview numbers", () => {
     const { spendingCents, savingCents, debtPayoffCents, billsWithinBudgetCents, restOfBudgetCents } = data.cashFlow;
     expect(spendingCents + savingCents + debtPayoffCents).toBe(billsWithinBudgetCents + restOfBudgetCents);
     expect(spendingCents + savingCents + debtPayoffCents).toBe(data.budget.budgetedCents);
+
+    // None of the new saving/debt payoff money has a bill of its own, so the
+    // "rest" split equals the flat split here, and always sums to restOfBudgetCents.
+    const { restSpendingCents, restSavingCents, restDebtPayoffCents } = data.cashFlow;
+    expect(restSavingCents).toBe(50000);
+    expect(restDebtPayoffCents).toBe(15000);
+    expect(restSpendingCents + restSavingCents + restDebtPayoffCents).toBe(restOfBudgetCents);
+  });
+
+  it("keeps a saving category's own bill out of the bar's 'rest' split (spec 013)", async () => {
+    const owner = await setupOwner();
+    const member = await joinAsMember(owner);
+    await scenario(owner, member.cookie);
+    // A Roth contribution modeled as a bill, fully consuming its budget: the
+    // headline Saving stat still counts it, but there is nothing left of it
+    // to draw outside "bills within budget".
+    await budget(owner, "Savings", 20000);
+    await bill(owner, "Roth contribution", 20000, "Savings");
+
+    const { data } = await overview(owner);
+    expect(data.cashFlow.savingCents).toBe(20000); // the full budgeted amount
+    expect(data.cashFlow.restSavingCents).toBe(0); // none of it is outside bills
+    expect(data.cashFlow.billsWithinBudgetCents).toBe(180000); // 160,000 + the 200.00 Roth bill
   });
 
   it("always splits the budget exactly, and income exactly when not over-allocated", async () => {
@@ -243,6 +269,7 @@ describe("attention items", () => {
       incomeCents: 0, billsWithinBudgetCents: 0, restOfBudgetCents: 0,
       unallocatedCents: 0, overAllocatedCents: 0, leftAfterBillsCents: 0,
       spendingCents: 0, savingCents: 0, debtPayoffCents: 0,
+      restSpendingCents: 0, restSavingCents: 0, restDebtPayoffCents: 0,
     });
     expect(data.income.byMember.map((m) => m.name)).toEqual(["Olive Owner"]);
   });
