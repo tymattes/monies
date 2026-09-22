@@ -111,12 +111,13 @@ describe("overview numbers", () => {
       unallocatedCents: 140000,
       overAllocatedCents: 0,
       leftAfterBillsCents: 237000, // 4,000 - 1,630
+      spendingCents: 260000, // Housing 2,000 + Utilities 100 + Groceries 500
       savingCents: 0, // "Savings" exists (a starter category) but nothing is budgeted into it
       debtPayoffCents: 0, // no debt payoff category in this scenario
     });
   });
 
-  it("sums budgeted amounts by type into savingCents and debtPayoffCents (spec 013)", async () => {
+  it("sums budgeted amounts by type into spendingCents, savingCents and debtPayoffCents (spec 013)", async () => {
     const owner = await setupOwner();
     const member = await joinAsMember(owner);
     await scenario(owner, member.cookie);
@@ -127,12 +128,14 @@ describe("overview numbers", () => {
     await budget(owner, "Credit card", 15000);
 
     const { data } = await overview(owner);
+    expect(data.cashFlow.spendingCents).toBe(260000); // Housing 2,000 + Utilities 100 + Groceries 500
     expect(data.cashFlow.savingCents).toBe(50000); // Savings 300 + Roth IRA 200
     expect(data.cashFlow.debtPayoffCents).toBe(15000);
-    // Still counted within the existing totals, not extra money.
-    expect(data.cashFlow.billsWithinBudgetCents + data.cashFlow.restOfBudgetCents).toBe(
-      data.budget.budgetedCents,
-    );
+    // The three types add up to the same total as the existing bills/rest
+    // split, and to the budgeted total — still counted, not extra money.
+    const { spendingCents, savingCents, debtPayoffCents, billsWithinBudgetCents, restOfBudgetCents } = data.cashFlow;
+    expect(spendingCents + savingCents + debtPayoffCents).toBe(billsWithinBudgetCents + restOfBudgetCents);
+    expect(spendingCents + savingCents + debtPayoffCents).toBe(data.budget.budgetedCents);
   });
 
   it("always splits the budget exactly, and income exactly when not over-allocated", async () => {
@@ -239,7 +242,7 @@ describe("attention items", () => {
     expect(data.cashFlow).toEqual({
       incomeCents: 0, billsWithinBudgetCents: 0, restOfBudgetCents: 0,
       unallocatedCents: 0, overAllocatedCents: 0, leftAfterBillsCents: 0,
-      savingCents: 0, debtPayoffCents: 0,
+      spendingCents: 0, savingCents: 0, debtPayoffCents: 0,
     });
     expect(data.income.byMember.map((m) => m.name)).toEqual(["Olive Owner"]);
   });

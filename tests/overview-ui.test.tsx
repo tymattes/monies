@@ -15,6 +15,7 @@ const cashFlow = {
   unallocatedCents: 140000,
   overAllocatedCents: 0,
   leftAfterBillsCents: 237000,
+  spendingCents: 260000,
   savingCents: 0,
   debtPayoffCents: 0,
 };
@@ -140,6 +141,40 @@ describe("CashFlowCard", () => {
       // The always-present figures are untouched by the new stats.
       expect(html).toContain("$4,000.00"); // income
       expect(html).toContain("$1,400.00"); // unallocated
+    });
+  });
+
+  describe("the 'By type' bar", () => {
+    it("is absent when nothing is saved or paid toward debt", () => {
+      const html = card();
+      expect(html).not.toContain("By type");
+      expect(html).not.toContain("bg-chart-3");
+      expect(html).not.toContain("bg-chart-4");
+    });
+
+    it("appears once Saving or Debt payoff is nonzero, with Spending as the baseline segment", () => {
+      const savingOnly = card({}, { savingCents: 50000, spendingCents: 210000 });
+      expect(savingOnly).toContain("By type");
+      expect(savingOnly).toContain("bg-chart-3"); // Saving segment
+      expect(savingOnly).not.toContain("bg-chart-4"); // no Debt payoff category
+      expect(savingOnly).toMatch(/bg-muted[^>]*>/); // Spending segment, a neutral fill
+    });
+
+    it("has a text equivalent naming every nonzero segment, never color alone", () => {
+      const html = card({}, { savingCents: 50000, debtPayoffCents: 25000, spendingCents: 185000 });
+      const bars = [...html.matchAll(/aria-label="([^"]*)"/g)].map((m) => m[1]);
+      const byType = bars.find((label) => label.includes("saving") && label.includes("debt payoff"));
+      expect(byType).toContain("$1,850.00 spending");
+      expect(byType).toContain("$500.00 saving");
+      expect(byType).toContain("$250.00 debt payoff");
+      expect(byType).toContain("unallocated");
+    });
+
+    it("does not change the first (bills) bar's text equivalent", () => {
+      const firstAriaLabel = (html: string) => html.match(/aria-label="([^"]*)"/)?.[1];
+      const before = card();
+      const after = card({}, { savingCents: 50000 });
+      expect(firstAriaLabel(after)).toBe(firstAriaLabel(before));
     });
   });
 });

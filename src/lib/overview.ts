@@ -70,8 +70,10 @@ export type Overview = {
     overAllocatedCents: number;
     leftAfterBillsCents: number;
     // Sums of budgeted amounts by category type (spec 013), already counted
-    // within the totals above — an extra lens on the same money, not new
-    // money and not a new split of the bar.
+    // within `billsWithinBudgetCents + restOfBudgetCents` above — a second,
+    // independent split of the same money (by type, not by bills), drawn as
+    // its own bar when saving or debt payoff is nonzero.
+    spendingCents: number;
     savingCents: number;
     debtPayoffCents: number;
   };
@@ -123,6 +125,7 @@ export async function getOverview(
   const unallocatedCents = incomeCents - budgetedCents;
   const sumByType = (type: CategoryType) =>
     categories.filter((c) => c.type === type).reduce((t, c) => t + c.budgetedCents, 0);
+  const spendingCents = sumByType("spending");
   const savingCents = sumByType("saving");
   const debtPayoffCents = sumByType("debt payoff");
 
@@ -236,6 +239,7 @@ export async function getOverview(
       unallocatedCents: Math.max(unallocatedCents, 0),
       overAllocatedCents: Math.max(-unallocatedCents, 0),
       leftAfterBillsCents: incomeCents - budget.billsTotalCents,
+      spendingCents,
       savingCents,
       debtPayoffCents,
     },
