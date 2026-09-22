@@ -30,3 +30,4 @@ Monies is built spec-first. `brief.md` is the source of truth for product intent
 | 013 | [Saving and Debt payoff totals on the Overview cash-flow card](013-overview-saving-debt-totals.md) | implemented |
 | 014 | [Savings and Debt payoff as goals, separate from budgets](014-savings-debt-goals.md) | implemented |
 | 015 | [Goals under Plan, Assign moves to Income, a check-off reminder, a Goals overview card, "Unallocated Income"](015-plan-goals-and-assign-on-income.md) | implemented |
+| 016 | [Allocation UX — informed splits, a cleaner Assign panel](016-allocation-ux.md) | draft |

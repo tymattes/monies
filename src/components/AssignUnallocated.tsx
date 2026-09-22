@@ -15,7 +15,7 @@ type Line = {
   billsCents: number;
 };
 
-type Goal = { id: string; name: string; type: GoalType };
+type Goal = { id: string; name: string; type: GoalType; amountCents: number };
 
 // A row's target is a category or a goal (spec 014), encoded as
 // "cat:<id>" / "goal:<id>" so a single <select> can offer both.
@@ -101,6 +101,17 @@ export default function AssignUnallocated({
     );
   }
 
+  // Sets this row's amount to absorb whatever is left after every other row
+  // (spec 016). Only rendered while `left > 0`, which on its own guarantees
+  // this is always positive and the resulting total never exceeds
+  // `unallocated`: `left > 0` means the sum of all rows (this one included)
+  // is below `unallocated`, so the other rows alone sum to less still.
+  function fillRemaining(key: number) {
+    const own = parsed.find((r) => r.key === key)?.minor ?? 0;
+    const othersTotal = total - own;
+    update(key, { amount: toInputString(unallocated - othersTotal, currency) });
+  }
+
   async function assign() {
     setBusy(true);
     setError("");
@@ -127,10 +138,17 @@ export default function AssignUnallocated({
         Assign the unallocated {formatMoney(unallocated, currency)} to one or
         more categories or goals:
       </p>
+      <p className={`text-sm font-medium tabular-nums ${left < 0 ? "text-danger" : ""}`}>
+        Assigning {formatMoney(total, currency)} of {formatMoney(unallocated, currency)} —{" "}
+        {formatMoney(left, currency)} left
+      </p>
 
       <ul className="space-y-2">
         {rows.map((r, i) => (
-          <li key={r.key} className="flex flex-wrap items-center gap-2">
+          <li
+            key={r.key}
+            className="grid grid-cols-[1fr_auto] items-center gap-2 sm:grid-cols-[1fr_auto_auto_auto]"
+          >
             <select
               aria-label={`Category ${i + 1}`}
               value={r.target}
@@ -144,7 +162,7 @@ export default function AssignUnallocated({
                     .filter((l) => `cat:${l.id}` === r.target || !chosen.includes(`cat:${l.id}`))
                     .map((l) => (
                       <option key={l.id} value={`cat:${l.id}`}>
-                        {l.name}
+                        {l.name} · {formatMoney(l.amountCents, currency)} budgeted
                       </option>
                     ))}
                 </optgroup>
@@ -155,7 +173,7 @@ export default function AssignUnallocated({
                     .filter((g) => `goal:${g.id}` === r.target || !chosen.includes(`goal:${g.id}`))
                     .map((g) => (
                       <option key={g.id} value={`goal:${g.id}`}>
-                        {g.name}
+                        {g.name} · {formatMoney(g.amountCents, currency)}
                       </option>
                     ))}
                 </optgroup>
@@ -168,6 +186,16 @@ export default function AssignUnallocated({
               onChange={(e) => update(r.key, { amount: e.target.value })}
               className={`${inputCls} w-32! text-right tabular-nums`}
             />
+            {left > 0 && (
+              <button
+                type="button"
+                aria-label={`Fill remaining for category ${i + 1}`}
+                onClick={() => fillRemaining(r.key)}
+                className={secondaryButtonCls}
+              >
+                Fill remaining
+              </button>
+            )}
             {rows.length > 1 && (
               <button
                 type="button"
