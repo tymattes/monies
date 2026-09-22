@@ -12,19 +12,19 @@ test.describe("navigation", () => {
   test.beforeAll(resetAndSeed);
   test.beforeEach(({ page }) => signIn(page, OWNER));
 
-  test("the header has Overview, Plan, Goals and Members, with the right one current", async ({ page }) => {
+  test("the header has Overview, Plan and Members, with the right one current", async ({ page }) => {
     const main = page.getByRole("navigation", { name: "Main" });
     const cases: [string, string][] = [
       ["/", "Overview"],
       ["/budget", "Plan"],
       ["/bills", "Plan"],
       ["/income", "Plan"],
-      ["/goals", "Goals"],
+      ["/goals", "Plan"],
       ["/members", "Members"],
     ];
     for (const [path, current] of cases) {
       await page.goto(path);
-      await expect(main.getByRole("link")).toHaveText(["Overview", "Plan", "Goals", "Members"]);
+      await expect(main.getByRole("link")).toHaveText(["Overview", "Plan", "Members"]);
       await expect(main.locator('[aria-current="page"]')).toHaveText(current);
     }
     await expect(main.getByRole("link", { name: "Plan" })).toHaveAttribute("href", "/budget");
@@ -44,14 +44,14 @@ test.describe("navigation", () => {
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Income");
   });
 
-  test("the summary bar shows the seeded numbers on all three Plan pages", async ({ page }) => {
-    for (const path of ["/budget", "/bills", "/income"]) {
+  test("the summary bar shows the seeded numbers on all four Plan pages", async ({ page }) => {
+    for (const path of ["/budget", "/bills", "/income", "/goals"]) {
       await page.goto(path);
       const bar = summary(page);
       await expect(bar).toContainText(money(SEED.incomeCents));
       await expect(bar).toContainText(money(SEED.budgetedCents));
       await expect(bar).toContainText(`of which bills ${money(SEED.billsCents)}`);
-      await expect(bar).toContainText("Unallocated");
+      await expect(bar).toContainText("Unallocated Income");
       await expect(bar).toContainText(money(SEED.unallocatedCents));
     }
   });
@@ -123,32 +123,33 @@ test.describe("the summary bar and Assign", () => {
     await expect(bar.getByRole("button", { name: "Assign" })).toHaveCount(0);
   });
 
-  test("Assign in the bar scrolls to and focuses the panel on Budget", async ({ page }) => {
+  test("Assign in the bar links to the Income panel", async ({ page }) => {
     await page.goto("/budget");
     await waitHydrated(page);
-    await summary(page).getByRole("button", { name: "Assign" }).click();
+    await summary(page).getByRole("link", { name: "Assign" }).click();
+    await expect(page).toHaveURL(new RegExp(`/income\\?month=${monthKey()}#assign`));
     await expect(page.locator("#assign select").first()).toBeFocused();
     await expect(page.locator("#assign")).toBeInViewport();
   });
 
-  test("Assign from Bills and Income lands on the Budget panel, focused", async ({ page }) => {
-    for (const from of ["/bills", "/income"]) {
+  test("Assign from Bills and Goals lands on the Income panel, focused", async ({ page }) => {
+    for (const from of ["/bills", "/goals"]) {
       await page.goto(from);
       await summary(page).getByRole("link", { name: "Assign" }).click();
-      await expect(page).toHaveURL(new RegExp(`/budget\\?month=${monthKey()}#assign`));
+      await expect(page).toHaveURL(new RegExp(`/income\\?month=${monthKey()}#assign`));
       await expect(page.locator("#assign select").first()).toBeFocused();
       await expect(page.locator("#assign")).toBeInViewport();
     }
   });
 
   test("Assign disappears once everything is assigned", async ({ page }) => {
-    await page.goto("/budget");
+    await page.goto("/income");
     await waitHydrated(page);
     const panel = page.locator("#assign");
     await panel.getByRole("button", { name: "Assign" }).click();
     await expect(panel).toHaveCount(0);
     await expect(summary(page)).toContainText(money(0));
-    await expect(summary(page).getByRole("button", { name: "Assign" })).toHaveCount(0);
+    await expect(summary(page).getByRole("link", { name: "Assign" })).toHaveCount(0);
   });
 });
 

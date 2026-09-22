@@ -12,10 +12,10 @@ test.beforeEach(async ({ page }) => {
   await waitHydrated(page);
 });
 
-test("is its own top-level destination, not a Plan tab", async ({ page }) => {
+test("is the fourth Plan tab, not a top-level destination", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Goals");
-  await expect(page.getByRole("navigation", { name: "Main" }).locator('[aria-current="page"]')).toHaveText("Goals");
-  await expect(page.getByRole("navigation", { name: "Plan sections" })).toHaveCount(0);
+  await expect(page.getByRole("navigation", { name: "Main" }).locator('[aria-current="page"]')).toHaveText("Plan");
+  await expect(page.getByRole("navigation", { name: "Plan sections" }).locator('[aria-current="page"]')).toHaveText("Goals");
 });
 
 test("shows the seeded Savings goal with its amount and an unchecked box", async ({ page }) => {
