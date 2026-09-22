@@ -8,18 +8,10 @@ import { addMonths, monthLabel } from "@/lib/months";
 import { formatMoney, parseMoney, toInputString } from "@/lib/money";
 import { buttonCls, cardCls, inputCls, secondaryButtonCls } from "./ui";
 
-type Line = {
-  id: string;
-  name: string;
-  amountCents: number;
-  // Monthly cost of the bills in this category (spec 007).
-  billsCents: number;
-};
-
 type Goal = { id: string; name: string; type: GoalType; amountCents: number };
 
-// A row's target is a category or a goal (spec 014), encoded as
-// "cat:<id>" / "goal:<id>" so a single <select> can offer both.
+// A row targets one goal (spec 020 — Assign is goals-only; a category's
+// budget is set by hand on Budget or reflects what it actually costs).
 type Row = { key: number; target: string; amount: string };
 
 // Splits `total` minor units across `n` rows; leftover cents go to the first rows.
@@ -29,25 +21,23 @@ function evenSplit(total: number, n: number): number[] {
   return Array.from({ length: n }, (_, i) => base + (i < extra ? 1 : 0));
 }
 
-// Puts part or all of the month's leftover into one or more categories or
-// goals in one click, from this month onward. Nothing is assigned
-// automatically: the user picks the targets and amounts (the first row
-// starts on the first Saving goal, if there is one, with the whole amount —
-// debt payoff is never preselected, since topping it up is a deliberate
-// choice, spec 012/014). Lives on the Income page (spec 015) — money coming
-// in and where it's going fit naturally on the same page.
+// Puts part or all of the month's leftover into one or more goals in one
+// click, from this month onward. Nothing is assigned automatically: the user
+// picks the goals and amounts (the first row starts on the first Saving goal,
+// if there is one, with the whole amount — debt payoff is never preselected,
+// since topping it up is a deliberate choice, spec 012/014). Lives on the
+// Income page (spec 015) — money coming in and where it's going fit
+// naturally on the same page.
 export default function AssignUnallocated({
   month,
   monthName,
   currency,
-  lines,
   goals,
   unallocated,
 }: {
   month: string;
   monthName: string;
   currency: string;
-  lines: Line[];
   goals: Goal[];
   unallocated: number;
 }) {
@@ -56,7 +46,7 @@ export default function AssignUnallocated({
   const [rows, setRows] = useState<Row[]>(() => [
     {
       key: 0,
-      target: savings ? `goal:${savings.id}` : "",
+      target: savings ? savings.id : "",
       amount: toInputString(unallocated, currency),
     },
   ]);
@@ -84,7 +74,7 @@ export default function AssignUnallocated({
     new Set(chosen).size === rows.length &&
     total > 0 &&
     total <= unallocated;
-  const targetCount = lines.length + goals.length;
+  const targetCount = goals.length;
 
   function update(key: number, patch: Partial<Row>) {
     setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
@@ -123,12 +113,10 @@ export default function AssignUnallocated({
       `/api/budgets/${month}/assign-unallocated`,
       "POST",
       {
-        assignments: parsed.map((r) => {
-          const [kind, id] = r.target.split(":");
-          return kind === "goal"
-            ? { goalId: id, amountCents: r.minor }
-            : { categoryId: id, amountCents: r.minor };
-        }),
+        assignments: parsed.map((r) => ({
+          goalId: r.target,
+          amountCents: r.minor,
+        })),
       },
     );
     setBusy(false);
@@ -140,7 +128,7 @@ export default function AssignUnallocated({
     <section id="assign" className={`${cardCls} space-y-3 p-5`}>
       <p className="text-muted">
         Assign the unallocated {formatMoney(unallocated, currency)} to one or
-        more categories or goals:
+        more goals:
       </p>
       <p className={`text-sm font-medium tabular-nums ${left < 0 ? "text-danger" : ""}`}>
         Assigning {formatMoney(total, currency)} of {formatMoney(unallocated, currency)} —{" "}
@@ -154,37 +142,22 @@ export default function AssignUnallocated({
             className="grid grid-cols-[1fr_auto] items-center gap-2 sm:grid-cols-[1fr_auto_auto_auto]"
           >
             <select
-              aria-label={`Category ${i + 1}`}
+              aria-label={`Goal ${i + 1}`}
               value={r.target}
               onChange={(e) => update(r.key, { target: e.target.value })}
               className={`${inputCls} w-auto! min-w-40`}
             >
-              <option value="">Choose a category</option>
-              {lines.length > 0 && (
-                <optgroup label="Expenses">
-                  {lines
-                    .filter((l) => `cat:${l.id}` === r.target || !chosen.includes(`cat:${l.id}`))
-                    .map((l) => (
-                      <option key={l.id} value={`cat:${l.id}`}>
-                        {l.name} · {formatMoney(l.amountCents, currency)} budgeted
-                      </option>
-                    ))}
-                </optgroup>
-              )}
-              {goals.length > 0 && (
-                <optgroup label="Saving & debt payoff">
-                  {goals
-                    .filter((g) => `goal:${g.id}` === r.target || !chosen.includes(`goal:${g.id}`))
-                    .map((g) => (
-                      <option key={g.id} value={`goal:${g.id}`}>
-                        {g.name} · {formatMoney(g.amountCents, currency)}
-                      </option>
-                    ))}
-                </optgroup>
-              )}
+              <option value="">Choose a goal</option>
+              {goals
+                .filter((g) => g.id === r.target || !chosen.includes(g.id))
+                .map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name} · {formatMoney(g.amountCents, currency)}
+                  </option>
+                ))}
             </select>
             <input
-              aria-label={`Amount for category ${i + 1}`}
+              aria-label={`Amount for goal ${i + 1}`}
               inputMode="decimal"
               value={r.amount}
               onChange={(e) => update(r.key, { amount: e.target.value })}
@@ -193,7 +166,7 @@ export default function AssignUnallocated({
             {left > 0 && (
               <button
                 type="button"
-                aria-label={`Fill remaining for category ${i + 1}`}
+                aria-label={`Fill remaining for goal ${i + 1}`}
                 onClick={() => fillRemaining(r.key)}
                 className={secondaryButtonCls}
               >
@@ -203,7 +176,7 @@ export default function AssignUnallocated({
             {rows.length > 1 && (
               <button
                 type="button"
-                aria-label={`Remove category ${i + 1}`}
+                aria-label={`Remove goal ${i + 1}`}
                 onClick={() => setRows((rs) => rs.filter((x) => x.key !== r.key))}
                 className={secondaryButtonCls}
               >
@@ -221,7 +194,7 @@ export default function AssignUnallocated({
           disabled={rows.length >= targetCount}
           className={secondaryButtonCls}
         >
-          Add category
+          Add goal
         </button>
         {rows.length > 1 && (
           <button type="button" onClick={splitEvenly} className={secondaryButtonCls}>
