@@ -27,3 +27,4 @@ Monies is built spec-first. `brief.md` is the source of truth for product intent
 | 010 | [Provisional income for months in progress](010-provisional-income.md) | implemented |
 | 011 | [UI polish: separate the panes and tables](011-ui-polish.md) | implemented |
 | 012 | [Category types: spending, saving, debt payoff](012-category-types.md) | implemented |
+| 013 | [Saving and Debt payoff totals on the Overview cash-flow card](013-overview-saving-debt-totals.md) | implemented |

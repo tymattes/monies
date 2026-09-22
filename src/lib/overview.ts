@@ -69,6 +69,20 @@ export type Overview = {
     unallocatedCents: number;
     overAllocatedCents: number;
     leftAfterBillsCents: number;
+    // Full budgeted total by category type (spec 013), for the headline
+    // Saving/Debt payoff stats — includes any bills in that category, so it
+    // can exceed the "rest" figures below (same relationship as the
+    // existing Bills stat vs. "Bills within budget").
+    spendingCents: number;
+    savingCents: number;
+    debtPayoffCents: number;
+    // `restOfBudgetCents`, split by type instead of left whole — always
+    // sums back to it. This is what the bar actually draws for the
+    // non-bill portion, so a saving category's own bills (if any) still
+    // land in `billsWithinBudgetCents`, never double-counted here.
+    restSpendingCents: number;
+    restSavingCents: number;
+    restDebtPayoffCents: number;
   };
   categories: OverviewCategory[];
   attention: AttentionItem[];
@@ -116,6 +130,18 @@ export async function getOverview(
   const incomeCents = budget.incomeCents;
   const budgetedCents = budget.totalCents;
   const unallocatedCents = incomeCents - budgetedCents;
+  const sumByType = (type: CategoryType) =>
+    categories.filter((c) => c.type === type).reduce((t, c) => t + c.budgetedCents, 0);
+  const spendingCents = sumByType("spending");
+  const savingCents = sumByType("saving");
+  const debtPayoffCents = sumByType("debt payoff");
+  const restByType = (type: CategoryType) =>
+    categories
+      .filter((c) => c.type === type)
+      .reduce((t, c) => t + Math.max(c.budgetedCents - c.billsCents, 0), 0);
+  const restSpendingCents = restByType("spending");
+  const restSavingCents = restByType("saving");
+  const restDebtPayoffCents = restByType("debt payoff");
 
   const attention: AttentionItem[] = [];
   // Income that may still grow (variable deposits not recorded yet) makes a
@@ -227,6 +253,12 @@ export async function getOverview(
       unallocatedCents: Math.max(unallocatedCents, 0),
       overAllocatedCents: Math.max(-unallocatedCents, 0),
       leftAfterBillsCents: incomeCents - budget.billsTotalCents,
+      spendingCents,
+      savingCents,
+      debtPayoffCents,
+      restSpendingCents,
+      restSavingCents,
+      restDebtPayoffCents,
     },
     categories,
     attention,
