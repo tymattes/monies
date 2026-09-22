@@ -277,7 +277,7 @@ describe("month view", () => {
     expect(view.groups.every((g) => g.canAdd)).toBe(true);
   });
 
-  it("shows income and unallocated on the budget", async () => {
+  it("shows income and unallocated on the budget, where budgeted amounts don't reserve income (spec 022)", async () => {
     const owner = await setupOwner();
     const salary = await makeSource(owner, "Salary", "fixed");
     await setAmount(owner, "2026-09", salary, 400000);
@@ -294,12 +294,13 @@ describe("month view", () => {
         params: { month: "2026-09", categoryId: groceries.id },
         body: { amountCents },
       });
+    // Budgeting a category changes totalCents but not Unallocated — a budgeted
+    // target is a plan, not a claim on income (spec 022).
     await put(150000);
-    expect((await get()).json).toMatchObject({ incomeCents: 400000, totalCents: 150000, unallocatedCents: 250000 });
+    expect((await get()).json).toMatchObject({ incomeCents: 400000, totalCents: 150000, unallocatedCents: 400000 });
 
-    // Budgeting more than income goes negative (flagged as over-allocated in the UI).
     await put(500000);
-    expect((await get()).json).toMatchObject({ totalCents: 500000, unallocatedCents: -100000 });
+    expect((await get()).json).toMatchObject({ totalCents: 500000, unallocatedCents: 400000 });
   });
 });
 

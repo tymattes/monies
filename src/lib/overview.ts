@@ -67,13 +67,16 @@ export type Overview = {
       intervalMonths: number;
     }[];
   };
-  // Expense categories plus goals (spec 014) — everything earmarked.
+  // Expense categories plus goals (spec 014) — the planned total, a
+  // planning-only figure (spec 022). `unallocatedCents` is income minus
+  // bills, expenses and checked-off goals; `overAllocatedCents` when negative.
   budget: { budgetedCents: number; unallocatedCents: number };
   // Splits the month's income for the stacked bar. `billsWithinBudgetCents +
   // restOfBudgetCents` always equals the Expense budgeted total (goals are
   // never billed, so they never enter this split); `unallocatedCents` is
-  // income minus budgeted (Expenses + goals) when positive, `overAllocatedCents`
-  // when negative.
+  // income minus bills/expenses/checked goals when positive,
+  // `overAllocatedCents` when negative. (The bar itself is rebuilt around
+  // real terms in spec 021; until then it still draws the budgeted split.)
   cashFlow: {
     incomeCents: number;
     billsWithinBudgetCents: number;
@@ -157,16 +160,16 @@ export async function getOverview(
   const provisional = budget.incomeProvisional;
   const shortfallSeverity = provisional ? "info" : "warning";
   const note = provisional ? " Variable income counts once you record it." : "";
-  if (incomeCents > 0 && budgetedCents > incomeCents) {
+  if (incomeCents > 0 && unallocatedCents < 0) {
     attention.push({
       code: "over_allocated",
       severity: shortfallSeverity,
       message: provisional
-        ? `You have budgeted ${money(budgetedCents - incomeCents)} more than the income recorded so far.${note}`
-        : `You have budgeted ${money(budgetedCents - incomeCents)} more than your income.`,
+        ? `Bills, expenses and checked-off goals exceed the income recorded so far by ${money(-unallocatedCents)}.${note}`
+        : `Bills, expenses and checked-off goals exceed your income by ${money(-unallocatedCents)}.`,
       href: `/budget${q}`,
       actionLabel: "Review budget",
-      amountCents: budgetedCents - incomeCents,
+      amountCents: -unallocatedCents,
     });
   }
   if (incomeCents > 0 && budget.billsTotalCents > incomeCents) {

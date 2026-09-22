@@ -95,7 +95,7 @@ test.describe("the summary bar and Assign", () => {
     await signIn(page, OWNER);
   });
 
-  test("updates live as a budget amount is edited", async ({ page }) => {
+  test("updates live as a budget amount is edited: Budgeted rises, Unallocated stays (spec 022)", async ({ page }) => {
     await page.goto("/budget");
     await waitHydrated(page);
     const bar = summary(page);
@@ -104,21 +104,26 @@ test.describe("the summary bar and Assign", () => {
     const groceries = page.getByLabel("Groceries", { exact: true });
     await groceries.fill("800.00");
     await groceries.blur();
-    // 100.00 more budgeted: Budgeted rises and Unallocated falls, with no reload.
+    // 100.00 more budgeted: Budgeted rises with no reload, but Unallocated is
+    // unchanged — a budgeted amount reserves nothing (spec 022).
     await expect(bar).toContainText(money(SEED.budgetedCents + 10000));
-    await expect(bar).toContainText(money(SEED.unallocatedCents - 10000));
+    await expect(bar).toContainText(money(SEED.unallocatedCents));
   });
 
-  test("being above the recorded income is shown plainly while variable income may still arrive", async ({ page }) => {
+  test("a bill that exceeds recorded income is shown plainly while variable income may still arrive", async ({ page }) => {
+    // Push real commitments (bills) past income by $1,000 (spec 022).
+    const M = monthKey();
+    const budget = await (await page.request.get(`/api/budgets/${M}`)).json();
+    const transport = budget.categories.find((c: { name: string }) => c.name === "Transport").id;
+    await page.request.post("/api/bills", {
+      data: { name: "Car loan", amountCents: SEED.incomeCents + 100000 - SEED.billsCents, categoryId: transport },
+    });
+
     await page.goto("/budget");
     await waitHydrated(page);
     const bar = summary(page);
-    await expect(bar).toContainText("Variable income counts once you record it.");
-    const housing = page.getByLabel("Housing", { exact: true });
-    await housing.fill("2800.00"); // +1,000 => 6,100 budgeted vs 6,000 recorded
-    await housing.blur();
     await expect(bar).toContainText("Over recorded income by");
-    await expect(bar).toContainText(money(10000));
+    await expect(bar).toContainText(money(100000));
     await expect(bar).not.toContainText("Over-allocated");
     await expect(bar.getByText("Over recorded income by")).not.toHaveCSS("color", LIGHT_DANGER);
     await expect(bar.getByRole("button", { name: "Assign" })).toHaveCount(0);
@@ -143,14 +148,16 @@ test.describe("the summary bar and Assign", () => {
     }
   });
 
-  test("Assign disappears once everything is assigned", async ({ page }) => {
+  test("Assigning everything raises the goal but Unallocated is unchanged, so the panel stays (spec 022)", async ({ page }) => {
     await page.goto("/income");
     await waitHydrated(page);
     const panel = page.locator("#assign");
     await panel.getByRole("button", { name: "Assign" }).click();
-    await expect(panel).toHaveCount(0);
-    await expect(summary(page)).toContainText(money(0));
-    await expect(summary(page).getByRole("link", { name: "Assign" })).toHaveCount(0);
+    // The goal target grew, but Unallocated did not move (a target is a plan,
+    // not a claim — spec 022), so the panel is still there with the same total.
+    await expect(panel).toHaveCount(1);
+    await expect(summary(page)).toContainText(money(SEED.unallocatedCents));
+    await expect(panel).toContainText(`Assign the unallocated ${money(SEED.unallocatedCents)}`);
   });
 });
 

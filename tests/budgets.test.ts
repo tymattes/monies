@@ -9,9 +9,15 @@ vi.mock("@/lib/months", async (importOriginal) => ({
 
 import * as allocationRoute from "@/app/api/budgets/[month]/allocations/[categoryId]/route";
 import * as budgetRoute from "@/app/api/budgets/[month]/route";
+import * as billsRoute from "@/app/api/bills/route";
 import * as categoryRoute from "@/app/api/categories/[id]/route";
 import * as categoriesRoute from "@/app/api/categories/route";
+import * as goalAmountRoute from "@/app/api/goals/month/[month]/amounts/[id]/route";
+import * as goalCheckinRoute from "@/app/api/goals/month/[month]/checkins/[id]/route";
+import * as goalsRoute from "@/app/api/goals/route";
 import * as householdRoute from "@/app/api/household/route";
+import * as incomeAmountRoute from "@/app/api/income/[month]/sources/[id]/route";
+import * as incomeSourcesRoute from "@/app/api/income/sources/route";
 import * as setupRoute from "@/app/api/setup/route";
 import { getDb, getSql } from "@/db";
 import { categories } from "@/db/schema";
@@ -313,6 +319,89 @@ describe("access control", () => {
     expect((await setAmount(cookie, "2026-09", pets, 2500)).status).toBe(200);
     expect(await amountIn(owner, "2026-09", "Pets")).toBe(2500);
     expect((await patchCategory(cookie, pets, { archived: true })).status).toBe(204);
+  });
+});
+
+describe("Unallocated = income − bills − expenses − checked goals (spec 022)", () => {
+  async function salary(cookie: string, amountCents: number) {
+    const created = await call(incomeSourcesRoute.POST, "/api/income/sources", {
+      method: "POST",
+      cookie,
+      body: { name: "Salary", kind: "fixed" },
+    });
+    const id = (created.json.source as { id: string }).id;
+    await call(incomeAmountRoute.PUT, `/api/income/2026-09/sources/${id}`, {
+      method: "PUT",
+      cookie,
+      params: { month: "2026-09", id },
+      body: { amountCents },
+    });
+  }
+
+  async function bill(cookie: string, name: string, amountCents: number, category: string) {
+    const r = await call(billsRoute.POST, "/api/bills", {
+      method: "POST",
+      cookie,
+      body: { name, amountCents, categoryId: await idOf(cookie, category) },
+    });
+    expect(r.status).toBe(201);
+  }
+
+  const goalId = async (cookie: string, name = "Savings") =>
+    ((await call(goalsRoute.GET, "/api/goals", { cookie })).json.goals as { id: string; name: string }[])
+      .find((g) => g.name === name)!.id;
+
+  async function goalBudget(cookie: string, name: string, amountCents: number) {
+    const id = await goalId(cookie, name);
+    const r = await call(goalAmountRoute.PUT, `/api/goals/month/2026-09/amounts/${id}`, {
+      method: "PUT",
+      cookie,
+      params: { month: "2026-09", id },
+      body: { amountCents },
+    });
+    expect(r.status).toBe(200);
+  }
+
+  async function checkGoal(cookie: string, name: string, checked: boolean) {
+    const id = await goalId(cookie, name);
+    const r = await call(goalCheckinRoute.PUT, `/api/goals/month/2026-09/checkins/${id}`, {
+      method: "PUT",
+      cookie,
+      params: { month: "2026-09", id },
+      body: { checked },
+    });
+    expect(r.status).toBe(200);
+  }
+
+  it("a new category's budgeted amount leaves Unallocated untouched", async () => {
+    const cookie = await setupOwner();
+    await salary(cookie, 400000);
+    const groceries = await idOf(cookie, "Groceries");
+    await setAmount(cookie, "2026-09", groceries, 50000);
+    const b = await budget(cookie, "2026-09");
+    expect(b.json.totalCents).toBe(50000);
+    expect(b.json.unallocatedCents).toBe(400000);
+  });
+
+  it("a bill reduces Unallocated even when its category has no budget", async () => {
+    const cookie = await setupOwner();
+    await salary(cookie, 400000);
+    await bill(cookie, "Rent", 150000, "Housing");
+    const b = await budget(cookie, "2026-09");
+    expect(b.json.unallocatedCents).toBe(250000);
+  });
+
+  it("a goal's target leaves Unallocated untouched until checked off, then drops by its amount and recovers on uncheck", async () => {
+    const cookie = await setupOwner();
+    await salary(cookie, 400000);
+    await goalBudget(cookie, "Savings", 100000);
+    expect((await budget(cookie, "2026-09")).json.unallocatedCents).toBe(400000);
+
+    await checkGoal(cookie, "Savings", true);
+    expect((await budget(cookie, "2026-09")).json.unallocatedCents).toBe(300000);
+
+    await checkGoal(cookie, "Savings", false);
+    expect((await budget(cookie, "2026-09")).json.unallocatedCents).toBe(400000);
   });
 });
 

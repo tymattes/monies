@@ -24,6 +24,7 @@ export default function BudgetEditor({
   incomeCents,
   incomeProvisional,
   billsTotalCents,
+  unallocatedCents,
 }: {
   month: string;
   monthName: string;
@@ -31,12 +32,16 @@ export default function BudgetEditor({
   editable: boolean;
   lines: Line[];
   // Saving/Debt payoff goals (spec 014): not edited here (see /goals), but
-  // folded into Unallocated below, since that money is just as earmarked as
-  // a category's budget. Assign itself lives on the Income page (spec 015).
+  // folded into the Budgeted total below, since that money is just as
+  // earmarked as a category's budget. Assign itself lives on the Income
+  // page (spec 015).
   goalsCommittedCents: number;
   incomeCents: number;
   incomeProvisional: boolean;
   billsTotalCents: number;
+  // Server-given, static: editing a category's amount changes the Budgeted
+  // total but never this (spec 022 — budgeted amounts don't claim income).
+  unallocatedCents: number;
 }) {
   // Last saved amount per category, and what is currently typed.
   const [saved, setSaved] = useState<Record<string, number>>(() =>
@@ -83,6 +88,7 @@ export default function BudgetEditor({
       incomeProvisional={incomeProvisional}
       budgetedCents={total + goalsCommittedCents}
       billsCents={billsTotalCents}
+      unallocatedCents={unallocatedCents}
       assign="link"
     />
   );

@@ -7,11 +7,12 @@ vi.mock("@/lib/months", async (importOriginal) => ({
   currentMonth: () => clock.month,
 }));
 
-import * as allocationRoute from "@/app/api/budgets/[month]/allocations/[categoryId]/route";
 import * as assignRoute from "@/app/api/budgets/[month]/assign-unallocated/route";
 import * as budgetRoute from "@/app/api/budgets/[month]/route";
+import * as billsRoute from "@/app/api/bills/route";
 import * as goalRoute from "@/app/api/goals/[id]/route";
 import * as goalAmountRoute from "@/app/api/goals/month/[month]/amounts/[id]/route";
+import * as goalCheckinRoute from "@/app/api/goals/month/[month]/checkins/[id]/route";
 import * as goalsRoute from "@/app/api/goals/route";
 import * as sourceAmountRoute from "@/app/api/income/[month]/sources/[id]/route";
 import * as sourcesRoute from "@/app/api/income/sources/route";
@@ -30,18 +31,15 @@ async function budget(cookie: string, month = "2026-09") {
 const idOf = async (cookie: string, name: string) =>
   (await budget(cookie)).lines.find((l) => l.name === name)!.id;
 
-const amountOf = async (cookie: string, name: string, month = "2026-09") =>
-  (await budget(cookie, month)).lines.find((l) => l.name === name)?.amountCents;
-
-async function setBudget(cookie: string, name: string, amountCents: number, month = "2026-09") {
-  const categoryId = await idOf(cookie, name);
-  const r = await call(allocationRoute.PUT, `/api/budgets/${month}/allocations/${categoryId}`, {
-    method: "PUT",
+// A bill reduces Unallocated (spec 022 — bills are a real commitment, unlike a
+// budgeted amount). Used to create the headroom Assign works against.
+async function addBill(cookie: string, name: string, amountCents: number, category: string) {
+  const r = await call(billsRoute.POST, "/api/bills", {
+    method: "POST",
     cookie,
-    params: { month, categoryId },
-    body: { amountCents },
+    body: { name, amountCents, categoryId: await idOf(cookie, category) },
   });
-  expect(r.status).toBe(200);
+  expect(r.status).toBe(201);
 }
 
 // The Savings goal on the same budget response (spec 014) — always
@@ -73,6 +71,17 @@ async function setGoalAmount(cookie: string, name: string, amountCents: number, 
     cookie,
     params: { month, id: goalId },
     body: { amountCents },
+  });
+  expect(r.status).toBe(200);
+}
+
+async function checkGoal(cookie: string, name: string, month: string, checked: boolean) {
+  const id = await goalIdOf(cookie, name);
+  const r = await call(goalCheckinRoute.PUT, `/api/goals/month/${month}/checkins/${id}`, {
+    method: "PUT",
+    cookie,
+    params: { month, id },
+    body: { checked },
   });
   expect(r.status).toBe(200);
 }
@@ -121,6 +130,15 @@ async function assignCategory(cookie: string, body: unknown, month = "2026-09") 
   });
 }
 
+// Income 4,000 with a single 1,000 bill leaves 3,000 Unallocated. The bill
+// is what creates the headroom, not a budgeted amount (spec 022).
+async function fundedOwner() {
+  const owner = await setupOwner();
+  await setIncome(owner, 400000);
+  await addBill(owner, "Rent", 100000, "Housing");
+  return owner;
+}
+
 beforeEach(async () => {
   clock.month = "2026-09";
   await getSql()`truncate "user", households, invites, verification cascade`;
@@ -128,9 +146,7 @@ beforeEach(async () => {
 
 describe("assign unallocated to a goal", () => {
   it("moves the whole unallocated amount into the goal, from this month onward", async () => {
-    const owner = await setupOwner();
-    await setIncome(owner, 400000);
-    await setBudget(owner, "Groceries", 100000);
+    const owner = await fundedOwner();
     expect((await budget(owner)).json.unallocatedCents).toBe(300000);
 
     const savings = await goalIdOf(owner);
@@ -138,64 +154,59 @@ describe("assign unallocated to a goal", () => {
     expect(r.status).toBe(200);
     expect(r.json).toMatchObject({
       assignedCents: 300000,
-      unallocatedCents: 0,
+      unallocatedCents: 0, // the assign's own leftover-headroom accounting
       assignments: [{ goalId: savings, assignedCents: 300000, amountCents: 300000 }],
     });
 
     expect(await goalAmountOf(owner, "Savings")).toBe(300000);
-    expect(await amountOf(owner, "Groceries")).toBe(100000);
-    const after = await budget(owner);
-    expect(after.json).toMatchObject({ unallocatedCents: 0 });
+    // Assigning raises the goal's target but does NOT consume Unallocated
+    // (spec 022) — only checking the goal off would.
+    expect((await budget(owner)).json.unallocatedCents).toBe(300000);
 
-    // Unlike an ordinary allocation, an assign is a one-month top-up (spec
-    // 017): the next month reverts to what Savings had before this assign
-    // (nothing, here), so its income isn't fully budgeted again.
+    // A one-month top-up (spec 017): next month reverts to what Savings had
+    // before (nothing).
     expect(await goalAmountOf(owner, "Savings", "2026-10")).toBe(0);
-    expect((await budget(owner, "2026-10")).json.unallocatedCents).toBe(300000);
   });
 
   it("adds to the goal's existing amount", async () => {
-    const owner = await setupOwner();
-    await setIncome(owner, 400000);
+    const owner = await fundedOwner();
     await setGoalAmount(owner, "Savings", 50000);
-    await setBudget(owner, "Groceries", 100000);
     const r = await assignGoal(owner, await goalIdOf(owner));
     expect(r.json).toMatchObject({
-      assignedCents: 250000,
-      assignments: [{ assignedCents: 250000, amountCents: 300000 }],
+      assignedCents: 300000,
+      assignments: [{ assignedCents: 300000, amountCents: 350000 }],
     });
-    expect(await goalAmountOf(owner, "Savings")).toBe(300000);
+    expect(await goalAmountOf(owner, "Savings")).toBe(350000);
   });
 
   it("stays editable afterwards (it is a normal allocation)", async () => {
-    const owner = await setupOwner();
-    await setIncome(owner, 400000);
+    const owner = await fundedOwner();
     await assignGoal(owner, await goalIdOf(owner));
     await setGoalAmount(owner, "Savings", 100000);
+    // A manual edit (not a check-off) still does not move Unallocated.
     expect((await budget(owner)).json.unallocatedCents).toBe(300000);
   });
 
   it("does not overwrite an already-explicit amount for next month", async () => {
-    const owner = await setupOwner();
-    await setIncome(owner, 400000);
+    const owner = await fundedOwner();
     await setGoalAmount(owner, "Savings", 20000, "2026-10"); // a deliberate plan for October
     await assignGoal(owner, await goalIdOf(owner));
-    expect(await goalAmountOf(owner, "Savings", "2026-09")).toBe(400000);
+    expect(await goalAmountOf(owner, "Savings", "2026-09")).toBe(300000);
     expect(await goalAmountOf(owner, "Savings", "2026-10")).toBe(20000); // untouched
     expect(await goalAmountOf(owner, "Savings", "2026-11")).toBe(20000); // inherits October's plan
   });
 
-  it("rejects when there is nothing to assign (zero or over-allocated)", async () => {
+  it("rejects when there is nothing to assign (zero or over-committed)", async () => {
     const owner = await setupOwner();
     const savings = await goalIdOf(owner);
     // No income at all.
     expect((await assignGoal(owner, savings)).status).toBe(400);
-    // Fully allocated.
+    // Fully committed by a bill.
     await setIncome(owner, 100000);
-    await setBudget(owner, "Groceries", 100000);
+    await addBill(owner, "Rent", 100000, "Housing");
     expect((await assignGoal(owner, savings)).status).toBe(400);
-    // Over-allocated.
-    await setBudget(owner, "Groceries", 150000);
+    // Over-committed.
+    await addBill(owner, "Phone", 50000, "Utilities");
     const r = await assignGoal(owner, savings);
     expect(r.status).toBe(400);
     expect(r.json.error).toMatch(/no unallocated/);
@@ -203,8 +214,7 @@ describe("assign unallocated to a goal", () => {
   });
 
   it("rejects past months", async () => {
-    const owner = await setupOwner();
-    await setIncome(owner, 400000);
+    const owner = await fundedOwner();
     clock.month = "2026-10";
     const r = await assignGoal(owner, await goalIdOf(owner), "2026-09");
     expect(r.status).toBe(400);
@@ -212,8 +222,7 @@ describe("assign unallocated to a goal", () => {
   });
 
   it("rejects unknown, archived and malformed goals", async () => {
-    const owner = await setupOwner();
-    await setIncome(owner, 400000);
+    const owner = await fundedOwner();
     expect((await assignGoal(owner, "00000000-0000-0000-0000-000000000000")).status).toBe(404);
     expect((await assignGoal(owner, "not-a-uuid")).status).toBe(404);
     expect((await assignGoal(owner, undefined)).status).toBe(400);
@@ -227,30 +236,11 @@ describe("assign unallocated to a goal", () => {
       body: { archived: true },
     });
     expect((await assignGoal(owner, savings)).status).toBe(404);
-    expect((await budget(owner)).json.unallocatedCents).toBe(400000);
-  });
-
-  it("never double-assigns when two requests race", async () => {
-    const owner = await setupOwner();
-    await setIncome(owner, 400000);
-    await setBudget(owner, "Groceries", 100000);
-    const savings = await goalIdOf(owner);
-    const other = await createGoal(owner, "Vacation", "saving");
-
-    const results = await Promise.all([
-      assignGoal(owner, savings),
-      assignGoal(owner, savings),
-      assignGoal(owner, other),
-      assignGoal(owner, savings),
-    ]);
-    expect(results.map((r) => r.status).sort()).toEqual([200, 400, 400, 400]);
-    const after = await budget(owner);
-    expect(after.json).toMatchObject({ unallocatedCents: 0 });
+    expect((await budget(owner)).json.unallocatedCents).toBe(300000);
   });
 
   it("lets any household member assign, and rejects outsiders", async () => {
-    const owner = await setupOwner();
-    await setIncome(owner, 400000);
+    const owner = await fundedOwner();
     const member = await joinAsMember(owner);
     const savings = await goalIdOf(owner);
 
@@ -263,18 +253,11 @@ describe("assign unallocated to a goal", () => {
     expect((await assignGoal(stranger, savings)).status).toBe(403);
 
     expect((await assignGoal(member.cookie, savings)).status).toBe(200);
-    expect(await goalAmountOf(owner, "Savings")).toBe(400000);
+    expect(await goalAmountOf(owner, "Savings")).toBe(300000);
   });
 });
 
 describe("splitting across several goals", () => {
-  async function fundedOwner() {
-    const owner = await setupOwner();
-    await setIncome(owner, 400000);
-    await setBudget(owner, "Groceries", 100000); // 300000 unallocated
-    return owner;
-  }
-
   it("assigns to several goals in one request", async () => {
     const owner = await fundedOwner();
     const savings = await goalIdOf(owner);
@@ -292,26 +275,27 @@ describe("splitting across several goals", () => {
     expect(await goalAmountOf(owner, "Savings")).toBe(150000);
     expect(await goalAmountOf(owner, "Vacation")).toBe(100000);
     expect(await goalAmountOf(owner, "Credit card")).toBe(50000);
-    expect((await budget(owner)).json).toMatchObject({ unallocatedCents: 0 });
-    // Each reverts to its pre-assign amount next month (spec 017), not 0
-    // across the board — Savings and the two new goals all started at 0.
+    // Targets were raised but nothing was checked off, so Unallocated is
+    // unchanged (spec 022).
+    expect((await budget(owner)).json.unallocatedCents).toBe(300000);
+    // Each reverts to its pre-assign amount next month (spec 017).
     expect(await goalAmountOf(owner, "Vacation", "2026-10")).toBe(0);
     expect(await goalAmountOf(owner, "Savings", "2026-10")).toBe(0);
   });
 
   it("adds to existing amounts and can leave the rest unallocated", async () => {
     const owner = await fundedOwner();
-    await setGoalAmount(owner, "Savings", 50000); // unallocated now 250000
+    await setGoalAmount(owner, "Savings", 50000);
     const vacation = await createGoal(owner, "Vacation", "saving");
     const r = await assignMany(owner, [
       { goalId: await goalIdOf(owner), amountCents: 100000 },
       { goalId: vacation, amountCents: 50000 },
     ]);
     expect(r.status).toBe(200);
-    expect(r.json).toMatchObject({ assignedCents: 150000, unallocatedCents: 100000 });
+    expect(r.json).toMatchObject({ assignedCents: 150000, unallocatedCents: 150000 });
     expect(await goalAmountOf(owner, "Savings")).toBe(150000);
     expect(await goalAmountOf(owner, "Vacation")).toBe(50000);
-    expect((await budget(owner)).json.unallocatedCents).toBe(100000);
+    expect((await budget(owner)).json.unallocatedCents).toBe(300000);
   });
 
   it("applies nothing when the total is more than the unallocated amount", async () => {
@@ -364,28 +348,17 @@ describe("splitting across several goals", () => {
   });
 
   it("rejects splits in past months and when nothing is unallocated", async () => {
-    const owner = await fundedOwner();
+    const owner = await setupOwner();
+    await setIncome(owner, 400000);
     const savings = await goalIdOf(owner);
-    expect((await assignGoal(owner, savings)).status).toBe(200); // uses it all
+    // Committed fully by a bill, so nothing is unallocated.
+    await addBill(owner, "Rent", 400000, "Housing");
     expect((await assignMany(owner, [{ goalId: savings, amountCents: 1 }])).status).toBe(400);
 
     clock.month = "2026-10";
     const r = await assignMany(owner, [{ goalId: savings, amountCents: 1 }], "2026-09");
     expect(r.status).toBe(400);
     expect(r.json.error).toMatch(/read-only/);
-  });
-
-  it("never lets simultaneous splits assign the same money twice", async () => {
-    const owner = await fundedOwner();
-    const savings = await goalIdOf(owner);
-    const vacation = await createGoal(owner, "Vacation", "saving");
-    const results = await Promise.all([
-      assignMany(owner, [{ goalId: savings, amountCents: 200000 }, { goalId: vacation, amountCents: 100000 }]),
-      assignMany(owner, [{ goalId: savings, amountCents: 200000 }, { goalId: vacation, amountCents: 100000 }]),
-      assignGoal(owner, savings),
-    ]);
-    expect(results.map((r) => r.status).sort()).toEqual([200, 400, 400]);
-    expect((await budget(owner)).json).toMatchObject({ unallocatedCents: 0 });
   });
 
   it("requires a signed-in household member", async () => {
@@ -398,13 +371,6 @@ describe("splitting across several goals", () => {
 });
 
 describe("rejecting the removed category target (spec 020)", () => {
-  async function fundedOwner() {
-    const owner = await setupOwner();
-    await setIncome(owner, 400000);
-    await setBudget(owner, "Groceries", 100000); // 300000 unallocated
-    return owner;
-  }
-
   it("rejects a top-level categoryId with a message naming Expenses", async () => {
     const owner = await fundedOwner();
     const groceries = await idOf(owner, "Groceries");
@@ -432,11 +398,10 @@ describe("rejecting the removed category target (spec 020)", () => {
 
 describe("one-month top-up (spec 017)", () => {
   it("reverts a goal to its pre-assign amount next month, and later months inherit that", async () => {
-    const owner = await setupOwner();
-    await setIncome(owner, 400000);
+    const owner = await fundedOwner();
     await setGoalAmount(owner, "Savings", 50000);
-    await assignGoal(owner, await goalIdOf(owner)); // Savings: 50000 -> 400000
-    expect(await goalAmountOf(owner, "Savings", "2026-09")).toBe(400000);
+    await assignGoal(owner, await goalIdOf(owner)); // Savings: 50000 -> 350000
+    expect(await goalAmountOf(owner, "Savings", "2026-09")).toBe(350000);
     expect(await goalAmountOf(owner, "Savings", "2026-10")).toBe(50000);
     expect(await goalAmountOf(owner, "Savings", "2026-11")).toBe(50000); // inherits October
   });
@@ -463,14 +428,39 @@ describe("one-month top-up (spec 017)", () => {
     expect(await goalAmountOf(owner, "Savings", "2026-10")).toBe(40000);
     expect(await goalAmountOf(owner, "Savings", "2026-11")).toBe(40000);
   });
+});
 
-  it("counts a goal's committed amount in Unallocated everywhere (spec 014)", async () => {
+describe("Unallocated and checked-off goals (spec 022)", () => {
+  it("a goal's target doesn't move Unallocated; checking it off does, and the same headroom can fund several targets until their checked sum exceeds income", async () => {
+    const owner = await setupOwner();
+    await setIncome(owner, 400000); // 400,000 Unallocated, nothing committed
+    const savings = await goalIdOf(owner);
+    const vacation = await createGoal(owner, "Vacation", "saving");
+
+    // Assign 250,000 into each of two goals using the same headroom — Assign
+    // doesn't consume Unallocated (spec 022), so both succeed.
+    await assignMany(owner, [{ goalId: savings, amountCents: 250000 }]);
+    await assignMany(owner, [{ goalId: vacation, amountCents: 250000 }]);
+    expect((await budget(owner)).json.unallocatedCents).toBe(400000);
+
+    // Checking the first off commits 250,000.
+    await checkGoal(owner, "Savings", "2026-09", true);
+    expect((await budget(owner)).json.unallocatedCents).toBe(150000);
+
+    // Checking the second off commits another 250,000 — 500,000 total against
+    // 400,000 income, so Unallocated goes negative (over-committed).
+    await checkGoal(owner, "Vacation", "2026-09", true);
+    expect((await budget(owner)).json.unallocatedCents).toBe(-100000);
+
+    // Unchecking restores it.
+    await checkGoal(owner, "Vacation", "2026-09", false);
+    expect((await budget(owner)).json.unallocatedCents).toBe(150000);
+  });
+
+  it("setting a goal's target by hand leaves Unallocated untouched", async () => {
     const owner = await setupOwner();
     await setIncome(owner, 400000);
     await setGoalAmount(owner, "Savings", 100000);
-    await setBudget(owner, "Housing", 50000);
-    const b = await budget(owner);
-    // 400,000 income - 100,000 goal - 50,000 category = 250,000 unallocated.
-    expect(b.json.unallocatedCents).toBe(250000);
+    expect((await budget(owner)).json.unallocatedCents).toBe(400000);
   });
 });
