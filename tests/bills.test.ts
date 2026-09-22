@@ -420,7 +420,9 @@ describe("budget integration", () => {
       incomeCents: 400000,
       leftAfterBillsCents: 141000,
       totalCents: 270000,
-      unallocatedCents: 130000,
+      // Unallocated is income minus bills (spec 022), not minus budgeted:
+      // 400000 - 259000 = 141000.
+      unallocatedCents: 141000,
     });
   });
 

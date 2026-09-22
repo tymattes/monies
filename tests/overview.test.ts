@@ -14,6 +14,7 @@ import * as goalAmountRoute from "@/app/api/goals/month/[month]/amounts/[id]/rou
 import * as goalCheckinRoute from "@/app/api/goals/month/[month]/checkins/[id]/route";
 import * as goalsRoute from "@/app/api/goals/route";
 import * as depositsRoute from "@/app/api/income/sources/[id]/deposits/route";
+import * as expenseRoute from "@/app/api/expenses/route";
 import * as incomeAmountRoute from "@/app/api/income/[month]/sources/[id]/route";
 import * as incomeSourceRoute from "@/app/api/income/sources/[id]/route";
 import * as incomeSourcesRoute from "@/app/api/income/sources/route";
@@ -98,6 +99,13 @@ async function bill(cookie: string, name: string, amountCents: number, category:
   expect(r.status).toBe(201);
 }
 
+async function expense(cookie: string, category: string, amountCents: number, spentOn = "2026-09-10") {
+  const r = await call(expenseRoute.POST, "/api/expenses", {
+    method: "POST", cookie, body: { categoryId: await categoryId(cookie, category), amountCents, spentOn },
+  });
+  expect(r.status).toBe(201);
+}
+
 // Income 4,000 (salary 3,000 + freelance 1,000); budgeted 2,600; Utilities'
 // bills (130) are over its budget (100).
 async function scenario(owner: string, member: string) {
@@ -126,13 +134,15 @@ describe("overview numbers", () => {
     expect(data).toMatchObject({ month: "2026-09", currency: "USD", editable: true, householdName: "The Smiths" });
     expect(data.income).toMatchObject({ totalCents: 400000, fixedCents: 300000, variableCents: 100000 });
     expect(data.bills.totalCents).toBe(163000); // 1,500 + 120 + 10
-    expect(data.budget).toEqual({ budgetedCents: 260000, unallocatedCents: 140000 });
+    // Unallocated = income − bills − expenses − checked goals (spec 022):
+    // 4,000 − 1,630 = 2,370. Nothing budgeted reserves income anymore.
+    expect(data.budget).toEqual({ budgetedCents: 260000, unallocatedCents: 237000 });
 
     expect(data.cashFlow).toEqual({
       incomeCents: 400000,
       billsWithinBudgetCents: 160000, // Rent 1,500 + Utilities capped at its 100 budget
       restOfBudgetCents: 100000, // Housing 500 + Groceries 500
-      unallocatedCents: 140000,
+      unallocatedCents: 237000,
       overAllocatedCents: 0,
       leftAfterBillsCents: 237000, // 4,000 - 1,630
       spendingCents: 260000, // Housing 2,000 + Utilities 100 + Groceries 500
@@ -186,13 +196,16 @@ describe("overview numbers", () => {
     ]);
   });
 
-  it("always splits the budget exactly, and income exactly when not over-allocated", async () => {
+  it("always splits the budget exactly, and Unallocated is income minus bills/expenses/checked goals (spec 022)", async () => {
     const owner = await setupOwner();
     const member = await joinAsMember(owner);
     await scenario(owner, member.cookie);
-    const { cashFlow: c, budget: b, income } = (await overview(owner)).data;
+    const { cashFlow: c, budget: b, income, bills } = (await overview(owner)).data;
+    // The budgeted split still sums to the budgeted total (unchanged); but
+    // Unallocated no longer fills the gap to income — it is income minus the
+    // real commitments (spec 022), independent of what's budgeted.
     expect(c.billsWithinBudgetCents + c.restOfBudgetCents).toBe(b.budgetedCents);
-    expect(c.billsWithinBudgetCents + c.restOfBudgetCents + c.unallocatedCents).toBe(income.totalCents);
+    expect(c.unallocatedCents).toBe(income.totalCents - bills.totalCents); // 4,000 - 1,630
   });
 
   it("uses the same Unallocated as the budget API and the category rows match it", async () => {
@@ -257,19 +270,30 @@ describe("attention items", () => {
     expect(over.message).toBe("Utilities: bills are $30.00 over its budget.");
     expect(over.categoryId).toBe(await categoryId(owner, "Utilities"));
 
-    expect(attention[1]).toMatchObject({ severity: "info", amountCents: 140000, href: "/income#assign", actionLabel: "Assign" });
-    expect(attention[1].message).toBe("$1,400.00 is not assigned to a category yet.");
+    // Unallocated is income − bills (spec 022): 4,000 − 1,630 = 2,370.
+    expect(attention[1]).toMatchObject({ severity: "info", amountCents: 237000, href: "/income#assign", actionLabel: "Assign" });
+    expect(attention[1].message).toBe("$2,370.00 is not assigned to a category yet.");
   });
 
-  it("flags over-allocation instead of unallocated money", async () => {
+  it("flags over-allocation when real commitments exceed income, not when merely budgeted over (spec 022)", async () => {
     const owner = await setupOwner();
     await salary(owner, 100000);
-    await budget(owner, "Housing", 150000);
+    // A logged expense tips real commitments over income, with no bill at all.
+    await expense(owner, "Dining out", 150000);
     const { attention } = (await overview(owner)).data;
-    // No bills in this scenario, so the setup prompt is also right.
     expect(codes(attention)).toEqual(["over_allocated", "no_bills"]);
     expect(attention[0]).toMatchObject({ amountCents: 50000, href: "/budget" });
-    expect(attention[0].message).toBe("You have budgeted $500.00 more than your income.");
+    expect(attention[0].message).toBe(
+      "Bills, expenses and checked-off goals exceed your income by $500.00.",
+    );
+  });
+
+  it("does not flag over-allocation for a budgeted amount that exceeds income, since budgeted amounts reserve nothing (spec 022)", async () => {
+    const owner = await setupOwner();
+    await salary(owner, 100000);
+    await budget(owner, "Housing", 150000); // budgeted > income, but nothing real
+    const { attention } = (await overview(owner)).data;
+    expect(codes(attention)).toEqual(["unallocated", "no_bills"]);
   });
 
   it("flags bills that exceed income", async () => {
@@ -296,11 +320,11 @@ describe("attention items", () => {
     expect(data.income.byMember.map((m) => m.name)).toEqual(["Olive Owner"]);
   });
 
-  it("stops prompting once income and a bill exist, and shows nothing when all is in order", async () => {
+  it("stops prompting once income is fully committed by a bill, and shows nothing when all is in order", async () => {
     const owner = await setupOwner();
     await salary(owner, 100000);
     await budget(owner, "Housing", 100000);
-    await bill(owner, "Rent", 50000, "Housing");
+    await bill(owner, "Rent", 100000, "Housing"); // bills consume all income
     expect((await overview(owner)).data.attention).toEqual([]);
   });
 
@@ -339,7 +363,9 @@ describe("attention items", () => {
     await budget(owner, "Housing", 20000);
     const { data } = await overview(owner);
     expect(data.currency).toBe("EUR");
-    expect(data.attention.find((i) => i.code === "unallocated")!.message).toBe("€800.00 is not assigned to a category yet.");
+    // Unallocated = income − bills (spec 022): €1,000 with no bills, since
+    // the €200 budgeted reserves nothing.
+    expect(data.attention.find((i) => i.code === "unallocated")!.message).toBe("€1,000.00 is not assigned to a category yet.");
   });
 });
 
@@ -441,13 +467,13 @@ describe("provisional income (spec 010)", () => {
     await salary(owner, 100000);
     await variableSource(owner);
     await budget(owner, "Housing", 200000);
-    await bill(owner, "Rent", 150000, "Housing");
+    await bill(owner, "Rent", 150000, "Housing"); // bills alone exceed income
     const { attention } = (await overview(owner)).data;
     expect(codes(attention)).toEqual(["over_allocated", "bills_exceed_income"]);
     expect(attention.map((i) => i.severity)).toEqual(["info", "info"]);
-    expect(attention[0].message).toBe("You have budgeted $1,000.00 more than the income recorded so far. Variable income counts once you record it.");
+    expect(attention[0].message).toBe("Bills, expenses and checked-off goals exceed the income recorded so far by $500.00. Variable income counts once you record it.");
     expect(attention[1].message).toBe("Bills ($1,500.00) are more than the income recorded so far ($1,000.00). Variable income counts once you record it.");
-    expect(attention[0]).toMatchObject({ href: "/budget", amountCents: 100000 });
+    expect(attention[0]).toMatchObject({ href: "/budget", amountCents: 50000 });
   });
 
   it("keeps them as warnings with the original wording when the income is final", async () => {
@@ -460,7 +486,7 @@ describe("provisional income (spec 010)", () => {
       ["over_allocated", "warning"],
       ["bills_exceed_income", "warning"],
     ]);
-    expect(attention[0].message).toBe("You have budgeted $1,000.00 more than your income.");
+    expect(attention[0].message).toBe("Bills, expenses and checked-off goals exceed your income by $500.00.");
   });
 
   it("never softens a category whose bills exceed its own budget", async () => {
@@ -480,10 +506,10 @@ describe("provisional income (spec 010)", () => {
     const { data } = await overview(owner);
     expect(data.incomeProvisional).toBe(true);
     expect(data.income.totalCents).toBe(400000);
-    expect(data.budget).toEqual({ budgetedCents: 260000, unallocatedCents: 140000 });
-    expect(data.cashFlow.unallocatedCents).toBe(140000);
+    expect(data.budget).toEqual({ budgetedCents: 260000, unallocatedCents: 237000 });
+    expect(data.cashFlow.unallocatedCents).toBe(237000);
     const api = await budgetApi(owner);
-    expect(api.json.unallocatedCents).toBe(140000);
+    expect(api.json.unallocatedCents).toBe(237000);
     expect(api.json.incomeCents).toBe(400000);
   });
 
@@ -492,7 +518,9 @@ describe("provisional income (spec 010)", () => {
     const member = await joinAsMember(owner);
     await salary(owner, 300000);
     await freelance(member.cookie, 100000); // September only
-    await budget(owner, "Housing", 350000); // more than the 3,000 fixed salary
+    // A recurring bill over the fixed salary makes next month short once the
+    // one-off deposit no longer applies (spec 022: bills are what commit money).
+    await bill(owner, "Rent", 350000, "Housing");
     const next = (await overview(owner, "2026-10")).data;
     expect(next.income.totalCents).toBe(300000); // the deposit does not repeat
     expect(next.incomeProvisional).toBe(true);

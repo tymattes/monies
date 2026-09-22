@@ -41,9 +41,10 @@ export default function PlanSummary({
   incomeProvisional,
   budgetedCents,
   billsCents,
+  unallocatedCents,
   assign,
 }: PlanSummaryData & { assign: "scroll" | "link" }) {
-  const unallocated = incomeCents - budgetedCents;
+  const unallocated = unallocatedCents;
   const over = unallocated < 0;
   // When variable income may still arrive, being above the recorded income is
   // normal, so it is shown plainly instead of as an error (spec 010).

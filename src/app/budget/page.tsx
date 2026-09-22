@@ -41,6 +41,7 @@ export default async function BudgetPage(props: PageProps<"/budget">) {
           incomeCents={budget.incomeCents}
           incomeProvisional={budget.incomeProvisional}
           billsTotalCents={budget.billsTotalCents}
+          unallocatedCents={budget.unallocatedCents}
         />
       </section>
 
