@@ -16,10 +16,10 @@ the last major new concept before the household model is complete;
 specs 020 and 021 build on it.
 
 ## Requirements
-- **A household member can log an expense**: an amount, a category, and
-  a date it happened. Nothing else — no merchant, no note, no receipt,
-  no splitting one purchase across categories. If a category's needed,
-  a second expense is two clicks away.
+- **A household member can log an expense**: an amount, a category, a
+  date it happened, and an optional short description. Nothing else — no
+  merchant, no receipt, no splitting one purchase across categories. If
+  a category's needed, a second expense is two clicks away.
 - **An expense counts against its category's budget**, alongside bills,
   the same way bills already do: a category's remaining budget becomes
   `budgeted − bills − expenses` instead of just `budgeted − bills`.
@@ -46,7 +46,7 @@ specs 020 and 021 build on it.
 - Editing a logged expense. Delete and re-add covers a mistake; a
   full edit form is more form than "easy entry" needs for a first
   version, and can follow later if it turns out to matter.
-- A note, merchant, or receipt field, or splitting one expense across
+- A merchant or receipt field, or splitting one expense across
   multiple categories — deliberately deferred, see Decisions.
 - Receipt capture / photographing a receipt to auto-fill the form — the
   brief already scoped this to a later spec.
@@ -59,8 +59,9 @@ specs 020 and 021 build on it.
 
 ## Acceptance criteria
 - [x] `expenses` table exists (`category_id`, `amount_cents` with a
-      `>= 1` check, `spent_on` date, `added_by`, `created_at`); deleting
-      a category cascades its expenses, same as budget allocations.
+      `>= 1` check, `spent_on` date, an optional `description` text,
+      `added_by`, `created_at`); deleting a category cascades its
+      expenses, same as budget allocations.
 - [x] `POST /api/expenses` creates an expense for a category visible in
       `spentOn`'s month; rejects an unknown/foreign/archived-then category,
       an amount below 1, or a malformed date.
@@ -95,9 +96,11 @@ specs 020 and 021 build on it.
   `created_at`. Index on `(category_id, spent_on)`, mirroring
   `income_deposits_source_received_idx`. The amount check is `> 0` to
   match `income_deposits_amount_check` exactly (integer, so equivalent to
-  "at least 1").
+  "at least 1"). An optional `description` text column holds the free-text
+  detail; the API trims it, caps it at 200 chars, and stores `null` when
+  omitted or blank (`parseNote`, shared with deposit notes).
 - **`src/lib/expenses.ts`** (new), shaped like `income.ts`'s deposit
-  functions: `addExpense(ctx, { categoryId, amountCents, spentOn })`
+  functions: `addExpense(ctx, { categoryId, amountCents, spentOn, description })`
   loads the category scoped to the household and checks
   `visibleIn(spentOn.slice(0, 7))` (the same helper `budgets.ts` already
   has for "is this category shown in this month" — it is duplicated in
@@ -131,8 +134,10 @@ specs 020 and 021 build on it.
 - **`src/app/expenses/page.tsx`** (new) + **`ExpenseLog.tsx`** (new
   component): shaped like `IncomeView`'s deposit form/list for a
   variable source — a form (category `<select>`, amount `<input>`, date
-  `<input type="date">` defaulting to `currentDate()`, submit) above a
-  list of the month's expenses (date, category, amount, a per-row Delete
+  `<input type="date">` defaulting to `currentDate()`, an optional
+  description `<input>`, submit) above a
+  list of the month's expenses (date, category, amount, an optional
+  description, a per-row Delete
   button), with `MonthNav` the same as Budget/Bills/Income/Goals.
 - **`src/components/HeaderNav.tsx`**: add `{ href: "/expenses", label:
   "Expenses" }` between Plan and Members.
@@ -144,12 +149,16 @@ specs 020 and 021 build on it.
   for `HeaderNav`'s new item.
 
 ## Decisions
-- **No note/merchant field, no split-across-categories, no edit.** Every
-  one of these turns a two-field quick-entry form into something closer
-  to a transaction ledger — real scope, not a small addition. "Easy
-  expense entry" is the actual ask here; a fuller ledger (with search,
-  notes, editing) is worth its own spec once logging expenses at all has
-  been lived with for a while and a real need for more shows up.
+- **No merchant field, no split-across-categories, no edit.** Every
+  one of these turns a quick-entry form into something closer to a
+  transaction ledger — real scope, not a small addition. "Easy expense
+  entry" is the actual ask here; a fuller ledger (with search, more
+  fields, editing) is worth its own spec once logging expenses at all has
+  been lived with for a while and a real need for more shows up. A short
+  optional description is the one deliberate exception, added during
+  review — it's a single free-text field that makes the list readable
+  without turning entry into a ledger (trimmed, capped at 200 chars,
+  blank means none; the same `parseNote` helper deposits already use).
 - **Expenses count against a category's budgeted target for comparison
   purposes, the same way bills already do — but see spec 022 for what
   that target actually means.** Originally this spec assumed a

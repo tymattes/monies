@@ -61,7 +61,12 @@ async function setAmount(
 
 async function addExpense(
   cookie: string,
-  body: { categoryId?: string; amountCents?: unknown; spentOn?: unknown },
+  body: {
+    categoryId?: string;
+    amountCents?: unknown;
+    spentOn?: unknown;
+    description?: unknown;
+  },
 ) {
   return call(expenseRoute.POST, "/api/expenses", {
     method: "POST",
@@ -193,6 +198,51 @@ describe("logging an expense (spec 019)", () => {
     expect(october.expensesTotalCents).toBe(0);
     const september = await budget(cookie, "2026-09");
     expect(september.expensesTotalCents).toBe(100);
+  });
+
+  it("stores and lists an optional description, trimmed", async () => {
+    const cookie = await setupOwner();
+    const groceries = await idOf(cookie, "Groceries");
+
+    const { status, json } = await addExpense(cookie, {
+      categoryId: groceries,
+      amountCents: 100,
+      spentOn: `${clock.month}-10`,
+      description: "  dinner with the team  ",
+    });
+    expect(status).toBe(201);
+    expect((json.expense as { description: string | null }).description).toBe(
+      "dinner with the team",
+    );
+
+    // Omitted description is null, and an explicit null/blank is none.
+    await addExpense(cookie, { categoryId: groceries, amountCents: 50, spentOn: `${clock.month}-11` });
+    await addExpense(cookie, {
+      categoryId: groceries,
+      amountCents: 75,
+      spentOn: `${clock.month}-12`,
+      description: null,
+    });
+
+    const list = await listMonth(cookie, clock.month);
+    const rows = list.json.expenses as { description: string | null }[];
+    expect(rows).toHaveLength(3);
+    expect(rows[0].description).toBeNull(); // explicit null -> null, newest
+    expect(rows[1].description).toBeNull(); // omitted -> null
+    expect(rows[2].description).toBe("dinner with the team");
+  });
+
+  it("rejects a description over 200 characters", async () => {
+    const cookie = await setupOwner();
+    const groceries = await idOf(cookie, "Groceries");
+
+    const { status } = await addExpense(cookie, {
+      categoryId: groceries,
+      amountCents: 100,
+      spentOn: `${clock.month}-10`,
+      description: "x".repeat(201),
+    });
+    expect(status).toBe(400);
   });
 
   it("lists the month's expenses newest first", async () => {

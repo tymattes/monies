@@ -453,6 +453,9 @@ export const expenses = pgTable(
     spentOn: date("spent_on", { mode: "string" }).notNull(),
     // Minor units of the household currency.
     amountCents: integer("amount_cents").notNull(),
+    // Optional free-text detail, e.g. "dinner with the team". Trimmed and
+    // capped at 200 chars by the API; empty means none.
+    description: text("description"),
     // The member who logged it; null after that member is removed.
     addedBy: text("added_by").references(() => user.id, {
       onDelete: "set null",

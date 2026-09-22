@@ -26,6 +26,7 @@ export default function ExpenseLog({
   const router = useRouter();
   const [categoryId, setCategoryId] = useState("");
   const [amount, setAmount] = useState("");
+  const [description, setDescription] = useState("");
   const [date, setDate] = useState(() => {
     // Default the date to today, clamped into the viewed month when today is
     // not in it, so the entry lands where the user is looking.
@@ -51,11 +52,13 @@ export default function ExpenseLog({
       categoryId,
       amountCents: minor,
       spentOn: date,
+      description: description.trim() || null,
     });
     setBusy(false);
     if (!ok) return setStatus(error ?? "Could not save");
     setAmount("");
     setCategoryId("");
+    setDescription("");
     router.refresh();
   }
 
@@ -125,6 +128,20 @@ export default function ExpenseLog({
             {status}
           </span>
         </form>
+        <div className="mt-2">
+          <label htmlFor="expense-description" className="block text-xs text-muted">
+            Description (optional)
+          </label>
+          <input
+            id="expense-description"
+            type="text"
+            maxLength={200}
+            placeholder="e.g. dinner with the team"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            className={`${inputCls} w-auto!`}
+          />
+        </div>
       </section>
 
       <section className={`${cardCls} overflow-hidden`}>
@@ -139,6 +156,9 @@ export default function ExpenseLog({
                 <span className="min-w-0 truncate">
                   <span className="tabular-nums">{x.spentOn}</span>
                   <span className="text-muted"> · {x.categoryName}</span>
+                  {x.description && (
+                    <span className="text-muted"> — {x.description}</span>
+                  )}
                 </span>
                 <span className="flex shrink-0 items-center gap-3">
                   <span className="tabular-nums">{formatMoney(x.amountCents, currency)}</span>

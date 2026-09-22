@@ -40,7 +40,12 @@ async function assertCategoryActive(
 // nothing has happened yet to record (spec 019).
 export async function addExpense(
   ctx: HouseholdContext,
-  input: { categoryId: string; amountCents: number; spentOn: string },
+  input: {
+    categoryId: string;
+    amountCents: number;
+    spentOn: string;
+    description: string | null;
+  },
 ) {
   if (input.spentOn > currentDate()) {
     throw new HttpError(400, "You can't log an expense for a future date");
@@ -80,6 +85,7 @@ export type ExpenseLine = {
   categoryName: string;
   spentOn: string;
   amountCents: number;
+  description: string | null;
 };
 
 export type ExpensesMonth = {
@@ -105,6 +111,7 @@ export async function getExpensesMonth(
       categoryName: categories.name,
       spentOn: expenses.spentOn,
       amountCents: expenses.amountCents,
+      description: expenses.description,
     })
     .from(expenses)
     .innerJoin(categories, eq(categories.id, expenses.categoryId))
