@@ -1,6 +1,14 @@
 # 012: Category types (spending, saving, debt payoff)
 
-**Status:** implemented
+**Status:** implemented, then superseded by spec 014
+
+**Superseded:** spec 014 moved Saving and Debt payoff out of `categories`
+entirely, into their own `goals` tables — a category's `type` column
+(added here) no longer exists. Categories are Expense-only again. The
+*concepts* introduced here (grouping the Budget page and Overview by kind,
+Assign preselecting the first Saving-ish target) survive, just re-homed to
+goals; see spec 014 for the current behavior and the reasoning for the
+split.
 
 ## Goal
 Today every category is treated as spending, including "Savings" — it is a

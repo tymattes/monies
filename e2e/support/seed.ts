@@ -30,10 +30,15 @@ export const SEED = {
     Utilities: 35000, // bills below add up to 42000: over budget by 7000
     Health: 20000,
     Entertainment: 15000,
-    Savings: 100000,
     Other: 10000,
   } as Record<string, number>,
-  budgetedCents: 510000,
+  // Saving/Debt payoff goals (spec 014), separate from the Expense budgets
+  // above but still counted in budgetedCents/unallocatedCents below.
+  goals: {
+    Savings: 100000,
+  } as Record<string, number>,
+  categoriesBudgetedCents: 410000, // Expense categories only, e.g. the Overview's categories table
+  budgetedCents: 510000, // Expense categories (410,000) + goals (100,000): Unallocated everywhere
   unallocatedCents: 90000,
   bills: [
     { name: "Rent", amountCents: 150000, category: "Housing", paidWith: "Checking" },
@@ -125,10 +130,18 @@ async function seedHousehold(withVariable: boolean) {
     await ok(await member.post(`/api/join/${invite.token}`, { data: MEMBER }), "join");
 
     const M = monthKey();
-    const budget = (await (await ok(await owner.get(`/api/budgets/${M}`), "budget")).json()) as { categories: { id: string; name: string }[] };
+    const budget = (await (await ok(await owner.get(`/api/budgets/${M}`), "budget")).json()) as {
+      categories: { id: string; name: string }[];
+      goals: { id: string; name: string }[];
+    };
     const category = (name: string): string => {
       const found = budget.categories.find((c) => c.name === name);
       if (!found) throw new Error(`Seeding: no category "${name}"`);
+      return found.id;
+    };
+    const goal = (name: string): string => {
+      const found = budget.goals.find((g) => g.name === name);
+      if (!found) throw new Error(`Seeding: no goal "${name}"`);
       return found.id;
     };
 
@@ -146,6 +159,9 @@ async function seedHousehold(withVariable: boolean) {
 
     for (const [name, amountCents] of Object.entries(SEED.budgets)) {
       await ok(await owner.put(`/api/budgets/${M}/allocations/${category(name)}`, { data: { amountCents } }), `budget ${name}`);
+    }
+    for (const [name, amountCents] of Object.entries(SEED.goals)) {
+      await ok(await owner.put(`/api/goals/month/${M}/amounts/${goal(name)}`, { data: { amountCents } }), `goal ${name}`);
     }
     for (const b of SEED.bills) {
       await ok(
