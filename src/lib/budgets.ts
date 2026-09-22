@@ -7,6 +7,7 @@ import { getGoalsMonth, type GoalLine } from "./goals";
 import { HttpError } from "./http";
 import { getIncomeMonth } from "./income";
 import { addMonths, currentMonth, monthStart } from "./months";
+import { expensesRollup } from "./expenses";
 
 export const MAX_AMOUNT = 2_000_000_000;
 
@@ -14,8 +15,11 @@ export type BudgetLine = {
   id: string;
   name: string;
   amountCents: number;
-  // Monthly cost of the bills in this category, and what is left of the budget after them.
+  // Monthly cost of the bills in this category, and the expenses logged
+  // against it this month (spec 019), and what is left of the budget after
+  // both.
   billsCents: number;
+  expensesCents: number;
   remainingCents: number;
 };
 
@@ -38,8 +42,10 @@ export type Budget = {
   // future one), so income is not final; see spec 010.
   incomeProvisional: boolean;
   unallocatedCents: number;
-  // Total monthly bills and what is left of income after them.
+  // Total monthly bills, total logged expenses (spec 019), and what is left
+  // of income after bills.
   billsTotalCents: number;
+  expensesTotalCents: number;
   leftAfterBillsCents: number;
 };
 
@@ -75,6 +81,7 @@ export async function getBudget(
   const { totalCents: incomeCents, provisional: incomeProvisional } =
     await getIncomeMonth(ctx, month);
   const bills = await billsRollup(ctx.household.id, month);
+  const spent = await expensesRollup(ctx.household.id, month);
   const goalsMonth = await getGoalsMonth(ctx, month);
   return {
     month,
@@ -82,7 +89,13 @@ export async function getBudget(
     editable: month >= currentMonth(),
     categories: rows.map((r) => {
       const billsCents = bills.byCategory.get(r.id) ?? 0;
-      return { ...r, billsCents, remainingCents: r.amountCents - billsCents };
+      const expensesCents = spent.byCategory.get(r.id) ?? 0;
+      return {
+        ...r,
+        billsCents,
+        expensesCents,
+        remainingCents: r.amountCents - billsCents - expensesCents,
+      };
     }),
     goals: goalsMonth.goals,
     totalCents,
@@ -91,6 +104,7 @@ export async function getBudget(
     incomeProvisional,
     unallocatedCents: incomeCents - totalCents - goalsMonth.totalCents,
     billsTotalCents: bills.totalCents,
+    expensesTotalCents: spent.totalCents,
     leftAfterBillsCents: incomeCents - bills.totalCents,
   };
 }

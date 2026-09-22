@@ -12,6 +12,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
   const items = [
     { href: "/", label: "Overview", active: pathname === "/" },
     { href: "/budget", label: "Plan", active: PLAN_PATHS.includes(pathname) },
+    { href: "/expenses", label: "Expenses", active: pathname === "/expenses" },
     { href: "/members", label: "Members", active: pathname === "/members" },
   ];
   return (
