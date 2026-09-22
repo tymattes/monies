@@ -29,23 +29,27 @@ export type Budget = {
   editable: boolean;
   categories: BudgetLine[];
   // Saving/Debt payoff goals for the month (spec 014) — a separate concept
-  // from Expense categories, but still counted in totalCents/unallocatedCents
-  // below, since that money is just as earmarked.
+  // from Expense categories. Their planned sums (totalCents/goalsTotalCents)
+  // are planning-only figures with no bearing on Unallocated (spec 022); only
+  // a checked-off goal claims real income.
   goals: GoalLine[];
   // Sum of `categories` only (unchanged meaning from before spec 014).
   totalCents: number;
   goalsTotalCents: number;
-  // Household income for the month and what is left after budgeting it.
-  // Negative unallocated means the budget exceeds income.
+  // Household income for the month and what is left after the money claimed
+  // by something real (bills, logged expenses, checked-off goals). Negative
+  // unallocated means those commitments exceed income (spec 022).
   incomeCents: number;
   // Variable income may still arrive this month (or is not known yet for a
   // future one), so income is not final; see spec 010.
   incomeProvisional: boolean;
   unallocatedCents: number;
-  // Total monthly bills, total logged expenses (spec 019), and what is left
-  // of income after bills.
+  // Total monthly bills, total logged expenses (spec 019), the sum of
+  // checked-off goal amounts (spec 022), and what is left of income after
+  // bills.
   billsTotalCents: number;
   expensesTotalCents: number;
+  checkedGoalsTotalCents: number;
   leftAfterBillsCents: number;
 };
 
@@ -83,6 +87,9 @@ export async function getBudget(
   const bills = await billsRollup(ctx.household.id, month);
   const spent = await expensesRollup(ctx.household.id, month);
   const goalsMonth = await getGoalsMonth(ctx, month);
+  const checkedGoalsTotalCents = goalsMonth.goals
+    .filter((g) => g.checked)
+    .reduce((sum, g) => sum + g.amountCents, 0);
   return {
     month,
     currency: ctx.household.currency,
@@ -102,9 +109,14 @@ export async function getBudget(
     goalsTotalCents: goalsMonth.totalCents,
     incomeCents,
     incomeProvisional,
-    unallocatedCents: incomeCents - totalCents - goalsMonth.totalCents,
+    // Unallocated shrinks only for money claimed by something real: a bill,
+    // a logged expense, or a checked-off goal (spec 022). Category budgets
+    // and unchecked goal targets are plans, not facts, and reserve nothing.
+    unallocatedCents:
+      incomeCents - bills.totalCents - spent.totalCents - checkedGoalsTotalCents,
     billsTotalCents: bills.totalCents,
     expensesTotalCents: spent.totalCents,
+    checkedGoalsTotalCents,
     leftAfterBillsCents: incomeCents - bills.totalCents,
   };
 }

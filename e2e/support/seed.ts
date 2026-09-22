@@ -38,8 +38,11 @@ export const SEED = {
     Savings: 100000,
   } as Record<string, number>,
   categoriesBudgetedCents: 410000, // Expense categories only, e.g. the Overview's categories table
-  budgetedCents: 510000, // Expense categories (410,000) + goals (100,000): Unallocated everywhere
-  unallocatedCents: 90000,
+  budgetedCents: 510000, // Expense categories (410,000) + goals (100,000): the "Budgeted" figure
+  // Unallocated = income − bills − expenses − checked goals (spec 022). The
+  // seeded Savings goal is funded but unchecked, and there are no expenses, so
+  // it is 600,000 − 194,599 = 405,401.
+  unallocatedCents: 405401,
   bills: [
     { name: "Rent", amountCents: 150000, category: "Housing", paidWith: "Checking" },
     { name: "Phone", amountCents: 8000, category: "Utilities" },
@@ -93,11 +96,13 @@ export async function resetEmpty() {
 }
 
 // The same household without the variable (freelance) source: its income is
-// complete, so being over budget is a real error rather than "deposits not
-// recorded yet" (spec 010). The seeded budget already exceeds it by 100.00.
+// complete, so being over-committed is a real error rather than "deposits not
+// recorded yet" (spec 010). A bill is added to push bills past income by
+// exactly the amount below (spec 022: over-allocated means real commitments
+// exceed income, not that budgeted amounts do).
 export const FIXED_ONLY = {
   incomeCents: 500000,
-  overAllocatedCents: 10000,
+  overAllocatedCents: 100000,
   leftAfterBillsCents: 500000 - 194599,
 };
 
@@ -169,6 +174,20 @@ async function seedHousehold(withVariable: boolean) {
           data: { ...b, categoryId: category(b.category), category: undefined },
         }),
         `bill ${b.name}`,
+      );
+    }
+    // The fixed-only household is over-committed: a bill that pushes bills
+    // past income by FIXED_ONLY.overAllocatedCents (spec 022).
+    if (!withVariable) {
+      await ok(
+        await owner.post("/api/bills", {
+          data: {
+            name: "Car loan",
+            amountCents: FIXED_ONLY.incomeCents + FIXED_ONLY.overAllocatedCents - SEED.billsCents,
+            categoryId: category("Transport"),
+          },
+        }),
+        "over-committing bill",
       );
     }
   } finally {

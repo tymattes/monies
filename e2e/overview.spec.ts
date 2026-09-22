@@ -14,7 +14,6 @@ import {
   signIn,
   waitHydrated,
 } from "./support/page";
-import { E2E_ORIGIN } from "./support/db.mts";
 import {
   FIXED_ONLY,
   OWNER,
@@ -63,14 +62,14 @@ test.describe("with a seeded household", () => {
   test("the bar's segments add up to the income, and its text equivalent says so", async ({ page }) => {
     // The seeded household has money in the Savings goal, so the bar splits
     // its "rest of budget" segment into Spending and Saving instead of one
-    // undifferentiated segment (spec 013/014).
+    // undifferentiated segment (spec 013/014). Unallocated is income minus
+    // bills (spec 022), independent of the budgeted split above it.
     const items = await legend(page).getByRole("listitem").allTextContents();
-    const [billsWithin, spending, saving, unallocated] = items.slice(0, 4).map(cents);
-    expect(billsWithin + spending + saving + unallocated).toBe(SEED.incomeCents);
+    const [billsWithin, , saving, unallocated] = items.slice(0, 4).map(cents);
     // Bills are capped at each category's budget, so Utilities (bills 420, budget 350) counts 350.
     expect(billsWithin).toBe(SEED.billsCents - 7000);
     expect(saving).toBe(SEED.goals.Savings); // goals have no bills, so it is always the full amount
-    expect(unallocated).toBe(SEED.unallocatedCents);
+    expect(unallocated).toBe(SEED.unallocatedCents); // income − bills (spec 022)
 
     await expect(bar(page)).toHaveAttribute("aria-label", new RegExp(`Income ${money(SEED.incomeCents).replace("$", "\\$")}`));
     await expect(bar(page)).toHaveAttribute("aria-label", /spending/);
@@ -180,18 +179,21 @@ test.describe("with a seeded household", () => {
     await expect(page.getByRole("link", { name: "This month" })).toBeVisible();
 
     // The salary repeats but the one-off freelance deposit does not, while the
-    // budgets carry forward: next month starts out over-allocated.
+    // bills carry forward: next month's Unallocated is the fixed salary minus
+    // bills (spec 022 — budgeted amounts reserve nothing, so they don't carry
+    // into an over-allocated state either).
     await expect(cashFlow(page)).toContainText(money(SEED.salaryCents));
+    // Variable income may still arrive next month (provisional), shown on the
+    // card, not as an alarm in the list.
+    await expect(cashFlow(page)).toContainText("Variable income counts once you record it.");
     const list = page.getByRole("region", { name: "Needs attention" });
-    await expect(list).toContainText(`You have budgeted ${money(SEED.budgetedCents - SEED.salaryCents)} more than the income recorded so far.`);
-    // The freelance deposit has not been recorded yet: informational, not an alarm.
-    const income = list.getByRole("listitem").filter({ hasText: "recorded so far" });
-    await expect(income).not.toContainText("Warning:");
+    await expect(list).toContainText(`${money(SEED.salaryCents - SEED.billsCents)} is not assigned`);
     // The Utilities item (bills past a category's own budget) is still a warning.
     await expect(list.getByRole("listitem").filter({ hasText: "Utilities: bills are" })).toContainText("Warning:");
-    await expect(list.getByRole("link", { name: "Review budget" })).toHaveAttribute("href", `/budget?month=${next}`);
     await expect(list.getByRole("link", { name: "Adjust budget" })).toHaveAttribute("href", `/budget?month=${next}`);
-    await expect(page.getByRole("link", { name: "Assign" })).toHaveCount(0);
+    // Next month has unallocated income (not over-allocated), so Assign is offered.
+    const free = list.getByRole("listitem").filter({ hasText: "is not assigned" });
+    await expect(free.getByRole("link", { name: "Assign" })).toHaveAttribute("href", new RegExp(`/income\\?month=${next}#assign`));
     await expect(page.getByRole("region", { name: "Income", exact: true }).getByRole("link", { name: /Manage/ })).toHaveAttribute("href", `/income?month=${next}`);
   });
 
@@ -259,17 +261,21 @@ test.describe("an empty household", () => {
   }
 });
 
-test.describe("over budget while variable income may still arrive", () => {
+test.describe("over-committed while variable income may still arrive", () => {
   test.beforeEach(async ({ page }) => {
     await resetAndSeed();
     await signIn(page, OWNER);
-    // Budget 1,000 more into Housing than there is recorded income left for.
+    // A bill that pushes bills past income by $1,000 (spec 022: over-allocated
+    // means real commitments exceed income, not that budgeted amounts do).
     const M = monthKey();
     const budget = await (await page.request.get(`/api/budgets/${M}`)).json();
-    const housing = budget.categories.find((c: { name: string }) => c.name === "Housing").id;
-    const res = await page.request.put(`/api/budgets/${M}/allocations/${housing}`, {
-      data: { amountCents: SEED.budgets.Housing + SEED.unallocatedCents + 100000 },
-      headers: { origin: E2E_ORIGIN },
+    const transport = budget.categories.find((c: { name: string }) => c.name === "Transport").id;
+    const res = await page.request.post("/api/bills", {
+      data: {
+        name: "Car loan",
+        amountCents: SEED.incomeCents + 100000 - SEED.billsCents,
+        categoryId: transport,
+      },
     });
     expect(res.ok()).toBeTruthy();
     await page.goto("/");
@@ -285,16 +291,16 @@ test.describe("over budget while variable income may still arrive", () => {
     await expect(card.getByRole("img")).toHaveAttribute("aria-label", /above recorded income by \$1,000\.00/);
     await expect(card.getByRole("link", { name: "Assign" })).toHaveCount(0);
 
-    const item = page.getByRole("region", { name: "Needs attention" }).getByRole("listitem").filter({ hasText: "more than the income recorded so far" });
-    await expect(item).toContainText("You have budgeted $1,000.00 more than the income recorded so far. Variable income counts once you record it.");
+    const item = page.getByRole("region", { name: "Needs attention" }).getByRole("listitem").filter({ hasText: "exceed the income recorded so far" });
+    await expect(item).toContainText("Bills, expenses and checked-off goals exceed the income recorded so far by $1,000.00. Variable income counts once you record it.");
     await expect(item).not.toContainText("Warning:");
     await expect(item.getByRole("link", { name: "Review budget" })).toBeVisible();
   });
 });
 
-test.describe("over budget with only fixed income", () => {
+test.describe("over-committed with only fixed income", () => {
   test.beforeEach(async ({ page }) => {
-    await resetAndSeedFixedOnly(); // already 100.00 over: the income is complete
+    await resetAndSeedFixedOnly(); // a bill makes its commitments exceed income by $1,000
     await signIn(page, OWNER);
     await page.goto("/");
   });
@@ -306,9 +312,9 @@ test.describe("over budget with only fixed income", () => {
     await expect(card).toContainText(money(FIXED_ONLY.overAllocatedCents));
     await expect(card).not.toContainText("Variable income counts");
     await expect(card.getByText("Over-allocated by").first()).toHaveCSS("color", LIGHT_DANGER);
-    await expect(card.getByRole("img")).toHaveAttribute("aria-label", /over-allocated by \$100\.00/);
+    await expect(card.getByRole("img")).toHaveAttribute("aria-label", /over-allocated by \$1,000\.00/);
 
-    const warning = page.getByRole("region", { name: "Needs attention" }).getByRole("listitem").filter({ hasText: "You have budgeted $100.00 more than your income." });
+    const warning = page.getByRole("region", { name: "Needs attention" }).getByRole("listitem").filter({ hasText: "Bills, expenses and checked-off goals exceed your income by $1,000.00." });
     await expect(warning).toContainText("Warning:");
   });
 });

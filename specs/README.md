@@ -35,3 +35,4 @@ Monies is built spec-first. `brief.md` is the source of truth for product intent
 | 018 | [Resume browser testing and reconcile the e2e suite](018-resume-browser-tests.md) | draft |
 | 019 | [Expenses — logging actual spend against a category](019-expenses.md) | draft |
 | 020 | [Assign no longer targets a budget category directly](020-assign-goals-only.md) | draft |
+| 022 | [Unallocated reflects commitments, not plans](022-unallocated-reflects-commitments.md) | draft |

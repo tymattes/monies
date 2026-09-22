@@ -6,6 +6,8 @@ import { signIn, waitHydrated } from "./support/page";
 const money = (cents: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(cents / 100);
 
+const input = (cents: number) => (cents / 100).toFixed(2);
+
 // Option labels carry the target's current amount (spec 016): goals read
 // "Name · $X" (no "budgeted" suffix — that was the removed category group).
 const optLabel = (name: string, amountCents: number) => `${name} · ${money(amountCents)}`;
@@ -26,7 +28,7 @@ test("starts with Savings and the whole unallocated amount", async ({ page }) =>
   await expect(p.getByLabel("Goal 1", { exact: true }).locator("option:checked")).toHaveText(
     optLabel("Savings", SEED.goals.Savings),
   );
-  await expect(p.getByLabel("Amount for goal 1", { exact: true })).toHaveValue("900.00");
+  await expect(p.getByLabel("Amount for goal 1", { exact: true })).toHaveValue(input(SEED.unallocatedCents));
   await expect(p.getByRole("button", { name: "Assign" })).toBeEnabled();
   // spec 017: a one-month top-up, not a permanent raise.
   await expect(p).toContainText("goes back to the earlier amount unless you change it");
@@ -56,27 +58,28 @@ test("splits across two goals in one click", async ({ page }) => {
     label: optLabel("Vacation", 0),
   });
   await p.getByRole("button", { name: "Split evenly" }).click();
-  await expect(p.getByLabel("Amount for goal 1", { exact: true })).toHaveValue("450.00");
-  await expect(p.getByLabel("Amount for goal 2", { exact: true })).toHaveValue("450.00");
+  // evenSplit gives the odd cent to the first row (spec 016).
+  const half = Math.floor(SEED.unallocatedCents / 2);
+  await expect(p.getByLabel("Amount for goal 1", { exact: true })).toHaveValue(input(half + 1));
+  await expect(p.getByLabel("Amount for goal 2", { exact: true })).toHaveValue(input(half));
   await expect(p).toContainText("Assigning all of it");
 
-  await p.getByRole("button", { name: "Assign" }).click();
+  const [response] = await Promise.all([
+    page.waitForResponse((r) => r.url().includes("/assign-unallocated") && r.request().method() === "POST"),
+    p.getByRole("button", { name: "Assign" }).click(),
+  ]);
+  expect(response.ok()).toBeTruthy();
 
-  // Everything applied together: unallocated is 0 and the panel is gone.
-  await expect(panel(page)).toHaveCount(0);
-  await expect(page.getByRole("region", { name: "Plan summary" })).toContainText(
-    money(SEED.budgetedCents + SEED.unallocatedCents),
-  );
+  // Both goal targets grew by their split. Unallocated is unchanged (spec
+  // 022: a target is a plan, not a claim), so the panel stays open.
   await page.goto("/goals");
-  await expect(page.getByLabel("Savings", { exact: true })).toHaveValue("1450.00");
-  await expect(page.getByLabel("Vacation", { exact: true })).toHaveValue("450.00");
+  await expect(page.getByLabel("Savings", { exact: true })).toHaveValue(input(SEED.goals.Savings + half + 1));
+  await expect(page.getByLabel("Vacation", { exact: true })).toHaveValue(input(half));
 });
 
 test("a row can be removed, and a target cannot be chosen twice", async ({ page }) => {
   // A second goal, so there is something to add a row for beyond Savings.
-  const created = await (
-    await page.request.post("/api/goals", { data: { name: "Vacation", type: "saving" } })
-  ).json();
+  await page.request.post("/api/goals", { data: { name: "Vacation", type: "saving" } });
   await page.reload();
   await waitHydrated(page);
 
@@ -91,7 +94,7 @@ test("a row can be removed, and a target cannot be chosen twice", async ({ page 
 
 test("stays disabled with a clear message when the amounts are too large", async ({ page }) => {
   const p = panel(page);
-  await p.getByLabel("Amount for goal 1", { exact: true }).fill("900.01");
+  await p.getByLabel("Amount for goal 1", { exact: true }).fill(input(SEED.unallocatedCents + 1));
   await expect(p).toContainText("more than the unallocated amount");
   await expect(p.getByRole("button", { name: "Assign" })).toBeDisabled();
   await p.getByLabel("Amount for goal 1", { exact: true }).fill("");
@@ -116,14 +119,20 @@ test("preselects by type, not name: renaming the Savings goal keeps it preselect
   );
 });
 
-test("can assign part of it and leave the rest unallocated", async ({ page }) => {
+test("can assign part of it; the goal grows but Unallocated is unchanged (spec 022)", async ({ page }) => {
   const p = panel(page);
   await p.getByLabel("Amount for goal 1", { exact: true }).fill("400.00");
-  await expect(p).toContainText(`${money(50000)} stays unallocated`);
-  await p.getByRole("button", { name: "Assign" }).click();
-  await expect(page.getByRole("region", { name: "Plan summary" })).toContainText(money(50000)); // 500.00 left
-  await expect(panel(page)).toContainText(`Assign the unallocated ${money(50000)}`);
+  await expect(p).toContainText(`${money(SEED.unallocatedCents - 40000)} stays unallocated`);
+  const [response] = await Promise.all([
+    page.waitForResponse((r) => r.url().includes("/assign-unallocated") && r.request().method() === "POST"),
+    p.getByRole("button", { name: "Assign" }).click(),
+  ]);
+  expect(response.ok()).toBeTruthy();
+  // The goal target grew by $400, but Unallocated is untouched — a target is
+  // a plan, not a claim (spec 022).
+  await expect(page.getByRole("region", { name: "Plan summary" })).toContainText(money(SEED.unallocatedCents));
+  await expect(panel(page)).toContainText(`Assign the unallocated ${money(SEED.unallocatedCents)}`);
 
   await page.goto("/goals");
-  await expect(page.getByLabel("Savings", { exact: true })).toHaveValue("1400.00");
+  await expect(page.getByLabel("Savings", { exact: true })).toHaveValue(input(SEED.goals.Savings + 40000));
 });

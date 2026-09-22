@@ -93,8 +93,10 @@ test("renaming, retyping, reordering and archiving a goal all work", async ({ pa
   await expect(page.getByText(/Archived \(1\)/)).toBeVisible();
 });
 
-test("both Saving and Debt payoff goals contribute to Unallocated the same as before", async ({ page }) => {
+test("a goal's target does not reduce Unallocated (spec 022)", async ({ page }) => {
   await page.goto("/budget");
   await waitHydrated(page);
+  // The seeded Savings goal is funded at 1,000 but unchecked, so it claims no
+  // income: Unallocated is income − bills, unaffected by the goal's target.
   await expect(page.getByRole("region", { name: "Plan summary" })).toContainText(money(SEED.unallocatedCents));
 });

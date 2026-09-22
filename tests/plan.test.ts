@@ -77,6 +77,7 @@ describe("plan summary", () => {
       incomeProvisional: false,
       budgetedCents: 0,
       billsCents: 0,
+      unallocatedCents: 0,
     });
   });
 
@@ -89,18 +90,24 @@ describe("plan summary", () => {
     await bill(owner, "Phone", 8000, "Utilities");
 
     const summary = await getPlanSummary(await ctxFor(owner), "2026-09");
-    expect(summary).toMatchObject({ incomeCents: 400000, budgetedCents: 270000, billsCents: 258000 });
+    expect(summary).toMatchObject({
+      incomeCents: 400000,
+      budgetedCents: 270000,
+      billsCents: 258000,
+      // Unallocated is income minus bills (spec 022), not minus budgeted.
+      unallocatedCents: 400000 - 258000,
+    });
 
     const api = await call(budgetRoute.GET, "/api/budgets/2026-09", { cookie: owner, params: { month: "2026-09" } });
     expect(api.json).toMatchObject({
       incomeCents: summary.incomeCents,
       totalCents: summary.budgetedCents,
       billsTotalCents: summary.billsCents,
-      unallocatedCents: summary.incomeCents - summary.budgetedCents,
+      unallocatedCents: summary.unallocatedCents,
     });
   });
 
-  it("includes goal amounts in budgetedCents, on Bills/Income too, not just the Budget page (spec 014)", async () => {
+  it("includes goal amounts in budgetedCents, but goals don't move Unallocated unless checked (spec 014/022)", async () => {
     const owner = await setupOwner();
     await income(owner, 400000);
     await budget(owner, "Housing", 100000);
@@ -108,19 +115,22 @@ describe("plan summary", () => {
 
     const summary = await getPlanSummary(await ctxFor(owner), "2026-09");
     expect(summary.budgetedCents).toBe(150000); // 100,000 category + 50,000 goal
-    expect(summary.incomeCents - summary.budgetedCents).toBe(250000); // Unallocated
+    // The goal target is a plan, not a fact: Unallocated is still the full
+    // income (nothing real claimed it yet — no bills, no expenses, no check).
+    expect(summary.unallocatedCents).toBe(400000);
 
-    // Agrees with the Budget API's own combined figure.
+    // Agrees with the Budget API's own figure.
     const api = await call(budgetRoute.GET, "/api/budgets/2026-09", { cookie: owner, params: { month: "2026-09" } });
-    expect(api.json.unallocatedCents).toBe(summary.incomeCents - summary.budgetedCents);
+    expect(api.json.unallocatedCents).toBe(summary.unallocatedCents);
   });
 
-  it("goes negative (over-allocated) when budgeted exceeds income", async () => {
+  it("goes negative (over-allocated) when real commitments exceed income", async () => {
     const owner = await setupOwner();
     await income(owner, 100000);
-    await budget(owner, "Housing", 150000);
+    await bill(owner, "Rent", 150000, "Housing");
     const s = await getPlanSummary(await ctxFor(owner), "2026-09");
-    expect(s.incomeCents - s.budgetedCents).toBe(-50000);
+    // Bills alone exceed income, so Unallocated is negative (spec 022).
+    expect(s.unallocatedCents).toBe(-50000);
   });
 
   it("marks past months as not editable", async () => {

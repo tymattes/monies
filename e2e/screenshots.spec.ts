@@ -1,7 +1,6 @@
 import { mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "@playwright/test";
-import { E2E_ORIGIN } from "./support/db.mts";
 import { OWNER, SEED, monthKey, resetAndSeed, resetAndSeedFixedOnly, resetEmpty } from "./support/seed";
 import { SIGNED_IN_PAGES, SIGNED_OUT_PAGES, signIn, waitHydrated } from "./support/page";
 
@@ -77,15 +76,14 @@ for (const scheme of ["light", "dark"] as const) {
       await page.screenshot({ path: path.join(OUT, `overview-over-allocated-${scheme}-${info.project.name}.png`), fullPage: true });
     });
 
-    test("over recorded income while variable income may still arrive", async ({ page }, info) => {
+    test("over-committed while variable income may still arrive", async ({ page }, info) => {
       await resetAndSeed();
       await signIn(page, OWNER);
       const M = monthKey();
       const budget = await (await page.request.get(`/api/budgets/${M}`)).json();
-      const housing = budget.categories.find((c: { name: string }) => c.name === "Housing").id;
-      await page.request.put(`/api/budgets/${M}/allocations/${housing}`, {
-        data: { amountCents: SEED.budgets.Housing + SEED.unallocatedCents + 100000 },
-        headers: { origin: E2E_ORIGIN },
+      const transport = budget.categories.find((c: { name: string }) => c.name === "Transport").id;
+      await page.request.post("/api/bills", {
+        data: { name: "Car loan", amountCents: SEED.incomeCents + 100000 - SEED.billsCents, categoryId: transport },
       });
       await page.goto("/");
       await waitHydrated(page);
