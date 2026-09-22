@@ -1,18 +1,23 @@
-# 015: Goals under Plan, Assign moves to Income, a check-off reminder
+# 015: Goals under Plan, Assign moves to Income, a check-off reminder,
+a Goals overview card, "Unallocated Income"
 
-**Status:** draft
+**Status:** implemented
 
 ## Goal
-Three small corrections to spec 014's shape, based on using it: Goals felt
+Five small corrections to spec 014's shape, based on using it: Goals felt
 like an orphaned destination sitting outside the Plan group it's actually
 part of; the Assign panel lived on the Budget page for historical reasons
 (it started there before goals existed) even though it now sends money to
 either a category or a goal, which fits the Income page's "here's what
 came in, here's where it's going" framing better than Budget's "here's what
-each category gets" framing; and a goal's monthly checkmark had no visible
-reminder, so it was easy to fund a goal and forget to confirm it. This spec
-is groundwork, not the final shape — a later spec will introduce allocating
-both income and expenses together, which these moves set up for.
+each category gets" framing; a goal's monthly checkmark had no visible
+reminder, so it was easy to fund a goal and forget to confirm it; the
+Overview page summarized Income and Bills but not Goals, so seeing goal
+progress meant leaving the page; and "Unallocated" read ambiguously once
+goals and, eventually, expenses can both draw down the same pool of money.
+This spec is groundwork, not the final shape — a later spec will introduce
+allocating both income and expenses together, which these moves set up
+for.
 
 ## Requirements
 - **Goals becomes the 4th Plan tab** (Budget | Bills | Income | Goals),
@@ -35,6 +40,20 @@ both income and expenses together, which these moves set up for.
   and past months don't show it (nothing to confirm yet, and past months
   are for review — the same reasoning already applied to the other
   setup-style prompts).
+- **A Goals card joins Income and Bills on the Overview page.** Same card
+  pattern (heading, a "Manage" link to Goals, a total, a breakdown, a list),
+  showing only goals funded this month (an unfunded goal has nothing to
+  report, same reasoning as the check-off reminder): the combined total,
+  Saving/Debt payoff subtotals, and each funded goal's amount plus whether
+  it's been checked off. The Income/Bills grid becomes three columns
+  (`md:grid-cols-3`) to fit it.
+- **"Unallocated" becomes "Unallocated Income" everywhere it's a label**:
+  the Plan summary bar (all four tabs), the Overview cash-flow card's stat
+  and bar legend, and the cash-flow bar's text-equivalent `aria-label`.
+  Internal names (the `unallocated` attention code, `assignUnallocated`,
+  `unallocatedCents` fields) are unchanged — this is a display-label rename
+  only, ahead of a future spec that will need to distinguish unallocated
+  *income* from money not yet assigned on the expense side.
 
 ## Out of scope
 - The "allocate both income and expenses together" concept mentioned above
@@ -50,6 +69,12 @@ both income and expenses together, which these moves set up for.
   pause. `e2e/` files that reference the old `/goals` header or
   `/budget#assign` become stale and are left as-is rather than updated, to
   be reconciled whenever e2e resumes.
+- The Goals card is read-only, like Income and Bills — no checking off a
+  goal from the Overview page itself; that stays on `/goals`.
+- The "Unallocated Income" rename touches only the literal word
+  "Unallocated" used as a label. "Over-allocated by", "Over recorded income
+  by", and the `unallocated` attention item's "is not assigned to a
+  category yet" message are unchanged.
 
 ## Acceptance criteria
 - [x] `HeaderNav` shows exactly Overview, Plan, Members; "Plan" is active on
@@ -70,6 +95,14 @@ both income and expenses together, which these moves set up for.
       payoff), linking to Goals; a $0 goal, a checked-off goal, and any
       goal viewed from a past or future month produce none (covered by
       tests).
+- [x] The Overview page shows a Goals card alongside Income and Bills
+      (three-column grid), totaling only funded goals, split by type, with
+      each funded goal's amount and checked status; a month with nothing
+      funded shows an empty state instead (covered by tests).
+- [x] Every "Unallocated" label site-wide (Plan summary, cash-flow stat,
+      cash-flow legend, cash-flow bar's `aria-label`) reads "Unallocated
+      Income"; the `unallocated` attention code, `assignUnallocated`, and
+      `unallocatedCents` fields are untouched (covered by tests).
 - [x] Documentation updated (see Documentation).
 
 ## Technical notes
@@ -120,13 +153,35 @@ both income and expenses together, which these moves set up for.
   `` `${item.code}-${item.categoryId ?? item.goalId ?? ""}` `` so multiple
   unchecked goals don't collide.
 - **`src/app/page.tsx`**: `assignHref` passed to `CashFlowCard` changes to
-  `` `/income${q}#assign` ``.
+  `` `/income${q}#assign` ``; grid becomes `md:grid-cols-3` with a new
+  `<GoalsCard goals={o.goals} currency={o.currency} href={`/goals${q}`} />`
+  alongside Income and Bills.
+- **`src/lib/overview.ts`**: `Overview` gains `goals: OverviewGoal[]`
+  (`{ id, name, type, amountCents, checked }`, the same shape
+  `getGoalsMonth`/`getBudget` already produce — `getOverview` just passes
+  `budget.goals` through, no new query).
+- **`src/components/overview/GoalsCard.tsx`** (new, follows
+  `IncomeCard`/`BillsCard`'s card shape): filters `goals` to
+  `amountCents > 0`; empty state "No goals funded this month yet." when
+  none; otherwise a total, a Saving/Debt payoff breakdown (each subtotal
+  hidden at zero, same as `CashFlowCard`'s per-type stats), and a list of
+  each funded goal with its amount and "Checked off" / "Not checked off
+  yet".
+- **`src/components/PlanSummary.tsx`**: the `"Unallocated"` label becomes
+  `"Unallocated Income"` (the over-allocated labels are untouched).
+- **`src/components/overview/CashFlowCard.tsx`**: same rename for the stat
+  label and the legend `<span>`; the `aria-label` summary's `` `...
+  unallocated` `` suffix becomes `` `... unallocated income` `` in both the
+  split and unsplit branches.
 - **Tests**: update `tests/plan-ui.test.tsx` (`HeaderNav` expects
   `["Overview", "Plan", "Members"]`; `PlanTabs` gains a Goals case; the
-  `PlanSummary` link-href tests move to `/income`); update
+  `PlanSummary` link-href tests move to `/income`; the label assertions
+  become `"Unallocated Income"`); update
   `tests/overview.test.ts`/`tests/overview-ui.test.tsx` for the new
-  `/income#assign` hrefs and the new `goal_not_checked` cases (present,
-  absent at $0, absent when checked, absent outside the current month);
+  `/income#assign` hrefs, the new `goal_not_checked` cases (present, absent
+  at $0, absent when checked, absent outside the current month), the
+  `"Unallocated Income"` label and `aria-label` wording, a new
+  `data.goals` passthrough case, and a new `GoalsCard` describe block;
   move/rewrite the Assign scenarios in `tests/assign.test.ts` if they
   render `BudgetEditor` directly (check first — most of that file already
   hits the API, which is unchanged, so it may need no changes at all).
@@ -153,17 +208,37 @@ both income and expenses together, which these moves set up for.
   consistency with Bills and Income now that it's a Plan tab — a household
   loses nothing (it's additive), and it gives the new Income-hosted Assign
   button a natural landing state on every Plan page.
+- **The Goals card only lists funded goals, mirroring the check-off
+  reminder's own definition of relevance.** A household with several goals
+  but only one funded this month would otherwise see a wall of $0.00 rows —
+  the same "nothing to see at zero" reasoning `CashFlowCard`'s Saving/Debt
+  payoff stats already use.
+- **Rename the label now, not the internal names.** The `unallocated`
+  attention code, `assignUnallocated`, and every `unallocatedCents` field
+  are load-bearing identifiers touched across routes, tests and this
+  file's own history; renaming them for a wording change would be pure
+  churn. Only the word a person actually reads changes.
+- **"Unallocated Income" ahead of the expenses spec, not after.** The
+  ambiguity exists today — once a household earmarks money for goals as
+  well as categories, "Unallocated" alone doesn't say *unallocated what*.
+  Waiting for the expenses spec to also land a same-conversation rename
+  would just mean two UI changes instead of one; this spec is already
+  touching every place the label lives.
 
 ## Documentation
 - `README.md`: update the "Plan area" bullet (Goals is now a 4th tab, next
-  to Overview and Members at the top level rather than beside them);
-  update "Assign unallocated" (now lives on the Income page); update the
+  to Overview and Members at the top level rather than beside them; the
+  summary bar's unallocated figure reads "Unallocated Income"); update
+  "Assign unallocated" (now lives on the Income page); update the
   "Saving and Debt payoff goals" bullet to drop "a separate Goals page"
-  language; update "Overview" to mention the new check-off reminder.
+  language; update "Overview" to mention the new check-off reminder and the
+  new Goals card (three-column grid, funded goals and their check-off
+  status), and its "unallocated money" → "unallocated income".
 - `CLAUDE.md`: update the Navigation bullet (three top-level destinations,
   Goals as PlanTabs' 4th entry), the Assign-unallocated bullet (Income page,
   not Budget), and the Overview bullet (new `goal_not_checked` attention
-  code and its current-month-only rule).
+  code and its current-month-only rule, the `Overview.goals` passthrough
+  behind `GoalsCard`, and the "Unallocated Income" label rename).
 - `specs/014-savings-debt-goals.md`: note that spec 015 moved Goals into
   the Plan tab group and Assign onto Income, superseding that spec's
   "Goals is deliberately not a fourth tab" decision.

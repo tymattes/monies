@@ -30,7 +30,7 @@ function Stat({
   );
 }
 
-// Income, Budgeted and Unallocated for the month, shown on every Plan page.
+// Income, Budgeted and Unallocated Income for the month, shown on every Plan page.
 // `assign` is how the Assign button behaves: on the Budget page it scrolls to
 // the panel ("scroll"); elsewhere it links to it ("link").
 export default function PlanSummary({
@@ -71,7 +71,7 @@ export default function PlanSummary({
               ? incomeProvisional
                 ? "Over recorded income by"
                 : "Over-allocated by"
-              : "Unallocated"
+              : "Unallocated Income"
           }
           value={formatMoney(Math.abs(unallocated), currency)}
           danger={overIsError}

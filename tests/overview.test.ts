@@ -172,6 +172,20 @@ describe("overview numbers", () => {
     expect(restSpendingCents).toBe(restOfBudgetCents);
   });
 
+  it("exposes the month's goals (spec 015 — Overview's Goals card)", async () => {
+    const owner = await setupOwner();
+    await addGoal(owner, "Roth IRA", "saving");
+    await goalBudget(owner, "Savings", 30000);
+    await goalBudget(owner, "Roth IRA", 20000);
+    await checkGoal(owner, "Savings", "2026-09", true);
+
+    const { data } = await overview(owner);
+    expect(data.goals).toEqual([
+      { id: await goalId(owner, "Savings"), name: "Savings", type: "saving", amountCents: 30000, checked: true },
+      { id: await goalId(owner, "Roth IRA"), name: "Roth IRA", type: "saving", amountCents: 20000, checked: false },
+    ]);
+  });
+
   it("always splits the budget exactly, and income exactly when not over-allocated", async () => {
     const owner = await setupOwner();
     const member = await joinAsMember(owner);

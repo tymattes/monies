@@ -29,7 +29,7 @@ describe("PlanSummary", () => {
     expect(html).toContain("$9,272.00");
     expect(html).toContain("$7,600.00");
     expect(html).toContain("of which bills $2,717.35");
-    expect(html).toContain("Unallocated");
+    expect(html).toContain("Unallocated Income");
     expect(html).toContain("$1,672.00");
     expect(html).not.toContain("Over-allocated");
   });
@@ -61,7 +61,7 @@ describe("PlanSummary", () => {
     expect(html).toContain("Over-allocated by");
     expect(html).toContain("$728.00");
     expect(html).toContain("text-danger");
-    expect(html).not.toContain(">Unallocated<");
+    expect(html).not.toContain(">Unallocated Income<");
   });
 
   describe("provisional income (variable income may still arrive)", () => {

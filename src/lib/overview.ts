@@ -34,6 +34,14 @@ export type OverviewCategory = {
   leftCents: number;
 };
 
+export type OverviewGoal = {
+  id: string;
+  name: string;
+  type: GoalType;
+  amountCents: number;
+  checked: boolean;
+};
+
 export type Overview = {
   month: string;
   currency: string;
@@ -88,6 +96,9 @@ export type Overview = {
     restDebtPayoffCents: number;
   };
   categories: OverviewCategory[];
+  // Saving/Debt payoff goals for the month (spec 015 — Overview's Goals
+  // card), same shape `getGoalsMonth`/`getBudget` already produce.
+  goals: OverviewGoal[];
   attention: AttentionItem[];
 };
 
@@ -277,6 +288,7 @@ export async function getOverview(
       restDebtPayoffCents: debtPayoffCents,
     },
     categories,
+    goals: budget.goals,
     attention,
   };
 }
