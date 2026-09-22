@@ -12,7 +12,7 @@ test.describe("navigation", () => {
   test.beforeAll(resetAndSeed);
   test.beforeEach(({ page }) => signIn(page, OWNER));
 
-  test("the header has Overview, Plan and Members, with the right one current", async ({ page }) => {
+  test("the header has Overview, Plan, Expenses and Members, with the right one current", async ({ page }) => {
     const main = page.getByRole("navigation", { name: "Main" });
     const cases: [string, string][] = [
       ["/", "Overview"],
@@ -20,11 +20,12 @@ test.describe("navigation", () => {
       ["/bills", "Plan"],
       ["/income", "Plan"],
       ["/goals", "Plan"],
+      ["/expenses", "Expenses"],
       ["/members", "Members"],
     ];
     for (const [path, current] of cases) {
       await page.goto(path);
-      await expect(main.getByRole("link")).toHaveText(["Overview", "Plan", "Members"]);
+      await expect(main.getByRole("link")).toHaveText(["Overview", "Plan", "Expenses", "Members"]);
       await expect(main.locator('[aria-current="page"]')).toHaveText(current);
     }
     await expect(main.getByRole("link", { name: "Plan" })).toHaveAttribute("href", "/budget");

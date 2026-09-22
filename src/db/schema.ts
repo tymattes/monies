@@ -433,3 +433,39 @@ export const billVersions = pgTable(
     ),
   ],
 );
+
+// --- Expenses (spec 019) ---
+
+// A logged fact: money that actually left the household, dated when it
+// happened and counted against a category in that month. Not time-versioned
+// and not read-only for past months — it records history, it isn't a plan
+// (the same reasoning as goal_checkins, spec 014). deleted by category
+// cascade so removing a category removes its expenses.
+export const expenses = pgTable(
+  "expenses",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    categoryId: uuid("category_id")
+      .notNull()
+      .references(() => categories.id, { onDelete: "cascade" }),
+    // The date the money was spent; a plain date (not a month), so an
+    // expense filed on the 15th counts in that month.
+    spentOn: date("spent_on", { mode: "string" }).notNull(),
+    // Minor units of the household currency.
+    amountCents: integer("amount_cents").notNull(),
+    // Optional free-text detail, e.g. "dinner with the team". Trimmed and
+    // capped at 200 chars by the API; empty means none.
+    description: text("description"),
+    // The member who logged it; null after that member is removed.
+    addedBy: text("added_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("expenses_category_spent_idx").on(t.categoryId, t.spentOn),
+    check("expenses_amount_check", sql`${t.amountCents} > 0`),
+  ],
+);
