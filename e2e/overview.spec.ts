@@ -49,7 +49,7 @@ test.describe("with a seeded household", () => {
     await expect(card).toContainText(money(SEED.billsCents));
     await expect(card).toContainText("Left after bills");
     await expect(card).toContainText(money(SEED.incomeCents - SEED.billsCents));
-    await expect(card).toContainText("Unallocated");
+    await expect(card).toContainText("Unallocated Income");
     await expect(card).toContainText(money(SEED.unallocatedCents));
   });
 
@@ -116,21 +116,24 @@ test.describe("with a seeded household", () => {
     }
   });
 
-  test("needs attention names the over-budget category and the unallocated money, with links", async ({ page }) => {
+  test("needs attention names the over-budget category, the unallocated money, and the unchecked goal, with links", async ({ page }) => {
     const list = page.getByRole("region", { name: "Needs attention" });
     const over = list.getByRole("listitem").filter({ hasText: "Utilities: bills are $70.00 over its budget." });
     await expect(over).toContainText("Warning:");
     await expect(over.getByRole("link", { name: "Adjust budget" })).toHaveAttribute("href", "/budget");
 
     const free = list.getByRole("listitem").filter({ hasText: `${money(SEED.unallocatedCents)} is not assigned` });
-    await expect(free.getByRole("link", { name: "Assign" })).toHaveAttribute("href", /\/budget(\?month=[\d-]+)?#assign$/);
-    // Nothing else is wrong with the seeded month.
-    await expect(list.getByRole("listitem")).toHaveCount(2);
+    await expect(free.getByRole("link", { name: "Assign" })).toHaveAttribute("href", /\/income(\?month=[\d-]+)?#assign$/);
+
+    // The seeded Savings goal is funded but unchecked this month (spec 015).
+    const goal = list.getByRole("listitem").filter({ hasText: "Savings hasn't been checked off yet this month." });
+    await expect(goal.getByRole("link", { name: "Check off" })).toHaveAttribute("href", "/goals");
+    await expect(list.getByRole("listitem")).toHaveCount(3);
   });
 
-  test("Assign from the Overview reaches the Budget panel, focused", async ({ page }) => {
+  test("Assign from the Overview reaches the Income panel, focused", async ({ page }) => {
     await cashFlow(page).getByRole("link", { name: "Assign" }).click();
-    await expect(page).toHaveURL(/\/budget.*#assign/);
+    await expect(page).toHaveURL(/\/income.*#assign/);
     await expect(page.locator("#assign select").first()).toBeFocused();
     await expect(page.locator("#assign")).toBeInViewport();
   });
@@ -157,6 +160,17 @@ test.describe("with a seeded household", () => {
     await expect(bills.getByText("Cloud storage")).toHaveCount(0);
     await bills.getByRole("link", { name: /Manage/ }).click();
     await expect(page).toHaveURL(/\/bills/);
+  });
+
+  test("the goals card shows the seeded Saving goal with its amount and check-off status (spec 015)", async ({ page }) => {
+    const goals = page.getByRole("region", { name: "Goals" });
+    await expect(goals).toContainText(money(SEED.goals.Savings));
+    await expect(goals).toContainText("Saving");
+    await expect(goals).toContainText("Savings");
+    await expect(goals).toContainText("Not checked off yet");
+    await expect(goals).not.toContainText("Debt payoff");
+    await goals.getByRole("link", { name: /Manage/ }).click();
+    await expect(page).toHaveURL(/\/goals/);
   });
 
   test("another month keeps the month in every link, and only the fixed income carries forward", async ({ page }) => {
@@ -318,6 +332,7 @@ for (const [scheme, page, card, subtle] of [
         p.getByRole("region", { name: /^Cash flow in/ }),
         p.getByRole("region", { name: "Income", exact: true }),
         p.getByRole("region", { name: "Bills", exact: true }),
+        p.getByRole("region", { name: "Goals", exact: true }),
         p.getByRole("region", { name: "Needs attention" }).getByRole("listitem").first(),
       ];
       for (const region of regions) {
