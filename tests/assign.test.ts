@@ -137,9 +137,11 @@ describe("assign unallocated", () => {
     const after = await budget(owner);
     expect(after.json).toMatchObject({ totalCents: 400000, unallocatedCents: 0 });
 
-    // An ordinary allocation: it carries forward like any other.
-    expect(await amountOf(owner, "Housing", "2026-10")).toBe(300000);
-    expect((await budget(owner, "2026-10")).json.unallocatedCents).toBe(0);
+    // Unlike an ordinary allocation, an assign is a one-month top-up (spec
+    // 017): the next month reverts to what Housing had before this assign
+    // (nothing, here), so its income isn't fully budgeted again.
+    expect(await amountOf(owner, "Housing", "2026-10")).toBe(0);
+    expect((await budget(owner, "2026-10")).json.unallocatedCents).toBe(300000);
   });
 
   it("adds to the category's existing amount", async () => {
@@ -163,14 +165,14 @@ describe("assign unallocated", () => {
     expect((await budget(owner)).json.unallocatedCents).toBe(300000);
   });
 
-  it("does not touch earlier or later explicit allocations", async () => {
+  it("does not overwrite an already-explicit amount for next month", async () => {
     const owner = await setupOwner();
     await setIncome(owner, 400000);
-    await setBudget(owner, "Housing", 20000, "2026-11");
+    await setBudget(owner, "Housing", 20000, "2026-10"); // a deliberate plan for October
     await assign(owner, await idOf(owner, "Housing"));
     expect(await amountOf(owner, "Housing", "2026-09")).toBe(400000);
-    expect(await amountOf(owner, "Housing", "2026-10")).toBe(400000);
-    expect(await amountOf(owner, "Housing", "2026-11")).toBe(20000);
+    expect(await amountOf(owner, "Housing", "2026-10")).toBe(20000); // untouched
+    expect(await amountOf(owner, "Housing", "2026-11")).toBe(20000); // inherits October's plan
   });
 
   it("rejects when there is nothing to assign (zero or over-allocated)", async () => {
@@ -279,8 +281,10 @@ describe("splitting across several categories", () => {
     expect(await amountOf(owner, "Dining out")).toBe(60000);
     expect(await amountOf(owner, "Other")).toBe(40000);
     expect((await budget(owner)).json).toMatchObject({ totalCents: 400000, unallocatedCents: 0 });
-    // Each is an ordinary allocation that carries forward.
-    expect(await amountOf(owner, "Dining out", "2026-10")).toBe(60000);
+    // Each reverts to its pre-assign amount next month (spec 017), not 0
+    // across the board — Groceries already had 100000 before any of this.
+    expect(await amountOf(owner, "Dining out", "2026-10")).toBe(0);
+    expect(await amountOf(owner, "Groceries", "2026-10")).toBe(100000);
   });
 
   it("adds to existing amounts and can leave the rest unallocated", async () => {
@@ -397,8 +401,9 @@ describe("assigning to a goal (spec 014)", () => {
       assignments: [{ kind: "goal", goalId: savings, assignedCents: 300000, amountCents: 300000 }],
     });
     expect(await goalAmountOf(owner, "Savings")).toBe(300000);
-    // An ordinary goal amount: it carries forward like any other.
-    expect(await goalAmountOf(owner, "Savings", "2026-10")).toBe(300000);
+    // A goal reverts to its pre-assign amount next month too (spec 017),
+    // same as a category.
+    expect(await goalAmountOf(owner, "Savings", "2026-10")).toBe(0);
   });
 
   it("adds to the goal's existing amount", async () => {
@@ -465,5 +470,50 @@ describe("assigning to a goal (spec 014)", () => {
     const b = await budget(owner);
     // 400,000 income - 100,000 goal - 50,000 category = 250,000 unallocated.
     expect(b.json.unallocatedCents).toBe(250000);
+  });
+});
+
+describe("one-month top-up (spec 017)", () => {
+  it("reverts a category to its pre-assign amount next month, and later months inherit that", async () => {
+    const owner = await setupOwner();
+    await setIncome(owner, 400000);
+    await setBudget(owner, "Housing", 50000);
+    await assign(owner, await idOf(owner, "Housing")); // Housing: 50000 -> 400000
+    expect(await amountOf(owner, "Housing", "2026-09")).toBe(400000);
+    expect(await amountOf(owner, "Housing", "2026-10")).toBe(50000);
+    expect(await amountOf(owner, "Housing", "2026-11")).toBe(50000); // inherits October
+  });
+
+  it("reverts a goal the same way", async () => {
+    const owner = await setupOwner();
+    await setIncome(owner, 400000);
+    await setGoalAmount(owner, "Savings", 20000);
+    await assignGoal(owner, await goalIdOf(owner)); // Savings: 20000 -> 400000
+    expect(await goalAmountOf(owner, "Savings", "2026-09")).toBe(400000);
+    expect(await goalAmountOf(owner, "Savings", "2026-10")).toBe(20000);
+    expect(await goalAmountOf(owner, "Savings", "2026-11")).toBe(20000);
+  });
+
+  it("a second assign to the same target in the same month still reverts to the true original amount, not the intermediate one", async () => {
+    const owner = await setupOwner();
+    await setIncome(owner, 900000);
+    await setBudget(owner, "Housing", 50000);
+    const housing = await idOf(owner, "Housing");
+
+    await assignMany(owner, [{ categoryId: housing, amountCents: 100000 }]); // 50000 -> 150000
+    expect(await amountOf(owner, "Housing", "2026-10")).toBe(50000); // reverted already
+
+    await assignMany(owner, [{ categoryId: housing, amountCents: 200000 }]); // 150000 -> 350000
+    expect(await amountOf(owner, "Housing", "2026-09")).toBe(350000);
+    // Still 50000, not 150000 — the second assign's revert write found
+    // October already occupied by the first and left it alone.
+    expect(await amountOf(owner, "Housing", "2026-10")).toBe(50000);
+  });
+
+  it("does not affect a manual edit, which still carries forward onward", async () => {
+    const owner = await setupOwner();
+    await setBudget(owner, "Housing", 40000);
+    expect(await amountOf(owner, "Housing", "2026-10")).toBe(40000);
+    expect(await amountOf(owner, "Housing", "2026-11")).toBe(40000);
   });
 });
