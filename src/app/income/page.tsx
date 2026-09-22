@@ -42,7 +42,6 @@ export default async function IncomePage(props: PageProps<"/income">) {
           month={month}
           monthName={monthLabel(month)}
           currency={budget.currency}
-          lines={budget.categories}
           goals={budget.goals}
           unallocated={budget.unallocatedCents}
         />
