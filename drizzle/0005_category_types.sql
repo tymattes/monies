@@ -1,0 +1,2 @@
+ALTER TABLE "categories" ADD COLUMN "type" text DEFAULT 'spending' NOT NULL;--> statement-breakpoint
+ALTER TABLE "categories" ADD CONSTRAINT "categories_type_check" CHECK ("categories"."type" in ('spending', 'saving', 'debt payoff'));

@@ -88,6 +88,7 @@ Fresh `docker compose up --build`: complete setup and confirm starter categories
 - The setup form has a currency select; the household's currency cannot be changed afterwards in this version.
 - `TZ` is passed through Docker Compose (default `UTC`) and documented in the README.
 - Existing households upgraded from spec 003 keep no categories; they can add their own on the Budget page (verified by applying the migration to a database with an existing household).
+- **Addendum (spec 012):** categories gained a `type` (Spending / Saving / Debt payoff), not versioned like an amount. See spec 012.
 
 ## Not verified
 The Budget page UI (typing amounts, saving on blur, month navigation, category manager buttons) was not exercised in a real browser. The routes, pages (HTTP 200 and expected content) and behavior were checked by 50 tests and by curl against a scratch instance.

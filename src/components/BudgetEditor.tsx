@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
+import { groupByType, type CategoryType } from "@/lib/categoryTypes";
 import { api, focusAssignPanel } from "@/lib/client";
 import { formatMoney, parseMoney, toInputString } from "@/lib/money";
 import PlanSummary from "./PlanSummary";
@@ -10,6 +11,9 @@ import { buttonCls, inputCls, secondaryButtonCls } from "./ui";
 type Line = {
   id: string;
   name: string;
+  // What kind of budget line this is: spending, saving, or debt payoff
+  // (spec 012). Drives the Spending/Saving/Debt payoff grouping below.
+  type: CategoryType;
   amountCents: number;
   // Monthly cost of the bills in this category (spec 007).
   billsCents: number;
@@ -26,8 +30,9 @@ function evenSplit(total: number, n: number): number[] {
 
 // Puts part or all of the month's leftover into one or more categories in one
 // click, from this month onward. Nothing is assigned automatically: the user
-// picks the categories and amounts (the first row starts on Savings, if there
-// is one, with the whole amount).
+// picks the categories and amounts (the first row starts on the first Saving
+// category, if there is one, with the whole amount — see spec 012; debt
+// payoff is never preselected, since topping it up is a deliberate choice).
 function AssignUnallocated({
   month,
   monthName,
@@ -42,7 +47,7 @@ function AssignUnallocated({
   unallocated: number;
 }) {
   const router = useRouter();
-  const savings = lines.find((l) => l.name.trim().toLowerCase() === "savings");
+  const savings = lines.find((l) => l.type === "saving");
   const [rows, setRows] = useState<Row[]>(() => [
     {
       key: 0,
@@ -280,6 +285,7 @@ export default function BudgetEditor({
 
   const billsColumn = lines.reduce((sum, l) => sum + l.billsCents, 0);
   const leftColumn = total - billsColumn;
+  const groups = groupByType(lines);
 
   return (
     <div className="space-y-3">
@@ -301,72 +307,107 @@ export default function BudgetEditor({
             <span className="w-32 text-right">Budgeted</span>
           </div>
         </li>
-        {lines.map((l) => {
-          const budgeted = saved[l.id] ?? 0;
-          const left = budgeted - l.billsCents;
+        {groups.map((group) => {
+          const groupBudgeted = group.lines.reduce(
+            (sum, l) => sum + (saved[l.id] ?? 0),
+            0,
+          );
+          const groupBills = group.lines.reduce((sum, l) => sum + l.billsCents, 0);
           return (
-            <li key={l.id} className="px-4 py-3">
-              <div className="flex items-center justify-between gap-4">
-                <label
-                  htmlFor={`amount-${l.id}`}
-                  className="min-w-0 truncate font-medium"
+            <Fragment key={group.type}>
+              {groups.length > 1 && (
+                <li
+                  aria-hidden="true"
+                  className="bg-surface-subtle px-4 py-1.5 text-xs font-semibold tracking-wide text-muted"
                 >
-                  {l.name}
-                </label>
-                <div className="flex shrink-0 items-center gap-4">
-                  <span className="hidden w-24 text-right text-sm tabular-nums text-muted sm:block">
-                    {formatMoney(l.billsCents, currency)}
-                  </span>
-                  <span
-                    className={`hidden w-24 text-right text-sm tabular-nums sm:block ${
-                      left < 0 ? "text-danger" : "text-muted"
-                    }`}
-                  >
-                    {formatMoney(left, currency)}
-                  </span>
-                  {editable ? (
-                    <input
-                      id={`amount-${l.id}`}
-                      inputMode="decimal"
-                      value={drafts[l.id] ?? ""}
-                      onChange={(e) => {
-                        setDrafts((d) => ({ ...d, [l.id]: e.target.value }));
-                        note(l.id, "");
-                      }}
-                      onBlur={() => commit(l.id)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") e.currentTarget.blur();
-                      }}
-                      className={`${inputCls} w-32! text-right tabular-nums`}
-                    />
-                  ) : (
-                    <span className="w-32 text-right tabular-nums">
-                      {formatMoney(budgeted, currency)}
+                  {group.label}
+                </li>
+              )}
+              {group.lines.map((l) => {
+                const budgeted = saved[l.id] ?? 0;
+                const left = budgeted - l.billsCents;
+                return (
+                  <li key={l.id} className="px-4 py-3">
+                    <div className="flex items-center justify-between gap-4">
+                      <label
+                        htmlFor={`amount-${l.id}`}
+                        className="min-w-0 truncate font-medium"
+                      >
+                        {l.name}
+                      </label>
+                      <div className="flex shrink-0 items-center gap-4">
+                        <span className="hidden w-24 text-right text-sm tabular-nums text-muted sm:block">
+                          {formatMoney(l.billsCents, currency)}
+                        </span>
+                        <span
+                          className={`hidden w-24 text-right text-sm tabular-nums sm:block ${
+                            left < 0 ? "text-danger" : "text-muted"
+                          }`}
+                        >
+                          {formatMoney(left, currency)}
+                        </span>
+                        {editable ? (
+                          <input
+                            id={`amount-${l.id}`}
+                            inputMode="decimal"
+                            value={drafts[l.id] ?? ""}
+                            onChange={(e) => {
+                              setDrafts((d) => ({ ...d, [l.id]: e.target.value }));
+                              note(l.id, "");
+                            }}
+                            onBlur={() => commit(l.id)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") e.currentTarget.blur();
+                            }}
+                            className={`${inputCls} w-32! text-right tabular-nums`}
+                          />
+                        ) : (
+                          <span className="w-32 text-right tabular-nums">
+                            {formatMoney(budgeted, currency)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div
+                      className={`mt-1 flex items-center justify-between gap-3 text-xs ${
+                        status[l.id] ? "" : "sm:hidden"
+                      }`}
+                    >
+                      <span className={`sm:hidden ${left < 0 ? "text-danger" : "text-muted"}`}>
+                        Bills {formatMoney(l.billsCents, currency)} · Left{" "}
+                        {formatMoney(left, currency)}
+                      </span>
+                      <span
+                        aria-live="polite"
+                        className={`ml-auto ${
+                          status[l.id] && status[l.id] !== "Saved" && status[l.id] !== "Saving…"
+                            ? "text-danger"
+                            : "text-muted"
+                        }`}
+                      >
+                        {status[l.id]}
+                      </span>
+                    </div>
+                  </li>
+                );
+              })}
+              {groups.length > 1 && (
+                <li className="flex items-center justify-between gap-4 bg-surface px-4 py-2 text-sm font-medium">
+                  <span>{group.label} total</span>
+                  <div className="flex items-center gap-4 tabular-nums">
+                    <span className="hidden w-24 text-right sm:block">
+                      {formatMoney(groupBills, currency)}
                     </span>
-                  )}
-                </div>
-              </div>
-              <div
-                className={`mt-1 flex items-center justify-between gap-3 text-xs ${
-                  status[l.id] ? "" : "sm:hidden"
-                }`}
-              >
-                <span className={`sm:hidden ${left < 0 ? "text-danger" : "text-muted"}`}>
-                  Bills {formatMoney(l.billsCents, currency)} · Left{" "}
-                  {formatMoney(left, currency)}
-                </span>
-                <span
-                  aria-live="polite"
-                  className={`ml-auto ${
-                    status[l.id] && status[l.id] !== "Saved" && status[l.id] !== "Saving…"
-                      ? "text-danger"
-                      : "text-muted"
-                  }`}
-                >
-                  {status[l.id]}
-                </span>
-              </div>
-            </li>
+                    <span className="hidden w-24 text-right sm:block">
+                      {formatMoney(groupBudgeted - groupBills, currency)}
+                    </span>
+                    <span className="w-32 text-right">
+                      {formatMoney(groupBudgeted, currency)}
+                    </span>
+                  </div>
+                </li>
+              )}
+            </Fragment>
           );
         })}
         <li className="flex items-center justify-between gap-4 bg-surface px-4 py-3 font-semibold">

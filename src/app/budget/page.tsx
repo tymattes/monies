@@ -47,6 +47,7 @@ export default async function BudgetPage(props: PageProps<"/budget">) {
         categories={all.map((c) => ({
           id: c.id,
           name: c.name,
+          type: c.type,
           archived: c.archivedFrom !== null,
         }))}
       />

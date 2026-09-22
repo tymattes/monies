@@ -143,6 +143,9 @@ Fresh `docker compose up --build`: as the owner add three bills in different cat
 - `BudgetEditor` is now keyed on the server data (month, income, categories and amounts), so it remounts after an assign and also after a category is added or renamed, which previously left a new category's input blank until a full reload.
 - Tests: `tests/assign.test.ts` (17 tests) including simultaneous requests yielding exactly one success for both the single and split forms, and atomicity (an invalid row or an over-total applies nothing); verified by temporarily removing the lock, which made all four simultaneous requests succeed.
 
+### Addendum (spec 012)
+The Assign panel's preselect is no longer name-matching. Categories gained a `type` (Spending / Saving / Debt payoff); the first row now preselects the first `saving`-type category by position, so it survives renaming "Savings" to anything else. See spec 012.
+
 ## Not verified (Part A)
 The Bills page and the new Budget columns were not clicked through in a browser (adding and editing a bill, the live preview, the category prompt, the column layout on a phone). The routes, calculations and page rendering were verified by tests and against a scratch instance with two members.
 

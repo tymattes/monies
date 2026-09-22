@@ -1,4 +1,5 @@
 import { MAX_AMOUNT } from "./budgets";
+import { CATEGORY_TYPES, type CategoryType } from "./categoryTypes";
 import { HttpError } from "./http";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -23,6 +24,19 @@ export function parseAmount(value: unknown, min = 0): number {
     );
   }
   return value;
+}
+
+// Optional in requests (undefined = leave it / default to spending on
+// create); when present must be one of the known category types.
+export function parseCategoryType(value: unknown): CategoryType | undefined {
+  if (value === undefined) return undefined;
+  if (!CATEGORY_TYPES.includes(value as CategoryType)) {
+    throw new HttpError(
+      400,
+      `type must be one of: ${CATEGORY_TYPES.join(", ")}`,
+    );
+  }
+  return value as CategoryType;
 }
 
 export function parseNote(value: unknown): string | null {

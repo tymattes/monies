@@ -1,6 +1,7 @@
 import { and, eq, lte, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { budgetAllocations, categories } from "@/db/schema";
+import type { CategoryType } from "./categoryTypes";
 import type { HouseholdContext } from "./household";
 import { billsRollup } from "./bills";
 import { HttpError } from "./http";
@@ -12,6 +13,9 @@ export const MAX_AMOUNT = 2_000_000_000;
 export type BudgetLine = {
   id: string;
   name: string;
+  // What kind of budget line this is (spec 012): spending, saving, or debt
+  // payoff. Drives grouping on the Budget page and Overview, not the totals.
+  type: CategoryType;
   amountCents: number;
   // Monthly cost of the bills in this category, and what is left of the budget after them.
   billsCents: number;
@@ -53,6 +57,7 @@ export async function getBudget(
     .select({
       id: categories.id,
       name: categories.name,
+      type: sql<CategoryType>`${categories.type}`,
       amountCents: sql<number>`coalesce((
         select a.amount_cents from ${budgetAllocations} a
         where a.category_id = "categories"."id"
