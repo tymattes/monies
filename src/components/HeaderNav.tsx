@@ -5,12 +5,14 @@ import { usePathname } from "next/navigation";
 
 const PLAN_PATHS = ["/budget", "/bills", "/income"];
 
-// Top-level destinations: Overview, Plan (Budget | Bills | Income) and Members.
+// Top-level destinations: Overview, Plan (Budget | Bills | Income), Goals
+// and Members.
 export default function HeaderNav({ className = "" }: { className?: string }) {
   const pathname = usePathname();
   const items = [
     { href: "/", label: "Overview", active: pathname === "/" },
     { href: "/budget", label: "Plan", active: PLAN_PATHS.includes(pathname) },
+    { href: "/goals", label: "Goals", active: pathname === "/goals" },
     { href: "/members", label: "Members", active: pathname === "/members" },
   ];
   return (

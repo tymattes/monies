@@ -28,3 +28,4 @@ Monies is built spec-first. `brief.md` is the source of truth for product intent
 | 011 | [UI polish: separate the panes and tables](011-ui-polish.md) | implemented |
 | 012 | [Category types: spending, saving, debt payoff](012-category-types.md) | implemented |
 | 013 | [Saving and Debt payoff totals on the Overview cash-flow card](013-overview-saving-debt-totals.md) | implemented |
+| 014 | [Savings and Debt payoff as goals, separate from budgets](014-savings-debt-goals.md) | implemented |

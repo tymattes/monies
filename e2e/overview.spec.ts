@@ -53,28 +53,28 @@ test.describe("with a seeded household", () => {
     await expect(card).toContainText(money(SEED.unallocatedCents));
   });
 
-  test("shows Saving (from the seeded budget) but not Debt payoff, since no such category exists (spec 013)", async ({ page }) => {
+  test("shows Saving (from the seeded goal) but not Debt payoff, since no such goal exists (spec 014)", async ({ page }) => {
     const card = cashFlow(page);
     await expect(card).toContainText("Saving");
-    await expect(card).toContainText(money(SEED.budgets.Savings));
+    await expect(card).toContainText(money(SEED.goals.Savings));
     await expect(card).not.toContainText("Debt payoff");
   });
 
   test("the bar's segments add up to the income, and its text equivalent says so", async ({ page }) => {
-    // The seeded budget has money in Savings (no bill of its own), so the
-    // bar splits its "rest of budget" segment into Spending and Saving
-    // instead of one undifferentiated segment (spec 013).
+    // The seeded household has money in the Savings goal, so the bar splits
+    // its "rest of budget" segment into Spending and Saving instead of one
+    // undifferentiated segment (spec 013/014).
     const items = await legend(page).getByRole("listitem").allTextContents();
     const [billsWithin, spending, saving, unallocated] = items.slice(0, 4).map(cents);
     expect(billsWithin + spending + saving + unallocated).toBe(SEED.incomeCents);
     // Bills are capped at each category's budget, so Utilities (bills 420, budget 350) counts 350.
     expect(billsWithin).toBe(SEED.billsCents - 7000);
-    expect(saving).toBe(SEED.budgets.Savings); // no bill of its own, so the full budgeted amount
+    expect(saving).toBe(SEED.goals.Savings); // goals have no bills, so it is always the full amount
     expect(unallocated).toBe(SEED.unallocatedCents);
 
     await expect(bar(page)).toHaveAttribute("aria-label", new RegExp(`Income ${money(SEED.incomeCents).replace("$", "\\$")}`));
     await expect(bar(page)).toHaveAttribute("aria-label", /spending/);
-    await expect(bar(page)).toHaveAttribute("aria-label", new RegExp(`${money(SEED.budgets.Savings).replace("$", "\\$")} saving`));
+    await expect(bar(page)).toHaveAttribute("aria-label", new RegExp(`${money(SEED.goals.Savings).replace("$", "\\$")} saving`));
     await expect(bar(page)).toHaveAttribute("aria-label", /unallocated/);
     await expect(bar(page)).not.toHaveAttribute("aria-label", /debt payoff/);
   });
@@ -97,7 +97,7 @@ test.describe("with a seeded household", () => {
     const utilities = table.getByRole("row").filter({ has: page.getByRole("rowheader", { name: /^Utilities/ }) });
     await expect(utilities.getByRole("cell").nth(2)).toHaveText("-$70.00");
     await expect(utilities.getByRole("cell").nth(2)).toHaveCSS("color", LIGHT_DANGER);
-    await expect(page.getByRole("table").locator("tfoot")).toContainText(money(SEED.budgetedCents));
+    await expect(page.getByRole("table").locator("tfoot")).toContainText(money(SEED.categoriesBudgetedCents));
     await expect(page.getByRole("table").locator("tfoot")).toContainText(money(SEED.billsCents));
     await expect(page.getByRole("columnheader", { name: /Spent/ })).toHaveCount(0);
   });
@@ -190,15 +190,15 @@ test.describe("with a seeded household", () => {
   });
 });
 
-test.describe("adding a Debt payoff category (spec 013)", () => {
+test.describe("adding a Debt payoff goal (spec 014)", () => {
   test.beforeEach(async ({ page }) => {
     await resetAndSeed();
     await signIn(page, OWNER);
     const M = monthKey();
     const created = await (
-      await page.request.post("/api/categories", { data: { name: "Credit card", type: "debt payoff" } })
+      await page.request.post("/api/goals", { data: { name: "Credit card", type: "debt payoff" } })
     ).json();
-    await page.request.put(`/api/budgets/${M}/allocations/${created.category.id}`, { data: { amountCents: 15000 } });
+    await page.request.put(`/api/goals/month/${M}/amounts/${created.goal.id}`, { data: { amountCents: 15000 } });
     await page.goto("/");
   });
 
@@ -211,35 +211,9 @@ test.describe("adding a Debt payoff category (spec 013)", () => {
 
   test("the one bar's text equivalent names all three types, never color alone", async ({ page }) => {
     const label = new RegExp(
-      `${money(SEED.budgets.Savings).replace("$", "\\$")} saving.*${money(15000).replace("$", "\\$")} debt payoff`,
+      `${money(SEED.goals.Savings).replace("$", "\\$")} saving.*${money(15000).replace("$", "\\$")} debt payoff`,
     );
     await expect(bar(page)).toHaveAttribute("aria-label", label);
-  });
-});
-
-test.describe("Saving fully consumed by its own bill (spec 013)", () => {
-  test.beforeEach(async ({ page }) => {
-    await resetAndSeed();
-    await signIn(page, OWNER);
-    const M = monthKey();
-    const budgetJson = await (await page.request.get(`/api/budgets/${M}`)).json();
-    const savings = budgetJson.categories.find((c: { name: string }) => c.name === "Savings").id;
-    // Model an automatic Roth contribution as a bill that exactly consumes
-    // the Savings budget, so nothing is left of it outside "bills".
-    await page.request.put(`/api/budgets/${M}/allocations/${savings}`, { data: { amountCents: SEED.budgets.Savings } });
-    await page.request.post("/api/bills", {
-      data: { name: "Roth contribution", amountCents: SEED.budgets.Savings, categoryId: savings },
-    });
-    await page.goto("/");
-  });
-
-  test("the bar keeps its original 'Rest of budget' shape, since there is nothing to split out", async ({ page }) => {
-    await expect(bar(page)).toHaveAttribute("aria-label", /rest of budget/);
-    await expect(bar(page)).not.toHaveAttribute("aria-label", /spending/);
-    // The headline stat still counts it, though — that number is the full
-    // budgeted amount, bill included.
-    await expect(cashFlow(page)).toContainText("Saving");
-    await expect(cashFlow(page)).toContainText(money(SEED.budgets.Savings));
   });
 });
 

@@ -10,6 +10,8 @@ vi.mock("@/lib/months", async (importOriginal) => ({
 import * as allocationRoute from "@/app/api/budgets/[month]/allocations/[categoryId]/route";
 import * as budgetRoute from "@/app/api/budgets/[month]/route";
 import * as billsRoute from "@/app/api/bills/route";
+import * as goalAmountRoute from "@/app/api/goals/month/[month]/amounts/[id]/route";
+import * as goalsRoute from "@/app/api/goals/route";
 import * as incomeAmountRoute from "@/app/api/income/[month]/sources/[id]/route";
 import * as incomeSourcesRoute from "@/app/api/income/sources/route";
 import { getSql } from "@/db";
@@ -50,6 +52,15 @@ async function bill(cookie: string, name: string, amountCents: number, category:
   expect(r.status).toBe(201);
 }
 
+async function goalBudget(cookie: string, name: string, amountCents: number) {
+  const list = await call(goalsRoute.GET, "/api/goals", { cookie });
+  const id = (list.json.goals as { id: string; name: string }[]).find((g) => g.name === name)!.id;
+  const r = await call(goalAmountRoute.PUT, `/api/goals/month/2026-09/amounts/${id}`, {
+    method: "PUT", cookie, params: { month: "2026-09", id }, body: { amountCents },
+  });
+  expect(r.status).toBe(200);
+}
+
 beforeEach(async () => {
   clock.month = "2026-09";
   await getSql()`truncate "user", households, invites, verification cascade`;
@@ -87,6 +98,21 @@ describe("plan summary", () => {
       billsTotalCents: summary.billsCents,
       unallocatedCents: summary.incomeCents - summary.budgetedCents,
     });
+  });
+
+  it("includes goal amounts in budgetedCents, on Bills/Income too, not just the Budget page (spec 014)", async () => {
+    const owner = await setupOwner();
+    await income(owner, 400000);
+    await budget(owner, "Housing", 100000);
+    await goalBudget(owner, "Savings", 50000);
+
+    const summary = await getPlanSummary(await ctxFor(owner), "2026-09");
+    expect(summary.budgetedCents).toBe(150000); // 100,000 category + 50,000 goal
+    expect(summary.incomeCents - summary.budgetedCents).toBe(250000); // Unallocated
+
+    // Agrees with the Budget API's own combined figure.
+    const api = await call(budgetRoute.GET, "/api/budgets/2026-09", { cookie: owner, params: { month: "2026-09" } });
+    expect(api.json.unallocatedCents).toBe(summary.incomeCents - summary.budgetedCents);
   });
 
   it("goes negative (over-allocated) when budgeted exceeds income", async () => {

@@ -10,6 +10,7 @@ export type PlanSummaryData = {
   incomeCents: number;
   // Income may still grow (variable deposits not recorded yet); see spec 010.
   incomeProvisional: boolean;
+  // Expense categories and goals together (spec 014) — everything earmarked.
   budgetedCents: number;
   // Monthly cost of bills; these sit inside the budgeted amounts.
   billsCents: number;
@@ -26,7 +27,7 @@ export async function getPlanSummary(
     editable: b.editable,
     incomeCents: b.incomeCents,
     incomeProvisional: b.incomeProvisional,
-    budgetedCents: b.totalCents,
+    budgetedCents: b.totalCents + b.goalsTotalCents,
     billsCents: b.billsTotalCents,
   };
 }

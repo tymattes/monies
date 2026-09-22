@@ -29,14 +29,16 @@ export default async function BudgetPage(props: PageProps<"/budget">) {
       <section className="space-y-4">
         <PlanHeader title="Budget" month={month} now={now} />
         {/* Remounted when the server data changes (month, income, categories,
-            amounts) so the editor's local state never goes stale. */}
+            amounts, goals) so the editor's local state never goes stale. */}
         <BudgetEditor
-          key={JSON.stringify([month, budget.incomeCents, budget.categories])}
+          key={JSON.stringify([month, budget.incomeCents, budget.categories, budget.goals])}
           month={month}
           monthName={monthLabel(month)}
           currency={budget.currency}
           editable={budget.editable}
           lines={budget.categories}
+          goals={budget.goals}
+          goalsCommittedCents={budget.goalsTotalCents}
           incomeCents={budget.incomeCents}
           incomeProvisional={budget.incomeProvisional}
           billsTotalCents={budget.billsTotalCents}
@@ -47,7 +49,6 @@ export default async function BudgetPage(props: PageProps<"/budget">) {
         categories={all.map((c) => ({
           id: c.id,
           name: c.name,
-          type: c.type,
           archived: c.archivedFrom !== null,
         }))}
       />

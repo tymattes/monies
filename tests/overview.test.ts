@@ -10,7 +10,8 @@ vi.mock("@/lib/months", async (importOriginal) => ({
 import * as allocationRoute from "@/app/api/budgets/[month]/allocations/[categoryId]/route";
 import * as budgetRoute from "@/app/api/budgets/[month]/route";
 import * as billsRoute from "@/app/api/bills/route";
-import * as categoriesRoute from "@/app/api/categories/route";
+import * as goalAmountRoute from "@/app/api/goals/month/[month]/amounts/[id]/route";
+import * as goalsRoute from "@/app/api/goals/route";
 import * as depositsRoute from "@/app/api/income/sources/[id]/deposits/route";
 import * as incomeAmountRoute from "@/app/api/income/[month]/sources/[id]/route";
 import * as incomeSourceRoute from "@/app/api/income/sources/[id]/route";
@@ -34,11 +35,24 @@ async function categoryId(cookie: string, name: string) {
   return (r.json.categories as { id: string; name: string }[]).find((c) => c.name === name)!.id;
 }
 
-async function addCategory(cookie: string, name: string, type: string) {
-  const r = await call(categoriesRoute.POST, "/api/categories", {
+async function addGoal(cookie: string, name: string, type: string) {
+  const r = await call(goalsRoute.POST, "/api/goals", {
     method: "POST", cookie, body: { name, type },
   });
   expect(r.status).toBe(201);
+}
+
+async function goalId(cookie: string, name: string) {
+  const r = await call(goalsRoute.GET, "/api/goals", { cookie });
+  return (r.json.goals as { id: string; name: string }[]).find((g) => g.name === name)!.id;
+}
+
+async function goalBudget(cookie: string, name: string, amountCents: number) {
+  const id = await goalId(cookie, name);
+  const r = await call(goalAmountRoute.PUT, `/api/goals/month/2026-09/amounts/${id}`, {
+    method: "PUT", cookie, params: { month: "2026-09", id }, body: { amountCents },
+  });
+  expect(r.status).toBe(200);
 }
 
 async function budget(cookie: string, name: string, amountCents: number) {
@@ -112,7 +126,7 @@ describe("overview numbers", () => {
       overAllocatedCents: 0,
       leftAfterBillsCents: 237000, // 4,000 - 1,630
       spendingCents: 260000, // Housing 2,000 + Utilities 100 + Groceries 500
-      savingCents: 0, // "Savings" exists (a starter category) but nothing is budgeted into it
+      savingCents: 0, // "Savings" exists (a starter goal, spec 014) but nothing is budgeted into it
       debtPayoffCents: 0, // no debt payoff category in this scenario
       restSpendingCents: 100000, // Housing 500 (2,000 - 1,500 bills) + Groceries 500
       restSavingCents: 0,
@@ -120,48 +134,32 @@ describe("overview numbers", () => {
     });
   });
 
-  it("sums budgeted amounts by type into spendingCents, savingCents and debtPayoffCents (spec 013)", async () => {
+  it("sums goal amounts by type into savingCents and debtPayoffCents (spec 013/014)", async () => {
     const owner = await setupOwner();
     const member = await joinAsMember(owner);
     await scenario(owner, member.cookie);
-    await addCategory(owner, "Roth IRA", "saving");
-    await addCategory(owner, "Credit card", "debt payoff");
-    await budget(owner, "Savings", 30000); // the starter category, type saving
-    await budget(owner, "Roth IRA", 20000);
-    await budget(owner, "Credit card", 15000);
+    await addGoal(owner, "Roth IRA", "saving");
+    await addGoal(owner, "Credit card", "debt payoff");
+    await goalBudget(owner, "Savings", 30000); // the starter goal
+    await goalBudget(owner, "Roth IRA", 20000);
+    await goalBudget(owner, "Credit card", 15000);
 
     const { data } = await overview(owner);
-    expect(data.cashFlow.spendingCents).toBe(260000); // Housing 2,000 + Utilities 100 + Groceries 500
+    expect(data.cashFlow.spendingCents).toBe(260000); // Housing 2,000 + Utilities 100 + Groceries 500 (categories only)
     expect(data.cashFlow.savingCents).toBe(50000); // Savings 300 + Roth IRA 200
     expect(data.cashFlow.debtPayoffCents).toBe(15000);
-    // The three types add up to the same total as the existing bills/rest
-    // split, and to the budgeted total — still counted, not extra money.
+    // The three types add up to the categories total plus the goals total —
+    // still counted in Unallocated, not extra money.
     const { spendingCents, savingCents, debtPayoffCents, billsWithinBudgetCents, restOfBudgetCents } = data.cashFlow;
-    expect(spendingCents + savingCents + debtPayoffCents).toBe(billsWithinBudgetCents + restOfBudgetCents);
+    expect(spendingCents).toBe(billsWithinBudgetCents + restOfBudgetCents);
     expect(spendingCents + savingCents + debtPayoffCents).toBe(data.budget.budgetedCents);
 
-    // None of the new saving/debt payoff money has a bill of its own, so the
-    // "rest" split equals the flat split here, and always sums to restOfBudgetCents.
+    // Goals have no bills, so their "rest" is always their full amount —
+    // unlike a category, there is no bills-vs-rest distinction to make.
     const { restSpendingCents, restSavingCents, restDebtPayoffCents } = data.cashFlow;
-    expect(restSavingCents).toBe(50000);
-    expect(restDebtPayoffCents).toBe(15000);
-    expect(restSpendingCents + restSavingCents + restDebtPayoffCents).toBe(restOfBudgetCents);
-  });
-
-  it("keeps a saving category's own bill out of the bar's 'rest' split (spec 013)", async () => {
-    const owner = await setupOwner();
-    const member = await joinAsMember(owner);
-    await scenario(owner, member.cookie);
-    // A Roth contribution modeled as a bill, fully consuming its budget: the
-    // headline Saving stat still counts it, but there is nothing left of it
-    // to draw outside "bills within budget".
-    await budget(owner, "Savings", 20000);
-    await bill(owner, "Roth contribution", 20000, "Savings");
-
-    const { data } = await overview(owner);
-    expect(data.cashFlow.savingCents).toBe(20000); // the full budgeted amount
-    expect(data.cashFlow.restSavingCents).toBe(0); // none of it is outside bills
-    expect(data.cashFlow.billsWithinBudgetCents).toBe(180000); // 160,000 + the 200.00 Roth bill
+    expect(restSavingCents).toBe(savingCents);
+    expect(restDebtPayoffCents).toBe(debtPayoffCents);
+    expect(restSpendingCents).toBe(restOfBudgetCents);
   });
 
   it("always splits the budget exactly, and income exactly when not over-allocated", async () => {

@@ -1,9 +1,9 @@
 import { and, eq, lte, sql } from "drizzle-orm";
 import { getDb } from "@/db";
-import { budgetAllocations, categories } from "@/db/schema";
-import type { CategoryType } from "./categoryTypes";
+import { budgetAllocations, categories, goalAmounts } from "@/db/schema";
 import type { HouseholdContext } from "./household";
 import { billsRollup } from "./bills";
+import { getGoalsMonth, type GoalLine } from "./goals";
 import { HttpError } from "./http";
 import { getIncomeMonth } from "./income";
 import { currentMonth, monthStart } from "./months";
@@ -13,9 +13,6 @@ export const MAX_AMOUNT = 2_000_000_000;
 export type BudgetLine = {
   id: string;
   name: string;
-  // What kind of budget line this is (spec 012): spending, saving, or debt
-  // payoff. Drives grouping on the Budget page and Overview, not the totals.
-  type: CategoryType;
   amountCents: number;
   // Monthly cost of the bills in this category, and what is left of the budget after them.
   billsCents: number;
@@ -27,7 +24,13 @@ export type Budget = {
   currency: string;
   editable: boolean;
   categories: BudgetLine[];
+  // Saving/Debt payoff goals for the month (spec 014) — a separate concept
+  // from Expense categories, but still counted in totalCents/unallocatedCents
+  // below, since that money is just as earmarked.
+  goals: GoalLine[];
+  // Sum of `categories` only (unchanged meaning from before spec 014).
   totalCents: number;
+  goalsTotalCents: number;
   // Household income for the month and what is left after budgeting it.
   // Negative unallocated means the budget exceeds income.
   incomeCents: number;
@@ -57,7 +60,6 @@ export async function getBudget(
     .select({
       id: categories.id,
       name: categories.name,
-      type: sql<CategoryType>`${categories.type}`,
       amountCents: sql<number>`coalesce((
         select a.amount_cents from ${budgetAllocations} a
         where a.category_id = "categories"."id"
@@ -73,6 +75,7 @@ export async function getBudget(
   const { totalCents: incomeCents, provisional: incomeProvisional } =
     await getIncomeMonth(ctx, month);
   const bills = await billsRollup(ctx.household.id, month);
+  const goalsMonth = await getGoalsMonth(ctx, month);
   return {
     month,
     currency: ctx.household.currency,
@@ -81,10 +84,12 @@ export async function getBudget(
       const billsCents = bills.byCategory.get(r.id) ?? 0;
       return { ...r, billsCents, remainingCents: r.amountCents - billsCents };
     }),
+    goals: goalsMonth.goals,
     totalCents,
+    goalsTotalCents: goalsMonth.totalCents,
     incomeCents,
     incomeProvisional,
-    unallocatedCents: incomeCents - totalCents,
+    unallocatedCents: incomeCents - totalCents - goalsMonth.totalCents,
     billsTotalCents: bills.totalCents,
     leftAfterBillsCents: incomeCents - bills.totalCents,
   };
@@ -127,21 +132,25 @@ export async function setAllocation(
     });
 }
 
-export type Assignment = { categoryId: string; amountCents: number };
+// A row targets either a category or a goal, never both (spec 014).
+export type Assignment =
+  | { categoryId: string; amountCents: number }
+  | { goalId: string; amountCents: number };
 
 export const MAX_ASSIGNMENTS = 50;
 
 // Adds part or all of the month's unallocated amount to one or more
-// categories, from `month` onward, as ordinary allocations, all in one
-// transaction (either every assignment applies or none does). `request` is
-// either explicit `assignments`, or `{ categoryId }` meaning "all of it to this
-// category". A per-household-and-month advisory lock serializes concurrent
-// assigns: the loser waits, then sees the new unallocated amount and is
-// rejected if it no longer fits, so money can never be assigned twice.
+// categories or goals, from `month` onward, as ordinary allocations, all in
+// one transaction (either every assignment applies or none does). `request`
+// is either explicit `assignments`, or `{ categoryId }`/`{ goalId }` meaning
+// "all of it to this one." A per-household-and-month advisory lock
+// serializes concurrent assigns: the loser waits, then sees the new
+// unallocated amount and is rejected if it no longer fits, so money can
+// never be assigned twice.
 export async function assignUnallocated(
   ctx: HouseholdContext,
   month: string,
-  request: { categoryId: string } | { assignments: Assignment[] },
+  request: { categoryId: string } | { goalId: string } | { assignments: Assignment[] },
 ) {
   if (month < currentMonth()) {
     throw new HttpError(400, "Past months are read-only");
@@ -159,24 +168,41 @@ export async function assignUnallocated(
     const assignments: Assignment[] =
       "assignments" in request
         ? request.assignments
-        : [{ categoryId: request.categoryId, amountCents: budget.unallocatedCents }];
+        : "goalId" in request
+          ? [{ goalId: request.goalId, amountCents: budget.unallocatedCents }]
+          : [{ categoryId: request.categoryId, amountCents: budget.unallocatedCents }];
 
     const seen = new Set<string>();
     let assignedCents = 0;
-    const results: { categoryId: string; assignedCents: number; amountCents: number }[] = [];
+    const results: (
+      | { kind: "category"; categoryId: string; assignedCents: number; amountCents: number }
+      | { kind: "goal"; goalId: string; assignedCents: number; amountCents: number }
+    )[] = [];
     for (const a of assignments) {
-      if (seen.has(a.categoryId)) {
-        throw new HttpError(400, "Each category can only appear once");
+      const key = "goalId" in a ? `goal:${a.goalId}` : `cat:${a.categoryId}`;
+      if (seen.has(key)) {
+        throw new HttpError(400, "Each category or goal can only appear once");
       }
-      seen.add(a.categoryId);
-      const line = budget.categories.find((c) => c.id === a.categoryId);
-      if (!line) throw new HttpError(404, "Category not found for this month");
-      const amountCents = line.amountCents + a.amountCents;
-      if (amountCents > MAX_AMOUNT) {
-        throw new HttpError(400, "That would exceed the maximum amount");
+      seen.add(key);
+      if ("goalId" in a) {
+        const line = budget.goals.find((g) => g.id === a.goalId);
+        if (!line) throw new HttpError(404, "Goal not found for this month");
+        const amountCents = line.amountCents + a.amountCents;
+        if (amountCents > MAX_AMOUNT) {
+          throw new HttpError(400, "That would exceed the maximum amount");
+        }
+        assignedCents += a.amountCents;
+        results.push({ kind: "goal", goalId: a.goalId, assignedCents: a.amountCents, amountCents });
+      } else {
+        const line = budget.categories.find((c) => c.id === a.categoryId);
+        if (!line) throw new HttpError(404, "Category not found for this month");
+        const amountCents = line.amountCents + a.amountCents;
+        if (amountCents > MAX_AMOUNT) {
+          throw new HttpError(400, "That would exceed the maximum amount");
+        }
+        assignedCents += a.amountCents;
+        results.push({ kind: "category", categoryId: a.categoryId, assignedCents: a.amountCents, amountCents });
       }
-      assignedCents += a.amountCents;
-      results.push({ categoryId: a.categoryId, assignedCents: a.amountCents, amountCents });
     }
     if (assignedCents > budget.unallocatedCents) {
       throw new HttpError(
@@ -186,18 +212,33 @@ export async function assignUnallocated(
     }
 
     for (const r of results) {
-      await tx
-        .insert(budgetAllocations)
-        .values({
-          categoryId: r.categoryId,
-          effectiveMonth: monthStart(month),
-          amountCents: r.amountCents,
-          createdBy: ctx.user.id,
-        })
-        .onConflictDoUpdate({
-          target: [budgetAllocations.categoryId, budgetAllocations.effectiveMonth],
-          set: { amountCents: r.amountCents, createdBy: ctx.user.id },
-        });
+      if (r.kind === "goal") {
+        await tx
+          .insert(goalAmounts)
+          .values({
+            goalId: r.goalId,
+            effectiveMonth: monthStart(month),
+            amountCents: r.amountCents,
+            createdBy: ctx.user.id,
+          })
+          .onConflictDoUpdate({
+            target: [goalAmounts.goalId, goalAmounts.effectiveMonth],
+            set: { amountCents: r.amountCents, createdBy: ctx.user.id },
+          });
+      } else {
+        await tx
+          .insert(budgetAllocations)
+          .values({
+            categoryId: r.categoryId,
+            effectiveMonth: monthStart(month),
+            amountCents: r.amountCents,
+            createdBy: ctx.user.id,
+          })
+          .onConflictDoUpdate({
+            target: [budgetAllocations.categoryId, budgetAllocations.effectiveMonth],
+            set: { amountCents: r.amountCents, createdBy: ctx.user.id },
+          });
+      }
     }
 
     return {

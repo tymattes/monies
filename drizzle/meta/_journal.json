@@ -43,6 +43,13 @@
       "when": 1790037167320,
       "tag": "0005_category_types",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790087342570,
+      "tag": "0006_goals",
+      "breakpoints": true
     }
   ]
 }
