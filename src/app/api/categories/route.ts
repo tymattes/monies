@@ -1,6 +1,7 @@
 import { createCategory, listCategories } from "@/lib/categories";
 import { requireHousehold } from "@/lib/household";
 import { readJson, route, str } from "@/lib/http";
+import { parseCategoryType } from "@/lib/validate";
 
 export const GET = route(async (request) => {
   const ctx = await requireHousehold(request.headers);
@@ -9,6 +10,11 @@ export const GET = route(async (request) => {
 
 export const POST = route(async (request) => {
   const ctx = await requireHousehold(request.headers);
-  const name = str(await readJson(request), "name", { max: 60 });
-  return Response.json({ category: await createCategory(ctx, name) }, { status: 201 });
+  const body = await readJson(request);
+  const name = str(body, "name", { max: 60 });
+  const type = parseCategoryType(body.type) ?? "spending";
+  return Response.json(
+    { category: await createCategory(ctx, name, type) },
+    { status: 201 },
+  );
 });

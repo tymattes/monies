@@ -124,8 +124,8 @@ describe("overview numbers", () => {
     expect(data.budget.unallocatedCents).toBe(api.json.unallocatedCents);
     expect(data.income.totalCents).toBe(api.json.incomeCents);
     expect(data.bills.totalCents).toBe(api.json.billsTotalCents);
-    const apiRows = (api.json.categories as { id: string; name: string; amountCents: number; billsCents: number; remainingCents: number }[]).map((c) => ({
-      id: c.id, name: c.name, budgetedCents: c.amountCents, billsCents: c.billsCents, leftCents: c.remainingCents,
+    const apiRows = (api.json.categories as { id: string; name: string; type: string; amountCents: number; billsCents: number; remainingCents: number }[]).map((c) => ({
+      id: c.id, name: c.name, type: c.type, budgetedCents: c.amountCents, billsCents: c.billsCents, leftCents: c.remainingCents,
     }));
     expect(data.categories).toEqual(apiRows);
   });

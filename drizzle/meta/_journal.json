@@ -36,6 +36,13 @@
       "when": 1790023565562,
       "tag": "0004_bills",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790037167320,
+      "tag": "0005_category_types",
+      "breakpoints": true
     }
   ]
 }

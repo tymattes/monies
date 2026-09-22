@@ -1,5 +1,6 @@
 import { getBillsMonth } from "./bills";
 import { getBudget } from "./budgets";
+import type { CategoryType } from "./categoryTypes";
 import type { HouseholdContext } from "./household";
 import { getIncomeMonth } from "./income";
 import { formatMoney } from "./money";
@@ -26,6 +27,7 @@ export type AttentionItem = {
 export type OverviewCategory = {
   id: string;
   name: string;
+  type: CategoryType;
   budgetedCents: number;
   billsCents: number;
   leftCents: number;
@@ -93,6 +95,7 @@ export async function getOverview(
   const categories: OverviewCategory[] = budget.categories.map((c) => ({
     id: c.id,
     name: c.name,
+    type: c.type,
     budgetedCents: c.amountCents,
     billsCents: c.billsCents,
     leftCents: c.remainingCents,
