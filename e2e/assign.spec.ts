@@ -60,6 +60,16 @@ test("stays disabled with a clear message when the amounts are too large", async
   await expect(p.getByRole("button", { name: "Assign" })).toBeDisabled();
 });
 
+test("preselects by type, not name (spec 012): renaming Savings keeps it preselected", async ({ page }) => {
+  const nameInput = page.getByLabel("Name of Savings", { exact: true });
+  await nameInput.fill("House Fund");
+  await nameInput.blur();
+  await waitHydrated(page);
+
+  const p = panel(page);
+  await expect(p.getByLabel("Category 1", { exact: true }).locator("option:checked")).toHaveText("House Fund");
+});
+
 test("can assign part of it and leave the rest unallocated", async ({ page }) => {
   const p = panel(page);
   await p.getByLabel("Amount for category 1", { exact: true }).fill("400.00");

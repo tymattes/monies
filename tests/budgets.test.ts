@@ -20,7 +20,7 @@ import { STARTER_CATEGORIES } from "@/lib/categories";
 import { formatMoney, parseMoney } from "@/lib/money";
 import { call, cookieOf, joinAsMember, OWNER, setupOwner } from "./helpers";
 
-type Line = { id: string; name: string; amountCents: number };
+type Line = { id: string; name: string; type: string; amountCents: number };
 
 async function budget(cookie: string, month: string) {
   const r = await call(budgetRoute.GET, `/api/budgets/${month}`, {
@@ -62,11 +62,11 @@ async function patchCategory(cookie: string, id: string, body: unknown) {
   });
 }
 
-async function addCategory(cookie: string, name: string) {
+async function addCategory(cookie: string, name: string, type?: string) {
   return call(categoriesRoute.POST, "/api/categories", {
     method: "POST",
     cookie,
-    body: { name },
+    body: type === undefined ? { name } : { name, type },
   });
 }
 
@@ -79,11 +79,19 @@ describe("setup", () => {
   it("creates the starter categories and defaults to USD", async () => {
     const cookie = await setupOwner();
     const { lines, json } = await budget(cookie, "2026-09");
-    expect(lines.map((l) => l.name)).toEqual(STARTER_CATEGORIES);
+    expect(lines.map((l) => l.name)).toEqual(STARTER_CATEGORIES.map((c) => c.name));
     expect(lines.every((l) => l.amountCents === 0)).toBe(true);
     expect(json.currency).toBe("USD");
     expect(json.totalCents).toBe(0);
     expect(json.editable).toBe(true);
+  });
+
+  it("seeds Savings as type saving and the rest as spending (spec 012)", async () => {
+    const cookie = await setupOwner();
+    const { lines } = await budget(cookie, "2026-09");
+    for (const l of lines) {
+      expect(l.type).toBe(l.name === "Savings" ? "saving" : "spending");
+    }
   });
 
   it("accepts a household currency and rejects invalid ones", async () => {
@@ -259,6 +267,36 @@ describe("categories", () => {
     await addCategory(cookie, "Pets");
     const names = (await budget(cookie, "2026-09")).lines.map((l) => l.name);
     expect(names.at(-1)).toBe("Pets");
+  });
+
+  it("creates a category with a type, defaulting to spending (spec 012)", async () => {
+    const cookie = await setupOwner();
+    const created = await addCategory(cookie, "Roth IRA", "saving");
+    expect(created.status).toBe(201);
+    expect((created.json.category as { type: string }).type).toBe("saving");
+
+    await addCategory(cookie, "Pets");
+    const pets = (await budget(cookie, "2026-09")).lines.find((l) => l.name === "Pets");
+    expect(pets?.type).toBe("spending");
+  });
+
+  it("rejects an unknown category type on create and on patch", async () => {
+    const cookie = await setupOwner();
+    expect((await addCategory(cookie, "Bad", "vibes")).status).toBe(400);
+    const groceries = await idOf(cookie, "Groceries");
+    expect((await patchCategory(cookie, groceries, { type: "vibes" })).status).toBe(400);
+  });
+
+  it("changes a category's type without versioning it (unlike an amount)", async () => {
+    const cookie = await setupOwner();
+    const savings = await idOf(cookie, "Savings");
+    expect((await patchCategory(cookie, savings, { type: "debt payoff" })).status).toBe(204);
+    // No effective-month concept for type: every month that shows the
+    // category at all (this one and a later one) shows the new type.
+    const now = (await budget(cookie, "2026-09")).lines.find((l) => l.id === savings);
+    const later = (await budget(cookie, "2026-12")).lines.find((l) => l.id === savings);
+    expect(now?.type).toBe("debt payoff");
+    expect(later?.type).toBe("debt payoff");
   });
 
   it("validates patch bodies", async () => {

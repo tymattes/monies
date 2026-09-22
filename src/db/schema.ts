@@ -164,6 +164,10 @@ export const categories = pgTable(
       .notNull()
       .references(() => households.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
+    // What kind of budget line this is (spec 012). A classification, not a
+    // monetary amount, so unlike allocations it is not time-versioned:
+    // changing it reclassifies the category past and future alike.
+    type: text("type").notNull().default("spending"),
     position: integer("position").notNull(),
     // First month the category appears in.
     startMonth: date("start_month", { mode: "string" }).notNull(),
@@ -179,6 +183,10 @@ export const categories = pgTable(
       .on(t.householdId, sql`lower(${t.name})`)
       .where(sql`${t.archivedFrom} is null`),
     index("categories_household_id_idx").on(t.householdId),
+    check(
+      "categories_type_check",
+      sql`${t.type} in ('spending', 'saving', 'debt payoff')`,
+    ),
   ],
 );
 

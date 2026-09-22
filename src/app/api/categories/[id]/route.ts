@@ -1,6 +1,7 @@
 import { updateCategory, type CategoryPatch } from "@/lib/categories";
 import { requireHousehold } from "@/lib/household";
 import { HttpError, readJson, route, str } from "@/lib/http";
+import { parseCategoryType } from "@/lib/validate";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -15,6 +16,8 @@ export const PATCH = route(
 
     const patch: CategoryPatch = {};
     if (body.name !== undefined) patch.name = str(body, "name", { max: 60 });
+    const type = parseCategoryType(body.type);
+    if (type !== undefined) patch.type = type;
     if (body.archived !== undefined) {
       if (typeof body.archived !== "boolean") {
         throw new HttpError(400, "archived must be true or false");

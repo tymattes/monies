@@ -1,30 +1,38 @@
-import { and, asc, eq, isNull, max } from "drizzle-orm";
+import { and, asc, eq, isNull, max, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { categories } from "@/db/schema";
 import type { Tx } from "./accounts";
 import { countBillsBlockingCategory } from "./bills";
+import type { CategoryType } from "./categoryTypes";
 import type { HouseholdContext } from "./household";
 import { HttpError, isUniqueViolation } from "./http";
 import { currentMonth, monthStart } from "./months";
 
-export const STARTER_CATEGORIES = [
-  "Housing",
-  "Groceries",
-  "Dining out",
-  "Transport",
-  "Utilities",
-  "Health",
-  "Entertainment",
-  "Savings",
-  "Other",
+// Re-exported for convenience (it's type-only, so no bundle cost); the
+// runtime constants and `groupByType` live in "@/lib/categoryTypes" instead,
+// since this module pulls in the database client and cannot be imported by
+// client components (CategoryManager, BudgetEditor import from there).
+export type { CategoryType } from "./categoryTypes";
+
+export const STARTER_CATEGORIES: { name: string; type: CategoryType }[] = [
+  { name: "Housing", type: "spending" },
+  { name: "Groceries", type: "spending" },
+  { name: "Dining out", type: "spending" },
+  { name: "Transport", type: "spending" },
+  { name: "Utilities", type: "spending" },
+  { name: "Health", type: "spending" },
+  { name: "Entertainment", type: "spending" },
+  { name: "Savings", type: "saving" },
+  { name: "Other", type: "spending" },
 ];
 
 export async function insertStarterCategories(tx: Tx, householdId: string) {
   const start = monthStart(currentMonth());
   await tx.insert(categories).values(
-    STARTER_CATEGORIES.map((name, position) => ({
+    STARTER_CATEGORIES.map(({ name, type }, position) => ({
       householdId,
       name,
+      type,
       position,
       startMonth: start,
     })),
@@ -38,6 +46,7 @@ export async function listCategories(householdId: string) {
     .select({
       id: categories.id,
       name: categories.name,
+      type: sql<CategoryType>`${categories.type}`,
       position: categories.position,
       startMonth: categories.startMonth,
       archivedFrom: categories.archivedFrom,
@@ -47,7 +56,11 @@ export async function listCategories(householdId: string) {
     .orderBy(asc(categories.position), asc(categories.name));
 }
 
-export async function createCategory(ctx: HouseholdContext, name: string) {
+export async function createCategory(
+  ctx: HouseholdContext,
+  name: string,
+  type: CategoryType = "spending",
+) {
   try {
     return await getDb().transaction(async (tx) => {
       const [{ top }] = await tx
@@ -59,6 +72,7 @@ export async function createCategory(ctx: HouseholdContext, name: string) {
         .values({
           householdId: ctx.household.id,
           name,
+          type,
           position: (top ?? -1) + 1,
           startMonth: monthStart(currentMonth()),
         })
@@ -73,6 +87,7 @@ export async function createCategory(ctx: HouseholdContext, name: string) {
 
 export type CategoryPatch = {
   name?: string;
+  type?: CategoryType;
   archived?: boolean;
   position?: number;
 };
@@ -98,6 +113,7 @@ export async function updateCategory(
 
       const set: Partial<typeof categories.$inferInsert> = {};
       if (patch.name !== undefined) set.name = patch.name;
+      if (patch.type !== undefined) set.type = patch.type;
       if (patch.archived === true && existing.archivedFrom === null) {
         const blocking = await countBillsBlockingCategory(
           ctx.household.id,
