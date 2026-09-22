@@ -130,11 +130,11 @@ describe("PlanTabs", () => {
 });
 
 describe("HeaderNav", () => {
-  it("has exactly Overview, Plan and Members", () => {
+  it("has exactly Overview, Plan, Expenses and Members", () => {
     nav.path = "/";
     const html = renderToStaticMarkup(<HeaderNav />);
     expect([...html.matchAll(/<a[^>]*>([^<]*)<\/a>/g)].map((m) => m[1])).toEqual([
-      "Overview", "Plan", "Members",
+      "Overview", "Plan", "Expenses", "Members",
     ]);
     expect(html).toContain('href="/budget"'); // Plan opens Budget
   });
@@ -145,6 +145,7 @@ describe("HeaderNav", () => {
     ["/bills", "Plan"],
     ["/income", "Plan"],
     ["/goals", "Plan"],
+    ["/expenses", "Expenses"],
     ["/members", "Members"],
   ])("highlights the right destination on %s", (path, label) => {
     nav.path = path;

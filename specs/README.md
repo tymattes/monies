@@ -33,3 +33,4 @@ Monies is built spec-first. `brief.md` is the source of truth for product intent
 | 016 | [Allocation UX — informed splits, a cleaner Assign panel](016-allocation-ux.md) | draft |
 | 017 | [Assign is a one-month top-up, not a permanent raise](017-assign-one-month-topup.md) | draft |
 | 018 | [Resume browser testing and reconcile the e2e suite](018-resume-browser-tests.md) | draft |
+| 019 | [Expenses — logging actual spend against a category](019-expenses.md) | draft |
