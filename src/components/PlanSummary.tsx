@@ -52,7 +52,7 @@ export default function PlanSummary({
   return (
     <section
       aria-label="Plan summary"
-      className="grid gap-4 rounded-lg border border-border p-4 sm:grid-cols-3"
+      className="grid gap-4 rounded-xl border border-border bg-background shadow-sm p-5 sm:grid-cols-3"
     >
       <Stat
         label="Income (take-home)"

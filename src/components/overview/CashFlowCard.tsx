@@ -61,7 +61,7 @@ export default function CashFlowCard({
     (over ? `, ${overWord} by ${money(cf.overAllocatedCents)}` : "");
 
   return (
-    <section aria-labelledby="cash-flow-heading" className="space-y-4 rounded-lg border border-border p-4">
+    <section aria-labelledby="cash-flow-heading" className="space-y-4 rounded-xl border border-border bg-background shadow-sm p-5">
       <h2 id="cash-flow-heading" className="text-lg font-semibold tracking-tight">
         Cash flow in {monthName}
       </h2>

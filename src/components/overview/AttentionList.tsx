@@ -15,7 +15,7 @@ export default function AttentionList({ items }: { items: AttentionItem[] }) {
         {items.map((item) => (
           <li
             key={`${item.code}-${item.categoryId ?? ""}`}
-            className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border border-l-4 px-4 py-3 text-sm ${
+            className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-background shadow-sm border-l-4 px-4 py-3 text-sm ${
               item.severity === "warning" ? "border-l-danger" : "border-l-border-strong"
             }`}
           >

@@ -36,20 +36,33 @@ export default defineConfig({
     {
       name: "phone",
       use: { ...iphone, browserName: "chromium" },
-      testMatch: ["**/layout.spec.ts", "**/a11y.spec.ts", ...(shots ? [shotSpec] : [])],
+      testMatch: ["**/layout.spec.ts", "**/a11y.spec.ts", "**/signin.spec.ts", ...(shots ? [shotSpec] : [])],
     },
+    // Firefox (also the engine behind Zen and similar browsers):
+    // `E2E_FIREFOX=1` and `npx playwright install firefox`.
+    ...(process.env.E2E_FIREFOX
+      ? [
+          {
+            name: "firefox",
+            use: { ...devices["Desktop Firefox"] },
+            testMatch: ["**/theme.spec.ts", "**/a11y.spec.ts", "**/signin.spec.ts"],
+          },
+        ]
+      : []),
     // Rough Safari stand-in: `E2E_WEBKIT=1` and `npx playwright install webkit`.
     ...(process.env.E2E_WEBKIT
       ? [
           {
             name: "webkit",
             use: { ...devices["Desktop Safari"] },
-            testMatch: ["**/theme.spec.ts", "**/a11y.spec.ts"],
+            testMatch: ["**/theme.spec.ts", "**/a11y.spec.ts", "**/signin.spec.ts"],
           },
         ]
       : []),
   ],
-  webServer: {
+  // `E2E_EXTERNAL=1` (used by scripts/e2e-docker.sh) tests a server that is
+  // already running, such as the Docker container, instead of starting one.
+  webServer: process.env.E2E_EXTERNAL ? undefined : {
     // The dev server starts fastest; E2E_PROD=1 runs the production build
     // (the standalone server, as in Docker) and is the run to trust before
     // merging visual work.

@@ -75,3 +75,12 @@ test("the Budget table's key controls are not clipped on a phone", async ({ page
   expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize()!.width);
   await expect(page.getByRole("region", { name: "Plan summary" })).toBeVisible();
 });
+
+test("on the sign-in screen the theme switch is at the right edge, not next to the logo", async ({ page }) => {
+  await page.goto("/sign-in");
+  await waitHydrated(page);
+  const width = page.viewportSize()!.width;
+  const toggle = (await page.getByRole("group", { name: "Theme" }).boundingBox())!;
+  expect(toggle.x + toggle.width).toBeGreaterThanOrEqual(width - 24);
+  expect(toggle.x + toggle.width).toBeLessThanOrEqual(width);
+});

@@ -62,7 +62,7 @@ export default function InviteManager({ pending }: { pending: Pending[] }) {
       </div>
 
       {link && (
-        <div className="space-y-2 rounded-lg border border-border p-4">
+        <div className="space-y-2 rounded-xl border border-border bg-background shadow-sm p-4">
           <p className="text-sm">
             Share this link. It won&apos;t be shown again after you leave this
             page.
@@ -89,7 +89,7 @@ export default function InviteManager({ pending }: { pending: Pending[] }) {
       )}
 
       {pending.length > 0 && (
-        <ul className="divide-y divide-border rounded-lg border border-border">
+        <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-background shadow-sm">
           {pending.map((i) => (
             <li
               key={i.id}

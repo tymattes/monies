@@ -75,7 +75,14 @@ const OPTIONS: { value: Choice; label: string; icon: React.ReactNode }[] = [
 export default function ThemeToggle() {
   // Server render (and hydration) assume "system"; the real value is read
   // right after. The pre-paint script already set the correct class.
-  const choice = useSyncExternalStore(subscribe, readChoice, () => "system");
+  const choice = useSyncExternalStore<Choice>(subscribe, readChoice, () => "system");
+
+  // Re-apply the saved theme when the toggle mounts or changes. The pre-paint
+  // script sets the class before first paint, but when React re-renders <html>
+  // (for example after a page error) it resets the class, so this puts it back.
+  useEffect(() => {
+    applyChoice(choice);
+  }, [choice]);
 
   // While following the system, react to OS theme changes.
   useEffect(() => {

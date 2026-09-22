@@ -1,18 +1,15 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { api } from "@/lib/client";
+import { api, navigateTo } from "@/lib/client";
 
 export default function SignOutButton() {
-  const router = useRouter();
   return (
     <button
       type="button"
       className="whitespace-nowrap text-sm text-muted hover:text-foreground"
       onClick={async () => {
         await api("/api/auth/sign-out", "POST");
-        router.push("/sign-in");
-        router.refresh();
+        navigateTo("/sign-in");
       }}
     >
       Sign out

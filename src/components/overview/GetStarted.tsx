@@ -8,7 +8,7 @@ export default function GetStarted({ query }: { query: string }) {
     { href: `/bills${query}`, title: "Add your recurring bills", text: "Rent, subscriptions and insurance count against their category automatically." },
   ];
   return (
-    <section aria-labelledby="start-heading" className="space-y-3 rounded-lg border border-border p-6">
+    <section aria-labelledby="start-heading" className="space-y-3 rounded-xl border border-border bg-background shadow-sm p-6">
       <h2 id="start-heading" className="text-lg font-semibold tracking-tight">
         Let&apos;s get your month set up
       </h2>

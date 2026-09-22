@@ -1,8 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { api } from "@/lib/client";
+import { api, navigateTo } from "@/lib/client";
 import { buttonCls, inputCls, labelCls } from "./ui";
 
 const CURRENCIES = Intl.supportedValuesOf("currency");
@@ -27,13 +26,13 @@ export default function CredentialsForm({
   mode: Mode;
   token?: string;
 }) {
-  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const needsName = mode !== "sign-in";
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (busy) return;
     setBusy(true);
     setError(null);
     const form = Object.fromEntries(new FormData(e.currentTarget)) as Record<
@@ -46,12 +45,29 @@ export default function CredentialsForm({
       setBusy(false);
       return;
     }
-    router.push("/");
-    router.refresh();
+    // A full page load, so the header shows the signed-in user (see navigateTo).
+    // The button stays busy while the browser navigates.
+    navigateTo("/");
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
+    <form
+      onSubmit={onSubmit}
+      onKeyDown={(e) => {
+        // Submit explicitly on Enter instead of relying on the browser's
+        // implicit submission, which some browsers skip (autofill, password
+        // managers). Cancelling the key event prevents a second, implicit one.
+        if (
+          e.key === "Enter" &&
+          !e.nativeEvent.isComposing &&
+          e.target instanceof HTMLInputElement
+        ) {
+          e.preventDefault();
+          e.currentTarget.requestSubmit();
+        }
+      }}
+      className="space-y-4"
+    >
       {mode === "setup" && (
         <div className="space-y-1">
           <label htmlFor="householdName" className={labelCls}>

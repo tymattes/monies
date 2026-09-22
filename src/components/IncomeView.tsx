@@ -384,7 +384,7 @@ export default function IncomeView({
         </p>
       </div>
 
-      <div className="flex items-center justify-between rounded-lg bg-surface px-4 py-3 font-semibold">
+      <div className="flex items-center justify-between rounded-xl bg-surface px-4 py-3 font-semibold">
         <span>Household income in {monthName}</span>
         <span className="tabular-nums">
           {formatMoney(income.totalCents, currency)}
@@ -404,7 +404,7 @@ export default function IncomeView({
               {formatMoney(m.totalCents, currency)}
             </span>
           </div>
-          <div className="divide-y divide-border rounded-lg border border-border">
+          <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-background shadow-sm">
             {m.sources.length === 0 && (
               <p className="px-4 py-3 text-sm text-muted">No income sources yet.</p>
             )}
