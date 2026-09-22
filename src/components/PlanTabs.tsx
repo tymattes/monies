@@ -7,10 +7,11 @@ const TABS = [
   { href: "/budget", label: "Budget" },
   { href: "/bills", label: "Bills" },
   { href: "/income", label: "Income" },
+  { href: "/goals", label: "Goals" },
 ];
 
-// Budget | Bills | Income: three views of one monthly plan. Keeps the selected
-// month when switching between them.
+// Budget | Bills | Income | Goals: four views of one monthly plan. Keeps the
+// selected month when switching between them.
 export default function PlanTabs({ month, now }: { month: string; now: string }) {
   const pathname = usePathname();
   const query = month === now ? "" : `?month=${month}`;

@@ -31,13 +31,12 @@ export default async function BudgetPage(props: PageProps<"/budget">) {
         {/* Remounted when the server data changes (month, income, categories,
             amounts, goals) so the editor's local state never goes stale. */}
         <BudgetEditor
-          key={JSON.stringify([month, budget.incomeCents, budget.categories, budget.goals])}
+          key={JSON.stringify([month, budget.incomeCents, budget.categories, budget.goalsTotalCents])}
           month={month}
           monthName={monthLabel(month)}
           currency={budget.currency}
           editable={budget.editable}
           lines={budget.categories}
-          goals={budget.goals}
           goalsCommittedCents={budget.goalsTotalCents}
           incomeCents={budget.incomeCents}
           incomeProvisional={budget.incomeProvisional}

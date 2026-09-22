@@ -14,7 +14,7 @@ export default function AttentionList({ items }: { items: AttentionItem[] }) {
       <ul className="space-y-2">
         {items.map((item) => (
           <li
-            key={`${item.code}-${item.categoryId ?? ""}`}
+            key={`${item.code}-${item.categoryId ?? item.goalId ?? ""}`}
             className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-background shadow-sm border-l-4 px-4 py-3 text-sm ${
               item.severity === "warning" ? "border-l-danger" : "border-l-border-strong"
             }`}

@@ -29,14 +29,14 @@ describe("PlanSummary", () => {
     expect(html).toContain("$9,272.00");
     expect(html).toContain("$7,600.00");
     expect(html).toContain("of which bills $2,717.35");
-    expect(html).toContain("Unallocated");
+    expect(html).toContain("Unallocated Income");
     expect(html).toContain("$1,672.00");
     expect(html).not.toContain("Over-allocated");
   });
 
-  it("links Assign to the Budget page's panel from other pages", () => {
+  it("links Assign to the Income page's panel from other pages", () => {
     const html = renderToStaticMarkup(<PlanSummary {...base} assign="link" />);
-    expect(html).toMatch(/<a[^>]*href="\/budget\?month=2026-09#assign"[^>]*>Assign<\/a>/);
+    expect(html).toMatch(/<a[^>]*href="\/income\?month=2026-09#assign"[^>]*>Assign<\/a>/);
   });
 
   it("uses a button that scrolls to the panel on the Budget page", () => {
@@ -61,7 +61,7 @@ describe("PlanSummary", () => {
     expect(html).toContain("Over-allocated by");
     expect(html).toContain("$728.00");
     expect(html).toContain("text-danger");
-    expect(html).not.toContain(">Unallocated<");
+    expect(html).not.toContain(">Unallocated Income<");
   });
 
   describe("provisional income (variable income may still arrive)", () => {
@@ -104,6 +104,7 @@ describe("PlanTabs", () => {
     ["/budget", "Budget"],
     ["/bills", "Bills"],
     ["/income", "Income"],
+    ["/goals", "Goals"],
   ])("marks only the current page on %s", (path, label) => {
     nav.path = path;
     const html = renderToStaticMarkup(<PlanTabs month="2026-09" now="2026-09" />);
@@ -111,27 +112,29 @@ describe("PlanTabs", () => {
     expect(html).toContain('aria-label="Plan sections"');
   });
 
-  it("links to all three pages, keeping the month only when it is not the current one", () => {
+  it("links to all four pages, keeping the month only when it is not the current one", () => {
     nav.path = "/budget";
     const current = renderToStaticMarkup(<PlanTabs month="2026-09" now="2026-09" />);
     expect(current).toContain('href="/budget"');
     expect(current).toContain('href="/bills"');
     expect(current).toContain('href="/income"');
+    expect(current).toContain('href="/goals"');
     expect(current).not.toContain("?month=");
 
     const other = renderToStaticMarkup(<PlanTabs month="2026-11" now="2026-09" />);
     expect(other).toContain('href="/budget?month=2026-11"');
     expect(other).toContain('href="/bills?month=2026-11"');
     expect(other).toContain('href="/income?month=2026-11"');
+    expect(other).toContain('href="/goals?month=2026-11"');
   });
 });
 
 describe("HeaderNav", () => {
-  it("has exactly Overview, Plan, Goals and Members", () => {
+  it("has exactly Overview, Plan and Members", () => {
     nav.path = "/";
     const html = renderToStaticMarkup(<HeaderNav />);
     expect([...html.matchAll(/<a[^>]*>([^<]*)<\/a>/g)].map((m) => m[1])).toEqual([
-      "Overview", "Plan", "Goals", "Members",
+      "Overview", "Plan", "Members",
     ]);
     expect(html).toContain('href="/budget"'); // Plan opens Budget
   });
@@ -141,6 +144,7 @@ describe("HeaderNav", () => {
     ["/budget", "Plan"],
     ["/bills", "Plan"],
     ["/income", "Plan"],
+    ["/goals", "Plan"],
     ["/members", "Members"],
   ])("highlights the right destination on %s", (path, label) => {
     nav.path = path;
@@ -157,6 +161,16 @@ describe("PlanHeader", () => {
     expect(html).toContain('aria-label="Plan sections"');
     expect(html).toContain('aria-label="Month"');
     expect(html).toContain('href="/bills?month=2026-08"'); // previous month stays on this page
+  });
+
+  it("renders Goals like any other Plan tab, with a summary bar (spec 015)", () => {
+    nav.path = "/goals";
+    const html = renderToStaticMarkup(
+      <PlanHeader title="Goals" month="2026-09" now="2026-09" summary={base} />,
+    );
+    expect(html).toMatch(/<h1[^>]*>Goals<\/h1>/);
+    expect(html).toContain('aria-label="Plan sections"');
+    expect(html).toContain("Plan summary");
   });
 
   it("renders the summary only when given one", () => {

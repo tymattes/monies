@@ -6,6 +6,7 @@ import BillsCard from "@/components/overview/BillsCard";
 import CashFlowCard from "@/components/overview/CashFlowCard";
 import CategoryTable from "@/components/overview/CategoryTable";
 import GetStarted from "@/components/overview/GetStarted";
+import GoalsCard from "@/components/overview/GoalsCard";
 import IncomeCard from "@/components/overview/IncomeCard";
 import { getHouseholdContext } from "@/lib/household";
 import { currentMonth, isMonth, monthLabel } from "@/lib/months";
@@ -54,14 +55,15 @@ export default async function OverviewPage(props: PageProps<"/">) {
             overview={o}
             billsTotalCents={o.bills.totalCents}
             monthName={monthLabel(month)}
-            assignHref={`/budget${q}#assign`}
+            assignHref={`/income${q}#assign`}
           />
           {o.categories.length > 0 && (
             <CategoryTable rows={o.categories} currency={o.currency} />
           )}
-          <div className="grid gap-6 md:grid-cols-2">
+          <div className="grid gap-6 md:grid-cols-3">
             <IncomeCard income={o.income} currency={o.currency} href={`/income${q}`} />
             <BillsCard bills={o.bills} currency={o.currency} href={`/bills${q}`} />
+            <GoalsCard goals={o.goals} currency={o.currency} href={`/goals${q}`} />
           </div>
         </>
       )}
