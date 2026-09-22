@@ -84,6 +84,6 @@ describe("AssignUnallocated (spec 016)", () => {
     const html = panel();
     const liveRegions = [...html.matchAll(/aria-live="polite"/g)];
     expect(liveRegions).toHaveLength(1);
-    expect(html).toContain("Assigning all of it from September 2026 onward. You can change any amount afterwards.");
+    expect(html).toContain("Assigning all of it to September 2026; October 2026 goes back to the earlier amount unless you change it.");
   });
 });

@@ -31,3 +31,4 @@ Monies is built spec-first. `brief.md` is the source of truth for product intent
 | 014 | [Savings and Debt payoff as goals, separate from budgets](014-savings-debt-goals.md) | implemented |
 | 015 | [Goals under Plan, Assign moves to Income, a check-off reminder, a Goals overview card, "Unallocated Income"](015-plan-goals-and-assign-on-income.md) | implemented |
 | 016 | [Allocation UX — informed splits, a cleaner Assign panel](016-allocation-ux.md) | draft |
+| 017 | [Assign is a one-month top-up, not a permanent raise](017-assign-one-month-topup.md) | draft |
