@@ -1,6 +1,6 @@
 # 017: Assign is a one-month top-up, not a permanent raise
 
-**Status:** draft
+**Status:** implemented
 
 ## Goal
 Every amount in this app — a category's budget, a goal's target, and

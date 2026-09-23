@@ -1,6 +1,6 @@
 # 022: Unallocated reflects commitments, not plans
 
-**Status:** draft
+**Status:** implemented
 
 ## Goal
 Today, typing a number into a brand-new category's budget immediately

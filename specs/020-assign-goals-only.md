@@ -1,6 +1,6 @@
 # 020: Assign no longer targets a budget category directly
 
-**Status:** draft
+**Status:** implemented
 
 ## Goal
 Assign has always been able to put leftover income straight into a
