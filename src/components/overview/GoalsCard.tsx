@@ -30,8 +30,7 @@ export default function GoalsCard({
       <div className="flex items-center justify-between gap-3">
         <h2 id="goals-heading" className="text-lg font-semibold tracking-tight">Goals</h2>
         <Link href={href} className={`${secondaryButtonCls} inline-block`}>
-          Manage
-          <span className="sr-only"> goals</span>
+          Check off
         </Link>
       </div>
       {funded.length === 0 ? (

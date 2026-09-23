@@ -4,6 +4,7 @@ import AttentionList from "@/components/overview/AttentionList";
 import BillsCard from "@/components/overview/BillsCard";
 import CashFlowCard from "@/components/overview/CashFlowCard";
 import CategoryTable from "@/components/overview/CategoryTable";
+import ExpensesCard from "@/components/overview/ExpensesCard";
 import GetStarted from "@/components/overview/GetStarted";
 import GoalsCard from "@/components/overview/GoalsCard";
 import IncomeCard from "@/components/overview/IncomeCard";
@@ -195,7 +196,7 @@ const rows: OverviewCategory[] = [
 ];
 
 describe("CategoryTable", () => {
-  const html = renderToStaticMarkup(<CategoryTable rows={rows} currency="USD" />);
+  const html = renderToStaticMarkup(<CategoryTable rows={rows} currency="USD" editHref="/budget" />);
 
   it("is a real table with a caption, column headers and row headers", () => {
     expect(html).toContain("<caption");
@@ -203,6 +204,11 @@ describe("CategoryTable", () => {
     expect(html).toMatch(/<th scope="col"[^>]*>Expenses<\/th>/);
     expect(html).toMatch(/<th scope="row"[^>]*>Housing/);
     expect(html.match(/<th scope="row"/g)?.length).toBe(rows.length + 1); // + the Total row
+  });
+
+  it("is headed 'Budget' with an Edit budget link", () => {
+    expect(html).toMatch(/<h2[^>]*>\s*Budget\s*<\/h2>/);
+    expect(html).toMatch(/<a[^>]*href="\/budget"[^>]*>Edit budget<\/a>/);
   });
 
   it("shows budgeted, bills, expenses and left, with a negative Left in the error color", () => {
@@ -276,7 +282,7 @@ describe("IncomeCard", () => {
   it("shows the total, the fixed and variable split and each member", () => {
     const html = renderToStaticMarkup(<IncomeCard income={income} currency="USD" href="/income" />);
     for (const v of ["$6,000.00", "$5,000.00", "$1,000.00", "Olive Owner", "Mia Member"]) expect(html).toContain(v);
-    expect(html).toMatch(/<a[^>]*href="\/income"/);
+    expect(html).toMatch(/<a[^>]*href="\/income"[^>]*>Add income<\/a>/);
   });
 
   it("explains an empty month", () => {
@@ -301,6 +307,7 @@ describe("BillsCard", () => {
     expect(html).toContain("Rent");
     expect(html).toContain("$120.00 every year");
     expect(html).not.toContain("$1,500.00 every"); // monthly bills need no note
+    expect(html).toMatch(/<a[^>]*href="\/bills"[^>]*>Add bill<\/a>/);
   });
 
   it("explains a month with no bills", () => {
@@ -343,9 +350,22 @@ describe("GoalsCard (spec 015)", () => {
     expect(html).toContain("No goals funded this month yet.");
   });
 
-  it("links Manage to the Goals page", () => {
+  it("links Check off to the Goals page", () => {
     const html = renderToStaticMarkup(<GoalsCard goals={goals} currency="USD" href="/goals?month=2026-10" />);
-    expect(html).toMatch(/<a[^>]*href="\/goals\?month=2026-10"[^>]*>Manage/);
+    expect(html).toMatch(/<a[^>]*href="\/goals\?month=2026-10"[^>]*>Check off<\/a>/);
+  });
+});
+
+describe("ExpensesCard", () => {
+  it("shows the month's total and a Log expense link", () => {
+    const html = renderToStaticMarkup(<ExpensesCard totalCents={12500} currency="USD" href="/expenses" />);
+    expect(html).toContain("$125.00");
+    expect(html).toMatch(/<a[^>]*href="\/expenses"[^>]*>Log expense<\/a>/);
+  });
+
+  it("explains a month with no expenses logged", () => {
+    const html = renderToStaticMarkup(<ExpensesCard totalCents={0} currency="USD" href="/expenses" />);
+    expect(html).toContain("No expenses logged this month yet.");
   });
 });
 

@@ -18,8 +18,7 @@ export default function BillsCard({
       <div className="flex items-center justify-between gap-3">
         <h2 id="bills-heading" className="text-lg font-semibold tracking-tight">Bills</h2>
         <Link href={href} className={`${secondaryButtonCls} inline-block`}>
-          Manage
-          <span className="sr-only"> bills</span>
+          Add bill
         </Link>
       </div>
       {bills.largest.length === 0 ? (

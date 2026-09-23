@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { formatMoney } from "@/lib/money";
 import type { OverviewCategory } from "@/lib/overview";
+import { secondaryButtonCls } from "../ui";
 
 // A compact bullet-style bar: the fill is the category's actual spend (bills +
 // expenses), the vertical marker is its budget, and any part of the spend past
@@ -35,9 +37,11 @@ function SpendBar({ budgeted, spent }: { budgeted: number; spent: number }) {
 export default function CategoryTable({
   rows,
   currency,
+  editHref,
 }: {
   rows: OverviewCategory[];
   currency: string;
+  editHref: string;
 }) {
   const money = (c: number) => formatMoney(c, currency);
   const totals = rows.reduce(
@@ -50,10 +54,15 @@ export default function CategoryTable({
   );
 
   return (
-    <section aria-labelledby="categories-heading" className="space-y-2">
-      <h2 id="categories-heading" className="text-lg font-semibold tracking-tight">
-        Categories
-      </h2>
+    <section aria-labelledby="budget-heading" className="space-y-2">
+      <div className="flex items-center justify-between gap-3">
+        <h2 id="budget-heading" className="text-lg font-semibold tracking-tight">
+          Budget
+        </h2>
+        <Link href={editHref} className={`${secondaryButtonCls} inline-block`}>
+          Edit budget
+        </Link>
+      </div>
       <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
         <table className="w-full text-sm">
           <caption className="sr-only">

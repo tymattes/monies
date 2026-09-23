@@ -18,8 +18,7 @@ export default function IncomeCard({
       <div className="flex items-center justify-between gap-3">
         <h2 id="income-heading" className="text-lg font-semibold tracking-tight">Income</h2>
         <Link href={href} className={`${secondaryButtonCls} inline-block`}>
-          Manage
-          <span className="sr-only"> income</span>
+          Add income
         </Link>
       </div>
       {income.totalCents === 0 ? (
