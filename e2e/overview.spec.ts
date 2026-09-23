@@ -46,8 +46,7 @@ test.describe("with a seeded household", () => {
     const card = cashFlow(page);
     await expect(card).toContainText(money(SEED.incomeCents));
     await expect(card).toContainText(money(SEED.billsCents));
-    await expect(card).toContainText("Left after bills");
-    await expect(card).toContainText(money(SEED.incomeCents - SEED.billsCents));
+    await expect(card).not.toContainText("Left after bills");
     await expect(card).toContainText("Unallocated Income");
     await expect(card).toContainText(money(SEED.unallocatedCents));
   });
@@ -60,22 +59,21 @@ test.describe("with a seeded household", () => {
   });
 
   test("the bar's segments add up to the income, and its text equivalent says so", async ({ page }) => {
-    // The seeded household has money in the Savings goal, so the bar splits
-    // its "rest of budget" segment into Spending and Saving instead of one
-    // undifferentiated segment (spec 013/014). Unallocated is income minus
-    // bills (spec 022), independent of the budgeted split above it.
+    // The seeded Savings goal is unchecked and there are no expenses, so the
+    // bar draws only Bills and Unallocated — the two terms that are real in
+    // this household (spec 021: an unchecked target contributes nothing).
     const items = await legend(page).getByRole("listitem").allTextContents();
-    const [billsWithin, , saving, unallocated] = items.slice(0, 4).map(cents);
-    // Bills are capped at each category's budget, so Utilities (bills 420, budget 350) counts 350.
-    expect(billsWithin).toBe(SEED.billsCents - 7000);
-    expect(saving).toBe(SEED.goals.Savings); // goals have no bills, so it is always the full amount
-    expect(unallocated).toBe(SEED.unallocatedCents); // income − bills (spec 022)
+    expect(items[0]).toContain("Bills");
+    expect(items[0]).toContain(money(SEED.billsCents));
+    expect(items[1]).toContain("Unallocated Income");
+    expect(items[1]).toContain(money(SEED.unallocatedCents));
+    expect(items).toHaveLength(2); // no Expenses, no Saving/Debt payoff segment
 
     await expect(bar(page)).toHaveAttribute("aria-label", new RegExp(`Income ${money(SEED.incomeCents).replace("$", "\\$")}`));
-    await expect(bar(page)).toHaveAttribute("aria-label", /spending/);
-    await expect(bar(page)).toHaveAttribute("aria-label", new RegExp(`${money(SEED.goals.Savings).replace("$", "\\$")} saving`));
-    await expect(bar(page)).toHaveAttribute("aria-label", /unallocated/);
-    await expect(bar(page)).not.toHaveAttribute("aria-label", /debt payoff/);
+    await expect(bar(page)).toHaveAttribute("aria-label", new RegExp(`${money(SEED.billsCents).replace("$", "\\$")} bills`));
+    await expect(bar(page)).toHaveAttribute("aria-label", new RegExp(`${money(SEED.unallocatedCents).replace("$", "\\$")} unallocated income`));
+    await expect(bar(page)).not.toHaveAttribute("aria-label", /expenses/);
+    await expect(bar(page)).not.toHaveAttribute("aria-label", /saving/);
   });
 
   test("Unallocated here equals the Plan summary bar's", async ({ page }) => {
@@ -90,15 +88,16 @@ test.describe("with a seeded household", () => {
       const row = table.getByRole("row").filter({ has: page.getByRole("rowheader", { name: new RegExp(`^${c.name}`) }) });
       await expect(row.getByRole("cell").nth(0)).toHaveText(money(c.budgeted));
       await expect(row.getByRole("cell").nth(1)).toHaveText(money(c.bills));
-      await expect(row.getByRole("cell").nth(2)).toHaveText(money(c.left));
+      await expect(row.getByRole("cell").nth(2)).toHaveText(money(0)); // no seeded expenses
+      await expect(row.getByRole("cell").nth(3)).toHaveText(money(c.left));
     }
     // Utilities' bills are over its budget: a negative Left in the error color.
     const utilities = table.getByRole("row").filter({ has: page.getByRole("rowheader", { name: /^Utilities/ }) });
-    await expect(utilities.getByRole("cell").nth(2)).toHaveText("-$70.00");
-    await expect(utilities.getByRole("cell").nth(2)).toHaveCSS("color", LIGHT_DANGER);
+    await expect(utilities.getByRole("cell").nth(3)).toHaveText("-$70.00");
+    await expect(utilities.getByRole("cell").nth(3)).toHaveCSS("color", LIGHT_DANGER);
     await expect(page.getByRole("table").locator("tfoot")).toContainText(money(SEED.categoriesBudgetedCents));
     await expect(page.getByRole("table").locator("tfoot")).toContainText(money(SEED.billsCents));
-    await expect(page.getByRole("columnheader", { name: /Spent/ })).toHaveCount(0);
+    await expect(page.getByRole("columnheader", { name: /Expenses/ })).toBeVisible();
   });
 
   test("the category table agrees with the Budget page", async ({ page }) => {
@@ -117,7 +116,7 @@ test.describe("with a seeded household", () => {
 
   test("needs attention names the over-budget category, the unallocated money, and the unchecked goal, with links", async ({ page }) => {
     const list = page.getByRole("region", { name: "Needs attention" });
-    const over = list.getByRole("listitem").filter({ hasText: "Utilities: bills are $70.00 over its budget." });
+    const over = list.getByRole("listitem").filter({ hasText: "Utilities: is $70.00 over its budget." });
     await expect(over).toContainText("Warning:");
     await expect(over.getByRole("link", { name: "Adjust budget" })).toHaveAttribute("href", "/budget");
 
@@ -189,7 +188,7 @@ test.describe("with a seeded household", () => {
     const list = page.getByRole("region", { name: "Needs attention" });
     await expect(list).toContainText(`${money(SEED.salaryCents - SEED.billsCents)} is not assigned`);
     // The Utilities item (bills past a category's own budget) is still a warning.
-    await expect(list.getByRole("listitem").filter({ hasText: "Utilities: bills are" })).toContainText("Warning:");
+    await expect(list.getByRole("listitem").filter({ hasText: "Utilities: is" })).toContainText("Warning:");
     await expect(list.getByRole("link", { name: "Adjust budget" })).toHaveAttribute("href", `/budget?month=${next}`);
     // Next month has unallocated income (not over-allocated), so Assign is offered.
     const free = list.getByRole("listitem").filter({ hasText: "is not assigned" });
@@ -215,6 +214,12 @@ test.describe("adding a Debt payoff goal (spec 014)", () => {
       await page.request.post("/api/goals", { data: { name: "Credit card", type: "debt payoff" } })
     ).json();
     await page.request.put(`/api/goals/month/${M}/amounts/${created.goal.id}`, { data: { amountCents: 15000 } });
+    // Check both goals off so their checked amounts show as bar segments
+    // (spec 021: an unchecked target contributes nothing to the bar).
+    const budget = await (await page.request.get(`/api/budgets/${M}`)).json();
+    const savings = budget.goals.find((g: { name: string }) => g.name === "Savings").id;
+    await page.request.put(`/api/goals/month/${M}/checkins/${savings}`, { data: { checked: true } });
+    await page.request.put(`/api/goals/month/${M}/checkins/${created.goal.id}`, { data: { checked: true } });
     await page.goto("/");
   });
 
@@ -225,7 +230,7 @@ test.describe("adding a Debt payoff goal (spec 014)", () => {
     await expect(card).toContainText(money(15000));
   });
 
-  test("the one bar's text equivalent names all three types, never color alone", async ({ page }) => {
+  test("the one bar's text equivalent names all the checked segments, never color alone", async ({ page }) => {
     const label = new RegExp(
       `${money(SEED.goals.Savings).replace("$", "\\$")} saving.*${money(15000).replace("$", "\\$")} debt payoff`,
     );

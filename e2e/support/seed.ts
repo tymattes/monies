@@ -103,7 +103,6 @@ export async function resetEmpty() {
 export const FIXED_ONLY = {
   incomeCents: 500000,
   overAllocatedCents: 100000,
-  leftAfterBillsCents: 500000 - 194599,
 };
 
 export const resetAndSeed = () => seedHousehold(true);
