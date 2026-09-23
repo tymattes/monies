@@ -140,21 +140,18 @@ describe("overview numbers", () => {
 
     expect(data.cashFlow).toEqual({
       incomeCents: 400000,
-      billsWithinBudgetCents: 160000, // Rent 1,500 + Utilities capped at its 100 budget
-      restOfBudgetCents: 100000, // Housing 500 + Groceries 500
+      billsCents: 163000, // Rent 1,500 + Phone 120 + Domain 10 (uncapped, spec 021)
+      expensesCents: 0,
+      checkedSavingCents: 0, // no goal is checked off in this scenario
+      checkedDebtPayoffCents: 0,
       unallocatedCents: 237000,
       overAllocatedCents: 0,
-      leftAfterBillsCents: 237000, // 4,000 - 1,630
-      spendingCents: 260000, // Housing 2,000 + Utilities 100 + Groceries 500
       savingCents: 0, // "Savings" exists (a starter goal, spec 014) but nothing is budgeted into it
-      debtPayoffCents: 0, // no debt payoff category in this scenario
-      restSpendingCents: 100000, // Housing 500 (2,000 - 1,500 bills) + Groceries 500
-      restSavingCents: 0,
-      restDebtPayoffCents: 0,
+      debtPayoffCents: 0,
     });
   });
 
-  it("sums goal amounts by type into savingCents and debtPayoffCents (spec 013/014)", async () => {
+  it("sums goal targets by type, and splits the bar's checked amounts by type (spec 013/014/021)", async () => {
     const owner = await setupOwner();
     const member = await joinAsMember(owner);
     await scenario(owner, member.cookie);
@@ -164,22 +161,23 @@ describe("overview numbers", () => {
     await goalBudget(owner, "Roth IRA", 20000);
     await goalBudget(owner, "Credit card", 15000);
 
-    const { data } = await overview(owner);
-    expect(data.cashFlow.spendingCents).toBe(260000); // Housing 2,000 + Utilities 100 + Groceries 500 (categories only)
-    expect(data.cashFlow.savingCents).toBe(50000); // Savings 300 + Roth IRA 200
-    expect(data.cashFlow.debtPayoffCents).toBe(15000);
-    // The three types add up to the categories total plus the goals total —
-    // still counted in Unallocated, not extra money.
-    const { spendingCents, savingCents, debtPayoffCents, billsWithinBudgetCents, restOfBudgetCents } = data.cashFlow;
-    expect(spendingCents).toBe(billsWithinBudgetCents + restOfBudgetCents);
-    expect(spendingCents + savingCents + debtPayoffCents).toBe(data.budget.budgetedCents);
+    const before = (await overview(owner)).data;
+    // Headline stats show the full targets, checked or not.
+    expect(before.cashFlow.savingCents).toBe(50000); // Savings 300 + Roth IRA 200
+    expect(before.cashFlow.debtPayoffCents).toBe(15000);
+    // Nothing is checked off yet, so the bar draws no goal segment.
+    expect(before.cashFlow.checkedSavingCents).toBe(0);
+    expect(before.cashFlow.checkedDebtPayoffCents).toBe(0);
 
-    // Goals have no bills, so their "rest" is always their full amount —
-    // unlike a category, there is no bills-vs-rest distinction to make.
-    const { restSpendingCents, restSavingCents, restDebtPayoffCents } = data.cashFlow;
-    expect(restSavingCents).toBe(savingCents);
-    expect(restDebtPayoffCents).toBe(debtPayoffCents);
-    expect(restSpendingCents).toBe(restOfBudgetCents);
+    // Checking off a goal moves it from Unallocated into the bar's checked segment.
+    const unchecked = before.cashFlow.unallocatedCents;
+    await checkGoal(owner, "Savings", "2026-09", true);
+    const after = (await overview(owner)).data;
+    expect(after.cashFlow.checkedSavingCents).toBe(30000);
+    expect(after.cashFlow.checkedDebtPayoffCents).toBe(0);
+    expect(after.cashFlow.unallocatedCents).toBe(unchecked - 30000);
+    // The full-target headline stat is untouched by the check-off.
+    expect(after.cashFlow.savingCents).toBe(50000);
   });
 
   it("exposes the month's goals (spec 015 — Overview's Goals card)", async () => {
@@ -196,16 +194,17 @@ describe("overview numbers", () => {
     ]);
   });
 
-  it("always splits the budget exactly, and Unallocated is income minus bills/expenses/checked goals (spec 022)", async () => {
+  it("the bar's four terms sum to income: bills + expenses + checked goals + unallocated (spec 021)", async () => {
     const owner = await setupOwner();
     const member = await joinAsMember(owner);
     await scenario(owner, member.cookie);
-    const { cashFlow: c, budget: b, income, bills } = (await overview(owner)).data;
-    // The budgeted split still sums to the budgeted total (unchanged); but
-    // Unallocated no longer fills the gap to income — it is income minus the
-    // real commitments (spec 022), independent of what's budgeted.
-    expect(c.billsWithinBudgetCents + c.restOfBudgetCents).toBe(b.budgetedCents);
-    expect(c.unallocatedCents).toBe(income.totalCents - bills.totalCents); // 4,000 - 1,630
+    await addGoal(owner, "Roth IRA", "saving");
+    await goalBudget(owner, "Savings", 30000);
+    await checkGoal(owner, "Savings", "2026-09", true);
+    const { cashFlow: c, income } = (await overview(owner)).data;
+    // 1,630 bills + 0 expenses + 300 checked goals + 2,070 unallocated = 4,000 income.
+    expect(c.billsCents + c.expensesCents + c.checkedSavingCents + c.checkedDebtPayoffCents + c.unallocatedCents).toBe(income.totalCents);
+    expect(c.unallocatedCents).toBe(207000);
   });
 
   it("uses the same Unallocated as the budget API and the category rows match it", async () => {
@@ -217,8 +216,8 @@ describe("overview numbers", () => {
     expect(data.budget.unallocatedCents).toBe(api.json.unallocatedCents);
     expect(data.income.totalCents).toBe(api.json.incomeCents);
     expect(data.bills.totalCents).toBe(api.json.billsTotalCents);
-    const apiRows = (api.json.categories as { id: string; name: string; type: string; amountCents: number; billsCents: number; remainingCents: number }[]).map((c) => ({
-      id: c.id, name: c.name, type: c.type, budgetedCents: c.amountCents, billsCents: c.billsCents, leftCents: c.remainingCents,
+    const apiRows = (api.json.categories as { id: string; name: string; type: string; amountCents: number; billsCents: number; expensesCents: number; remainingCents: number }[]).map((c) => ({
+      id: c.id, name: c.name, type: c.type, budgetedCents: c.amountCents, billsCents: c.billsCents, expensesCents: c.expensesCents, leftCents: c.remainingCents,
     }));
     expect(data.categories).toEqual(apiRows);
   });
@@ -263,11 +262,11 @@ describe("attention items", () => {
     const member = await joinAsMember(owner);
     await scenario(owner, member.cookie);
     const { attention } = (await overview(owner)).data;
-    expect(codes(attention)).toEqual(["category_bills_over_budget", "unallocated"]);
+    expect(codes(attention)).toEqual(["category_over_budget", "unallocated"]);
 
     const over = attention[0];
     expect(over).toMatchObject({ severity: "warning", amountCents: 3000, href: "/budget", actionLabel: "Adjust budget" });
-    expect(over.message).toBe("Utilities: bills are $30.00 over its budget.");
+    expect(over.message).toBe("Utilities: is $30.00 over its budget.");
     expect(over.categoryId).toBe(await categoryId(owner, "Utilities"));
 
     // Unallocated is income − bills (spec 022): 4,000 − 1,630 = 2,370.
@@ -275,13 +274,26 @@ describe("attention items", () => {
     expect(attention[1].message).toBe("$2,370.00 is not assigned to a category yet.");
   });
 
+  it("flags a category that goes over budget purely from logged expenses, with no bill at all (spec 021)", async () => {
+    const owner = await setupOwner();
+    await salary(owner, 100000);
+    await budget(owner, "Groceries", 50000);
+    await expense(owner, "Groceries", 60000); // bills 0, expenses 600 > budget 500
+    const { attention } = (await overview(owner)).data;
+    expect(codes(attention)).toEqual(["category_over_budget", "unallocated", "no_bills"]);
+    const over = attention.find((i) => i.code === "category_over_budget")!;
+    expect(over.message).toBe("Groceries: is $100.00 over its budget.");
+    expect(over.amountCents).toBe(10000);
+  });
+
   it("flags over-allocation when real commitments exceed income, not when merely budgeted over (spec 022)", async () => {
     const owner = await setupOwner();
     await salary(owner, 100000);
-    // A logged expense tips real commitments over income, with no bill at all.
+    // A logged expense tips real commitments over income, with no bill at all;
+    // it also puts its (unbudgeted) category over budget (spec 021).
     await expense(owner, "Dining out", 150000);
     const { attention } = (await overview(owner)).data;
-    expect(codes(attention)).toEqual(["over_allocated", "no_bills"]);
+    expect(codes(attention)).toEqual(["over_allocated", "category_over_budget", "no_bills"]);
     expect(attention[0]).toMatchObject({ amountCents: 50000, href: "/budget" });
     expect(attention[0].message).toBe(
       "Bills, expenses and checked-off goals exceed your income by $500.00.",
@@ -312,10 +324,10 @@ describe("attention items", () => {
     expect(codes(data.attention)).toEqual(["no_income", "no_bills"]);
     expect(data.attention.map((i) => i.href)).toEqual(["/income", "/bills"]);
     expect(data.cashFlow).toEqual({
-      incomeCents: 0, billsWithinBudgetCents: 0, restOfBudgetCents: 0,
-      unallocatedCents: 0, overAllocatedCents: 0, leftAfterBillsCents: 0,
-      spendingCents: 0, savingCents: 0, debtPayoffCents: 0,
-      restSpendingCents: 0, restSavingCents: 0, restDebtPayoffCents: 0,
+      incomeCents: 0, billsCents: 0, expensesCents: 0,
+      checkedSavingCents: 0, checkedDebtPayoffCents: 0,
+      unallocatedCents: 0, overAllocatedCents: 0,
+      savingCents: 0, debtPayoffCents: 0,
     });
     expect(data.income.byMember.map((m) => m.name)).toEqual(["Olive Owner"]);
   });
@@ -343,7 +355,7 @@ describe("attention items", () => {
     clock.month = "2026-10";
     const past = (await overview(owner, "2026-09")).data;
     expect(past.editable).toBe(false);
-    expect(codes(past.attention)).toEqual(["category_bills_over_budget"]); // history is still reported
+    expect(codes(past.attention)).toEqual(["category_over_budget"]); // history is still reported
     expect(past.attention.some((i) => i.code === "unallocated" || i.code === "no_income" || i.code === "no_bills")).toBe(false);
 
     clock.month = "2026-10";
@@ -495,7 +507,7 @@ describe("provisional income (spec 010)", () => {
     await variableSource(owner);
     await budget(owner, "Utilities", 10000);
     await bill(owner, "Phone", 15000, "Utilities");
-    const over = (await overview(owner)).data.attention.find((i) => i.code === "category_bills_over_budget")!;
+    const over = (await overview(owner)).data.attention.find((i) => i.code === "category_over_budget")!;
     expect(over.severity).toBe("warning");
   });
 

@@ -28,53 +28,51 @@ function Stat({
   );
 }
 
-// Income split into bills, the rest of the budget (further split into
-// spending/saving/debt payoff once a household uses those types — spec 013),
-// and money not yet assigned. A stacked bar (never a pie or gauge) with a
-// legend that repeats every number, so nothing depends on color alone.
-// Unallocated is drawn as a hatched gap.
+// Income split into what is actually claimed by something real (spec 021/022):
+// Bills, checked-off Saving, checked-off Debt payoff, Expenses, and the
+// Unallocated remainder (drawn as a hatched gap). A stacked bar (never a pie
+// or gauge) with a legend that repeats every number, so nothing depends on
+// color alone. The full Saving/Debt payoff targets stay as headline stats; the
+// bar draws only the checked amount, so the four segments sum to income.
 export default function CashFlowCard({
   overview,
-  billsTotalCents,
   monthName,
   assignHref,
 }: {
   overview: Pick<Overview, "cashFlow" | "currency" | "editable" | "incomeProvisional">;
-  billsTotalCents: number;
   monthName: string;
   assignHref: string;
 }) {
   const { cashFlow: cf, currency, editable, incomeProvisional } = overview;
   const money = (c: number) => formatMoney(c, currency);
-  const budgeted = cf.billsWithinBudgetCents + cf.restOfBudgetCents;
-  const scale = Math.max(cf.incomeCents, budgeted, 1);
+  const committed =
+    cf.billsCents + cf.expensesCents + cf.checkedSavingCents + cf.checkedDebtPayoffCents;
+  const scale = Math.max(cf.incomeCents, committed, 1);
   const pct = (c: number) => `${(c / scale) * 100}%`;
   const over = cf.overAllocatedCents > 0;
-  const billsExceedIncome = cf.leftAfterBillsCents < 0;
   // Variable income may still arrive, so a shortfall is shown plainly rather
   // than as an error (spec 010).
   const overIsError = over && !incomeProvisional;
-  const billsIsError = billsExceedIncome && !incomeProvisional;
   const overWord = incomeProvisional ? "above recorded income" : "over-allocated";
 
-  // The non-bill part of the budget splits into spending/saving/debt payoff
-  // only once there is actually money to show there — a saving category
-  // fully consumed by its own bill has nothing left to draw here (that
-  // money is already inside "bills within budget"). Otherwise the bar keeps
-  // its original two-segment shape and label, unchanged for the common case
-  // of a household that has not used these types.
-  const showType = cf.restSavingCents > 0 || cf.restDebtPayoffCents > 0;
+  const segments = [
+    { key: "bills", label: "Bills", cents: cf.billsCents, cls: "bg-chart-1" },
+    ...(cf.checkedSavingCents > 0
+      ? [{ key: "saving", label: "Saving", cents: cf.checkedSavingCents, cls: "bg-chart-3" }]
+      : []),
+    ...(cf.checkedDebtPayoffCents > 0
+      ? [{ key: "debt", label: "Debt payoff", cents: cf.checkedDebtPayoffCents, cls: "bg-chart-4" }]
+      : []),
+    ...(cf.expensesCents > 0
+      ? [{ key: "expenses", label: "Expenses", cents: cf.expensesCents, cls: "bg-chart-2" }]
+      : []),
+  ];
 
-  const summary = showType
-    ? `Income ${money(cf.incomeCents)}: ${money(cf.billsWithinBudgetCents)} bills within budget, ` +
-      `${money(cf.restSpendingCents)} spending` +
-      (cf.restSavingCents > 0 ? `, ${money(cf.restSavingCents)} saving` : "") +
-      (cf.restDebtPayoffCents > 0 ? `, ${money(cf.restDebtPayoffCents)} debt payoff` : "") +
-      `, ${money(cf.unallocatedCents)} unallocated income` +
-      (over ? `, ${overWord} by ${money(cf.overAllocatedCents)}` : "")
-    : `Income ${money(cf.incomeCents)}: ${money(cf.billsWithinBudgetCents)} bills within budget, ` +
-      `${money(cf.restOfBudgetCents)} rest of budget, ${money(cf.unallocatedCents)} unallocated income` +
-      (over ? `, ${overWord} by ${money(cf.overAllocatedCents)}` : "");
+  const summary =
+    `Income ${money(cf.incomeCents)}: ` +
+    segments.map((s) => `${money(s.cents)} ${s.label.toLowerCase()}`).join(", ") +
+    `, ${money(cf.unallocatedCents)} unallocated income` +
+    (over ? `, ${overWord} by ${money(cf.overAllocatedCents)}` : "");
 
   return (
     <section aria-labelledby="cash-flow-heading" className="space-y-4 rounded-xl border border-border bg-background shadow-sm p-5">
@@ -88,18 +86,7 @@ export default function CashFlowCard({
           value={money(cf.incomeCents)}
           note={incomeProvisional ? "Variable income counts once you record it." : undefined}
         />
-        <Stat label="Bills" value={money(billsTotalCents)} />
-        <Stat
-          label={
-            billsExceedIncome
-              ? incomeProvisional
-                ? "Bills exceed recorded income by"
-                : "Bills exceed income by"
-              : "Left after bills"
-          }
-          value={money(Math.abs(cf.leftAfterBillsCents))}
-          danger={billsIsError}
-        />
+        <Stat label="Bills" value={money(cf.billsCents)} />
         <Stat
           label={
             over
@@ -117,11 +104,9 @@ export default function CashFlowCard({
             </Link>
           )}
         </Stat>
-        {/* Full per-type totals, including any bills (spec 013) — a different,
-            still-useful number from the bar's "rest" segments below, the same
-            relationship the Bills stat already has to "bills within budget".
-            Hidden when zero so a household that hasn't used the type does not
-            see a permanent "$0.00" — the grid wraps these onto their own row. */}
+        {/* Full per-type goal targets (spec 013) — a planning figure, distinct
+            from the bar's checked segments. Hidden when zero so a household
+            that hasn't used the type does not see a permanent "$0.00". */}
         {cf.savingCents > 0 && <Stat label="Saving" value={money(cf.savingCents)} />}
         {cf.debtPayoffCents > 0 && (
           <Stat label="Debt payoff" value={money(cf.debtPayoffCents)} />
@@ -133,36 +118,16 @@ export default function CashFlowCard({
         aria-label={summary}
         className="relative flex h-6 overflow-hidden rounded-md border border-border-strong bg-background"
       >
-        <div
-          className="h-full border-r-2 border-background bg-chart-1"
-          style={{ width: pct(cf.billsWithinBudgetCents) }}
-        />
-        {showType ? (
-          <>
-            <div
-              className="h-full border-r-2 border-background bg-chart-2"
-              style={{ width: pct(cf.restSpendingCents) }}
-            />
-            {cf.restSavingCents > 0 && (
-              <div
-                className="h-full border-r-2 border-background bg-chart-3"
-                style={{ width: pct(cf.restSavingCents) }}
-              />
-            )}
-            {cf.restDebtPayoffCents > 0 && (
-              <div
-                className="h-full border-r-2 border-background bg-chart-4"
-                style={{ width: pct(cf.restDebtPayoffCents) }}
-              />
-            )}
-          </>
-        ) : (
+        {segments.map((s) => (
           <div
-            className="h-full border-r-2 border-background bg-chart-2"
-            style={{ width: pct(cf.restOfBudgetCents) }}
+            key={s.key}
+            className={`h-full border-r-2 border-background ${s.cls}`}
+            style={{ width: pct(s.cents) }}
+            aria-hidden="true"
           />
-        )}
+        ))}
         <div
+          aria-hidden="true"
           className="h-full"
           style={{
             width: pct(cf.unallocatedCents),
@@ -172,6 +137,7 @@ export default function CashFlowCard({
         />
         {over && (
           <div
+            aria-hidden="true"
             className={`absolute inset-y-0 w-0.5 ${overIsError ? "bg-danger" : "bg-foreground"}`}
             style={{ left: pct(cf.incomeCents) }}
           />
@@ -179,50 +145,15 @@ export default function CashFlowCard({
       </div>
 
       <ul className="grid gap-3 text-sm sm:grid-cols-3">
-        <li className="flex items-start gap-2">
-          <span aria-hidden="true" className="mt-1 h-3 w-3 shrink-0 rounded-sm bg-chart-1" />
-          <span>
-            <span className="block text-muted">Bills within budget</span>
-            <span className="block font-medium tabular-nums">{money(cf.billsWithinBudgetCents)}</span>
-          </span>
-        </li>
-        {showType ? (
-          <>
-            <li className="flex items-start gap-2">
-              <span aria-hidden="true" className="mt-1 h-3 w-3 shrink-0 rounded-sm bg-chart-2" />
-              <span>
-                <span className="block text-muted">Spending</span>
-                <span className="block font-medium tabular-nums">{money(cf.restSpendingCents)}</span>
-              </span>
-            </li>
-            {cf.restSavingCents > 0 && (
-              <li className="flex items-start gap-2">
-                <span aria-hidden="true" className="mt-1 h-3 w-3 shrink-0 rounded-sm bg-chart-3" />
-                <span>
-                  <span className="block text-muted">Saving</span>
-                  <span className="block font-medium tabular-nums">{money(cf.restSavingCents)}</span>
-                </span>
-              </li>
-            )}
-            {cf.restDebtPayoffCents > 0 && (
-              <li className="flex items-start gap-2">
-                <span aria-hidden="true" className="mt-1 h-3 w-3 shrink-0 rounded-sm bg-chart-4" />
-                <span>
-                  <span className="block text-muted">Debt payoff</span>
-                  <span className="block font-medium tabular-nums">{money(cf.restDebtPayoffCents)}</span>
-                </span>
-              </li>
-            )}
-          </>
-        ) : (
-          <li className="flex items-start gap-2">
-            <span aria-hidden="true" className="mt-1 h-3 w-3 shrink-0 rounded-sm bg-chart-2" />
+        {segments.map((s) => (
+          <li key={s.key} className="flex items-start gap-2">
+            <span aria-hidden="true" className={`mt-1 h-3 w-3 shrink-0 rounded-sm ${s.cls}`} />
             <span>
-              <span className="block text-muted">Rest of budget</span>
-              <span className="block font-medium tabular-nums">{money(cf.restOfBudgetCents)}</span>
+              <span className="block text-muted">{s.label}</span>
+              <span className="block font-medium tabular-nums">{money(s.cents)}</span>
             </span>
           </li>
-        )}
+        ))}
         <li className="flex items-start gap-2">
           <span
             aria-hidden="true"

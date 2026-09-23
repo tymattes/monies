@@ -9,7 +9,7 @@ import { currentMonth } from "./months";
 export type AttentionCode =
   | "over_allocated"
   | "bills_exceed_income"
-  | "category_bills_over_budget"
+  | "category_over_budget"
   | "unallocated"
   | "no_income"
   | "no_bills"
@@ -31,6 +31,7 @@ export type OverviewCategory = {
   name: string;
   budgetedCents: number;
   billsCents: number;
+  expensesCents: number;
   leftCents: number;
 };
 
@@ -71,32 +72,24 @@ export type Overview = {
   // planning-only figure (spec 022). `unallocatedCents` is income minus
   // bills, expenses and checked-off goals; `overAllocatedCents` when negative.
   budget: { budgetedCents: number; unallocatedCents: number };
-  // Splits the month's income for the stacked bar. `billsWithinBudgetCents +
-  // restOfBudgetCents` always equals the Expense budgeted total (goals are
-  // never billed, so they never enter this split); `unallocatedCents` is
-  // income minus bills/expenses/checked goals when positive,
-  // `overAllocatedCents` when negative. (The bar itself is rebuilt around
-  // real terms in spec 021; until then it still draws the budgeted split.)
+  // The four terms of spec 022's Unallocated formula, for the stacked bar
+  // (spec 021): Bills, Expenses, checked-off Goal contributions, and
+  // Unallocated (the hatched remainder). `unallocatedCents` is
+  // income − bills − expenses − checked goals when positive,
+  // `overAllocatedCents` when negative.
   cashFlow: {
     incomeCents: number;
-    billsWithinBudgetCents: number;
-    restOfBudgetCents: number;
+    billsCents: number;
+    expensesCents: number;
+    checkedSavingCents: number;
+    checkedDebtPayoffCents: number;
     unallocatedCents: number;
     overAllocatedCents: number;
-    leftAfterBillsCents: number;
-    // Full amounts by goal type (spec 013/014), for the headline Saving/Debt
-    // payoff stats. Goals have no bills, so unlike a category these are
-    // already the "unbilled" amount — see rest* below.
-    spendingCents: number;
+    // Full goal targets by type (spec 013/014), for the headline Saving/Debt
+    // payoff stats. These stay planning figures, distinct from the checked
+    // amounts the bar draws (spec 021).
     savingCents: number;
     debtPayoffCents: number;
-    // What the bar actually draws for the non-bill portion. For Expenses
-    // this is `restOfBudgetCents` (there is only one type of category now);
-    // for goals it's identical to the full amount above, since a goal is
-    // never partly consumed by a bill the way a category can be.
-    restSpendingCents: number;
-    restSavingCents: number;
-    restDebtPayoffCents: number;
   };
   categories: OverviewCategory[];
   // Saving/Debt payoff goals for the month (spec 015 — Overview's Goals
@@ -109,7 +102,8 @@ const LARGEST_BILLS = 5;
 
 // Everything the Overview page shows, composed from the budget, income and
 // bills queries so its numbers cannot drift from the Plan pages. Unallocated is
-// always income minus budgeted, the same definition as the Plan summary bar.
+// always income minus bills, expenses and checked-off goals, the same
+// definition as the Plan summary bar (spec 022).
 export async function getOverview(
   ctx: HouseholdContext,
   month: string,
@@ -128,6 +122,7 @@ export async function getOverview(
     name: c.name,
     budgetedCents: c.amountCents,
     billsCents: c.billsCents,
+    expensesCents: c.expensesCents,
     leftCents: c.remainingCents,
   }));
 
@@ -135,24 +130,18 @@ export async function getOverview(
   const sum = (kind: "fixed" | "variable") =>
     sources.filter((s) => s.kind === kind).reduce((t, s) => t + s.amountCents, 0);
 
-  const billsWithinBudgetCents = categories.reduce(
-    (t, c) => t + Math.min(c.billsCents, c.budgetedCents),
-    0,
-  );
-  const restOfBudgetCents = categories.reduce(
-    (t, c) => t + Math.max(c.budgetedCents - c.billsCents, 0),
-    0,
-  );
   const incomeCents = budget.incomeCents;
   // Everything earmarked: Expense budgets and goal amounts alike (spec 014).
   const budgetedCents = budget.totalCents + budget.goalsTotalCents;
   const unallocatedCents = budget.unallocatedCents;
-  const spendingCents = budget.totalCents;
-  const restSpendingCents = restOfBudgetCents;
   const sumGoalsByType = (type: GoalType) =>
     budget.goals.filter((g) => g.type === type).reduce((t, g) => t + g.amountCents, 0);
+  const sumCheckedByType = (type: GoalType) =>
+    budget.goals.filter((g) => g.type === type && g.checked).reduce((t, g) => t + g.amountCents, 0);
   const savingCents = sumGoalsByType("saving");
   const debtPayoffCents = sumGoalsByType("debt payoff");
+  const checkedSavingCents = sumCheckedByType("saving");
+  const checkedDebtPayoffCents = sumCheckedByType("debt payoff");
 
   const attention: AttentionItem[] = [];
   // Income that may still grow (variable deposits not recorded yet) makes a
@@ -185,14 +174,14 @@ export async function getOverview(
     });
   }
   for (const c of categories) {
-    if (c.billsCents > c.budgetedCents) {
+    if (c.leftCents < 0) {
       attention.push({
-        code: "category_bills_over_budget",
+        code: "category_over_budget",
         severity: "warning",
-        message: `${c.name}: bills are ${money(c.billsCents - c.budgetedCents)} over its budget.`,
+        message: `${c.name}: is ${money(-c.leftCents)} over its budget.`,
         href: `/budget${q}`,
         actionLabel: "Adjust budget",
-        amountCents: c.billsCents - c.budgetedCents,
+        amountCents: -c.leftCents,
         categoryId: c.id,
       });
     }
@@ -278,17 +267,14 @@ export async function getOverview(
     budget: { budgetedCents, unallocatedCents },
     cashFlow: {
       incomeCents,
-      billsWithinBudgetCents,
-      restOfBudgetCents,
+      billsCents: budget.billsTotalCents,
+      expensesCents: budget.expensesTotalCents,
+      checkedSavingCents,
+      checkedDebtPayoffCents,
       unallocatedCents: Math.max(unallocatedCents, 0),
       overAllocatedCents: Math.max(-unallocatedCents, 0),
-      leftAfterBillsCents: incomeCents - budget.billsTotalCents,
-      spendingCents,
       savingCents,
       debtPayoffCents,
-      restSpendingCents,
-      restSavingCents: savingCents,
-      restDebtPayoffCents: debtPayoffCents,
     },
     categories,
     goals: budget.goals,

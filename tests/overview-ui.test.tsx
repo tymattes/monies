@@ -11,24 +11,20 @@ import type { AttentionItem, Overview, OverviewCategory, OverviewGoal } from "@/
 
 const cashFlow = {
   incomeCents: 400000,
-  billsWithinBudgetCents: 160000,
-  restOfBudgetCents: 100000,
-  unallocatedCents: 140000,
+  billsCents: 163000,
+  expensesCents: 0,
+  checkedSavingCents: 0,
+  checkedDebtPayoffCents: 0,
+  unallocatedCents: 237000,
   overAllocatedCents: 0,
-  leftAfterBillsCents: 237000,
-  spendingCents: 260000,
   savingCents: 0,
   debtPayoffCents: 0,
-  restSpendingCents: 100000,
-  restSavingCents: 0,
-  restDebtPayoffCents: 0,
 };
 const base = { cashFlow, currency: "USD", editable: true, incomeProvisional: false };
 const card = (o: Partial<typeof base> = {}, cf: Partial<typeof cashFlow> = {}) =>
   renderToStaticMarkup(
     <CashFlowCard
       overview={{ ...base, ...o, cashFlow: { ...cashFlow, ...cf } }}
-      billsTotalCents={163000}
       monthName="September 2026"
       assignHref="/income#assign"
     />,
@@ -38,25 +34,24 @@ describe("CashFlowCard", () => {
   it("shows the headline numbers and a legend that repeats every amount", () => {
     const html = card();
     expect(html).toContain("Cash flow in September 2026");
-    for (const v of ["$4,000.00", "$1,630.00", "$2,370.00", "$1,400.00", "$1,600.00", "$1,000.00"]) {
+    for (const v of ["$4,000.00", "$1,630.00", "$2,370.00"]) {
       expect(html).toContain(v);
     }
-    expect(html).toContain("Left after bills");
     expect(html).toContain("Unallocated Income");
+    expect(html).not.toContain("Left after bills");
     expect(html).not.toContain("Over-allocated");
   });
 
   it("has a text equivalent for the bar and never uses a pie or gauge", () => {
     const html = card();
-    expect(html).toMatch(/role="img"[^>]*aria-label="Income \$4,000\.00: \$1,600\.00 bills within budget, \$1,000\.00 rest of budget, \$1,400\.00 unallocated income"/);
+    expect(html).toMatch(/role="img"[^>]*aria-label="Income \$4,000\.00: \$1,630\.00 bills, \$2,370\.00 unallocated income"/);
     expect(html).not.toMatch(/<svg|<canvas|conic-gradient|radial-gradient/);
   });
 
   it("scales the segments to the income", () => {
     const html = card();
-    expect(html).toContain("width:40%"); // bills 1,600 of 4,000
-    expect(html).toContain("width:25%"); // rest 1,000
-    expect(html).toContain("width:35%"); // unallocated 1,400
+    expect(html).toContain("width:40.75%"); // bills 1,630 of 4,000
+    expect(html).toContain("width:59.25%"); // unallocated 2,370 of 4,000
   });
 
   it("offers Assign only for an editable month with money left", () => {
@@ -66,18 +61,18 @@ describe("CashFlowCard", () => {
   });
 
   it("marks over-allocation with the amount, the income line and the error color", () => {
-    const html = card({}, { restOfBudgetCents: 400000, unallocatedCents: 0, overAllocatedCents: 160000 });
+    const html = card({}, { billsCents: 560000, unallocatedCents: 0, overAllocatedCents: 160000 });
     expect(html).toContain("Over-allocated by");
     expect(html).toContain("$1,600.00");
     expect(html).toContain("over-allocated by $1,600.00"); // in the bar's text equivalent
     expect(html).toContain("bg-danger"); // the income line
     expect(html).not.toContain(">Assign<");
-    // The bar is scaled to the budget (5,600), so the income line (4,000) sits at 71.4%.
+    // The bar is scaled to the commitments (5,600), so the income line (4,000) sits at 71.4%.
     expect(html).toContain("left:71.42857142857143%");
   });
 
   describe("provisional income", () => {
-    const over = { restOfBudgetCents: 400000, unallocatedCents: 0, overAllocatedCents: 160000 };
+    const over = { billsCents: 560000, unallocatedCents: 0, overAllocatedCents: 160000 };
 
     it("shows a shortfall plainly, with the variable-income note and no error color", () => {
       const html = card({ incomeProvisional: true }, over);
@@ -98,23 +93,10 @@ describe("CashFlowCard", () => {
       expect(html).toContain("bg-danger");
       expect(html).not.toContain("Variable income counts");
     });
-
-    it("softens bills that exceed the recorded income", () => {
-      const html = card({ incomeProvisional: true }, { leftAfterBillsCents: -50000 });
-      expect(html).toContain("Bills exceed recorded income by");
-      expect(html).not.toContain("text-danger");
-      expect(card({}, { leftAfterBillsCents: -50000 })).toContain("text-danger");
-    });
-  });
-
-  it("flags bills that exceed income", () => {
-    const html = card({}, { leftAfterBillsCents: -50000 });
-    expect(html).toContain("Bills exceed income by");
-    expect(html).toContain("$500.00");
   });
 
   it("renders an empty bar without dividing by zero", () => {
-    const html = card({}, { incomeCents: 0, billsWithinBudgetCents: 0, restOfBudgetCents: 0, unallocatedCents: 0, overAllocatedCents: 0, leftAfterBillsCents: 0 });
+    const html = card({}, { incomeCents: 0, billsCents: 0, expensesCents: 0, checkedSavingCents: 0, checkedDebtPayoffCents: 0, unallocatedCents: 0, overAllocatedCents: 0 });
     expect(html).not.toContain("NaN");
     expect(html).not.toContain("Infinity");
   });
@@ -144,67 +126,72 @@ describe("CashFlowCard", () => {
       expect(html).toContain(">Debt payoff<");
       // The always-present figures are untouched by the new stats.
       expect(html).toContain("$4,000.00"); // income
-      expect(html).toContain("$1,400.00"); // unallocated
+      expect(html).toContain("$2,370.00"); // unallocated
     });
   });
 
-  describe("the bar splits by type once Saving/Debt payoff is used (spec 013)", () => {
-    it("stays 'Rest of budget' (unchanged) when nothing is saved or paid toward debt", () => {
-      const html = card();
-      expect(html).toContain("Rest of budget");
-      expect(html).not.toMatch(/>Spending</);
-      expect(html).not.toContain("bg-chart-3");
-      expect(html).not.toContain("bg-chart-4");
-    });
-
-    it("a saving category fully consumed by its own bill leaves nothing to show in the bar", () => {
-      // The headline stat still reflects the full budgeted amount; the bar's
-      // "rest" segments only draw money not already inside bills.
-      const html = card({}, { savingCents: 50000, restSavingCents: 0 });
+  describe("the bar draws only checked goal amounts (spec 021)", () => {
+    it("an unchecked goal's target contributes nothing to the bar", () => {
+      // Saving is funded at $500 but unchecked: the headline stat shows it,
+      // the bar segment (checkedSavingCents) does not.
+      const html = card({}, { savingCents: 50000, checkedSavingCents: 0 });
       expect(html).toContain(">Saving<"); // the headline stat
-      expect(html).toContain("Rest of budget"); // the bar stays unsplit
-      expect(html).not.toContain("bg-chart-3");
+      expect(html).not.toContain("bg-chart-3"); // no checked Saving segment in the bar
+      expect(html).not.toContain(">Debt payoff<");
     });
 
-    it("splits into Spending/Saving once there is saving money outside of bills", () => {
-      const html = card({}, { savingCents: 50000, restSavingCents: 50000, restSpendingCents: 50000 });
-      expect(html).toMatch(/>Spending</);
-      expect(html).toContain("bg-chart-3"); // Saving segment
-      expect(html).not.toContain("bg-chart-4"); // no Debt payoff category
-      expect(html).not.toContain("Rest of budget");
+    it("checking a goal off draws its segment and moves it out of Unallocated", () => {
+      const html = card({}, { savingCents: 50000, checkedSavingCents: 50000, unallocatedCents: 187000 });
+      expect(html).toContain("bg-chart-3"); // checked Saving segment
+      expect(html).not.toContain("bg-chart-4"); // no checked Debt payoff segment
+      expect(html).toMatch(/\$500\.00 saving/);
     });
 
     it("has a text equivalent naming every nonzero segment, never color alone", () => {
       const html = card(
         {},
         {
-          savingCents: 50000, debtPayoffCents: 25000,
-          restSavingCents: 50000, restDebtPayoffCents: 25000, restSpendingCents: 25000,
+          expensesCents: 25000,
+          checkedSavingCents: 50000,
+          checkedDebtPayoffCents: 25000,
+          savingCents: 50000,
+          debtPayoffCents: 25000,
+          unallocatedCents: 137000,
         },
       );
       const label = html.match(/aria-label="([^"]*)"/)?.[1];
-      expect(label).toContain("$250.00 spending");
       expect(label).toContain("$500.00 saving");
       expect(label).toContain("$250.00 debt payoff");
+      expect(label).toContain("$250.00 expenses");
       expect(label).toContain("unallocated income");
     });
 
-    it("the split segments take up the same total width as the one it replaces", () => {
-      // Splitting restOfBudgetCents (100,000, 25% of the 400,000 scale) into
-      // Spending (50,000) and Saving (50,000) draws two 12.5% segments
-      // instead of one 25% segment — the bar's total shape is unchanged.
-      const split = card({}, { savingCents: 50000, restSavingCents: 50000, restSpendingCents: 50000 });
-      expect(split).toContain("width:12.5%");
-      expect((split.match(/width:12\.5%/g) ?? []).length).toBe(2);
-      expect(split).not.toContain("width:25%");
+    it("the four segments and unallocated sum to income", () => {
+      // bills 1,630 + expenses 250 + checked saving 500 + checked debt 250 + unallocated 1,370 = 4,000.
+      const html = card(
+        {},
+        {
+          expensesCents: 25000,
+          checkedSavingCents: 50000,
+          checkedDebtPayoffCents: 25000,
+          savingCents: 50000,
+          debtPayoffCents: 25000,
+          unallocatedCents: 137000,
+        },
+      );
+      expect(html).toContain("width:40.75%"); // bills 1,630 of 4,000
+      expect(html).toContain("width:12.5%"); // saving 500 of 4,000
+      expect(html).toContain("width:6.25%"); // debt 250 of 4,000
+      expect(html).toContain("width:6.25%"); // expenses 250 of 4,000
+      expect(html).toContain("width:34.25%"); // unallocated 1,370 of 4,000
     });
   });
 });
 
 const rows: OverviewCategory[] = [
-  { id: "1", name: "Housing", budgetedCents: 180000, billsCents: 150000, leftCents: 30000 },
-  { id: "2", name: "Utilities", budgetedCents: 35000, billsCents: 42000, leftCents: -7000 },
-  { id: "3", name: "Health", budgetedCents: 0, billsCents: 0, leftCents: 0 },
+  { id: "1", name: "Housing", budgetedCents: 180000, billsCents: 150000, expensesCents: 0, leftCents: 30000 },
+  { id: "2", name: "Utilities", budgetedCents: 35000, billsCents: 42000, expensesCents: 5000, leftCents: -12000 },
+  { id: "3", name: "Health", budgetedCents: 0, billsCents: 0, expensesCents: 0, leftCents: 0 },
 ];
 
 describe("CategoryTable", () => {
@@ -213,27 +200,30 @@ describe("CategoryTable", () => {
   it("is a real table with a caption, column headers and row headers", () => {
     expect(html).toContain("<caption");
     expect(html).toMatch(/<th scope="col"[^>]*>Category<\/th>/);
+    expect(html).toMatch(/<th scope="col"[^>]*>Expenses<\/th>/);
     expect(html).toMatch(/<th scope="row"[^>]*>Housing/);
     expect(html.match(/<th scope="row"/g)?.length).toBe(rows.length + 1); // + the Total row
   });
 
-  it("shows budgeted, bills and left, with a negative Left in the error color", () => {
+  it("shows budgeted, bills, expenses and left, with a negative Left in the error color", () => {
     expect(html).toContain("$1,800.00");
     expect(html).toContain("$1,500.00");
     expect(html).toContain("$300.00");
-    expect(html).toMatch(/text-danger[^>]*>-\$70\.00</);
+    expect(html).toContain("$50.00"); // Utilities' expenses
+    expect(html).toMatch(/text-danger[^>]*>-\$120\.00</); // Utilities: budgeted 350 − bills 420 − expenses 50
     expect(html).not.toMatch(/text-danger[^>]*>\$300\.00</);
   });
 
   it("totals the columns", () => {
     expect(html).toContain("$2,150.00"); // budgeted 1,800 + 350
     expect(html).toContain("$1,920.00"); // bills 1,500 + 420
-    expect(html).toContain("$230.00"); // left = budgeted - bills
+    expect(html).toContain("$50.00"); // expenses 0 + 50
+    expect(html).toContain("$180.00"); // left = (1,800 + 350) − (1,500 + 420) − 50
   });
 
   it("draws a budget marker and an over-budget segment only where they apply", () => {
     const utilities = html.split("Utilities")[1].split("</tr>")[0];
-    expect(utilities).toContain("bg-danger"); // bills past the budget
+    expect(utilities).toContain("bg-danger"); // spend (bills + expenses) past the budget
     const housing = html.split("Housing")[1].split("</tr>")[0];
     expect(housing).not.toContain("bg-danger");
     const health = html.split("Health")[1].split("</tr>")[0];
@@ -241,8 +231,9 @@ describe("CategoryTable", () => {
     expect(html).toContain('aria-hidden="true"'); // bars are decorative; the numbers carry the meaning
   });
 
-  it("does not offer a Spent column yet", () => {
-    expect(html).not.toMatch(/>Spent</);
+  it("describes the bar as actual spend against budget, with no future promise", () => {
+    expect(html).toContain("actually spent");
+    expect(html).not.toContain("will appear here");
   });
 
   it("is a flat table, with no type grouping (spec 014: Saving/Debt payoff moved to goals)", () => {
@@ -252,7 +243,7 @@ describe("CategoryTable", () => {
 });
 
 const items: AttentionItem[] = [
-  { code: "category_bills_over_budget", severity: "warning", message: "Utilities: bills are $70.00 over its budget.", href: "/budget", actionLabel: "Adjust budget", categoryId: "c1", amountCents: 7000 },
+  { code: "category_over_budget", severity: "warning", message: "Utilities: is $70.00 over its budget.", href: "/budget", actionLabel: "Adjust budget", categoryId: "c1", amountCents: 7000 },
   { code: "unallocated", severity: "info", message: "$900.00 is not assigned to a category yet.", href: "/income#assign", actionLabel: "Assign", amountCents: 90000 },
 ];
 
