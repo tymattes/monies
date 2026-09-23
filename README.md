@@ -2,7 +2,19 @@
 
 A self-hosted, household-centric budgeting app. Web first, with a companion iOS app planned.
 
-**Status:** early development. The app shell, database, household sign-in and invites, and monthly category budgets, and income exist so far; features are being added one spec at a time (see [`specs/`](specs/)).
+**Status:** early development. Specs 001–023 are implemented — households, sign-in and invites, categories and monthly budgets, income, bills, saving and debt-payoff goals, expenses, and the Overview hub are all working; the remaining roadmap (receipt capture, trends, iOS app) lands one spec at a time (see [`specs/`](specs/)).
+
+## Philosophy
+
+Monies is organised around a monthly rhythm: plan the month, record what happens, then check in and act.
+
+- **Plan.** Set up the month ahead of time. Enter income, your recurring bills, your goals (savings and debt payoff to complete this month), and a budget for each spending category. Plans are forward-looking: change one and it applies from that month on, leaving past months untouched.
+- **Expenses.** Record what actually happened, with as little friction as possible (receipt capture is planned). An expense is a fact, not a plan — log it and it counts against a category immediately, for any date up to today.
+- **Overview.** The hub you return to: how the month is going, and what still needs doing. It's where the plan meets reality. It points you at the three recurring tasks — assigning leftover income to savings, logging expenses, and checking off goals — and shows the detail (category status, warnings, per-domain summaries) behind each.
+
+Underneath all three is one distinction: **a plan is not a commitment.** A category budget and an unchecked goal reserve nothing; only a bill, a logged expense, or a checked-off goal actually claims income. That is why Unallocated Income means income minus those real commitments — until you check a goal off or log the spend, the money is still yours to place.
+
+Monies is deliberately disconnected from your bank accounts, and it doesn't try to be exact. You log spending by hand, so the picture is only as complete as what you record — the goal is an honest sense of how your real expenses map to your income and budget, not a reconciled ledger.
 
 ## Principles
 

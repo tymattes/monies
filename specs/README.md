@@ -30,10 +30,11 @@ Monies is built spec-first. `brief.md` is the source of truth for product intent
 | 013 | [Saving and Debt payoff totals on the Overview cash-flow card](013-overview-saving-debt-totals.md) | implemented |
 | 014 | [Savings and Debt payoff as goals, separate from budgets](014-savings-debt-goals.md) | implemented |
 | 015 | [Goals under Plan, Assign moves to Income, a check-off reminder, a Goals overview card, "Unallocated Income"](015-plan-goals-and-assign-on-income.md) | implemented |
-| 016 | [Allocation UX — informed splits, a cleaner Assign panel](016-allocation-ux.md) | draft |
-| 017 | [Assign is a one-month top-up, not a permanent raise](017-assign-one-month-topup.md) | draft |
-| 018 | [Resume browser testing and reconcile the e2e suite](018-resume-browser-tests.md) | draft |
-| 019 | [Expenses — logging actual spend against a category](019-expenses.md) | draft |
-| 020 | [Assign no longer targets a budget category directly](020-assign-goals-only.md) | draft |
-| 022 | [Unallocated reflects commitments, not plans](022-unallocated-reflects-commitments.md) | draft |
-| 023 | [Overview sections — Budget, Expenses, and per-domain actions](023-overview-sections-and-actions.md) | draft |
+| 016 | [Allocation UX — informed splits, a cleaner Assign panel](016-allocation-ux.md) | implemented |
+| 017 | [Assign is a one-month top-up, not a permanent raise](017-assign-one-month-topup.md) | implemented |
+| 018 | [Resume browser testing and reconcile the e2e suite](018-resume-browser-tests.md) | implemented |
+| 019 | [Expenses — logging actual spend against a category](019-expenses.md) | implemented |
+| 020 | [Assign no longer targets a budget category directly](020-assign-goals-only.md) | implemented |
+| 021 | [Overview shows budget vs. actual](021-overview-budget-vs-actual.md) | implemented |
+| 022 | [Unallocated reflects commitments, not plans](022-unallocated-reflects-commitments.md) | implemented |
+| 023 | [Overview sections — Budget, Expenses, and per-domain actions](023-overview-sections-and-actions.md) | implemented |

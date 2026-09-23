@@ -1,6 +1,6 @@
 # 018: Resume browser testing and reconcile the e2e suite
 
-**Status:** draft
+**Status:** implemented
 
 ## Goal
 Browser testing was paused (owner's call) to cut token usage, but running

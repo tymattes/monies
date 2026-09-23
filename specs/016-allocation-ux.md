@@ -1,6 +1,6 @@
 # 016: Allocation UX — informed splits, a cleaner Assign panel
 
-**Status:** draft
+**Status:** implemented
 
 ## Goal
 The Assign panel (spec 015, on the Income page) lets a household put its

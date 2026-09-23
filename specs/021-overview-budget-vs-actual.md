@@ -1,6 +1,6 @@
 # 021: Overview shows budget vs. actual
 
-**Status:** draft
+**Status:** implemented
 
 ## Goal
 The categories table has said "Actual spending will appear here once
