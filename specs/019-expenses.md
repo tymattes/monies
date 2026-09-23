@@ -1,6 +1,6 @@
 # 019: Expenses — logging actual spend against a category
 
-**Status:** draft
+**Status:** implemented
 
 ## Goal
 Every other number in this app is a plan: a category's budget, a bill's

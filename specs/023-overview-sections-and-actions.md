@@ -1,6 +1,6 @@
 # 023: Overview sections — Budget, Expenses, and per-domain actions
 
-**Status:** draft
+**Status:** implemented
 
 ## Goal
 The Overview page grew one card at a time (spec 008, 013, 015, 021) and
