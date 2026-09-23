@@ -53,7 +53,6 @@ export default async function OverviewPage(props: PageProps<"/">) {
           <AttentionList items={o.attention} />
           <CashFlowCard
             overview={o}
-            billsTotalCents={o.bills.totalCents}
             monthName={monthLabel(month)}
             assignHref={`/income${q}#assign`}
           />
