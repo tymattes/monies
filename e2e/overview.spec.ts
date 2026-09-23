@@ -82,6 +82,11 @@ test.describe("with a seeded household", () => {
     await expect(page.getByRole("region", { name: "Plan summary" })).toContainText(money(SEED.unallocatedCents));
   });
 
+  test("the Budget section is headed 'Budget' with an Edit budget link", async ({ page }) => {
+    const budget = page.getByRole("heading", { name: "Budget", exact: true }).locator("..");
+    await expect(budget.getByRole("link", { name: "Edit budget" })).toHaveAttribute("href", "/budget");
+  });
+
   test("the category table matches the seeded budget, bills and what is left", async ({ page }) => {
     const table = page.getByRole("table");
     for (const c of expectedCategoryRows()) {
@@ -143,7 +148,7 @@ test.describe("with a seeded household", () => {
     await expect(income).toContainText(`Variable (deposits)${money(SEED.freelanceCents)}`);
     await expect(income).toContainText("Olive Owner");
     await expect(income).toContainText("Mia Member");
-    await income.getByRole("link", { name: /Manage/ }).click();
+    await income.getByRole("link", { name: "Add income" }).click();
     await expect(page).toHaveURL(/\/income/);
   });
 
@@ -156,8 +161,15 @@ test.describe("with a seeded household", () => {
     await expect(largest.first()).toContainText(money(150000));
     // The yearly bill is only 10.00 a month, so it is not among the five largest.
     await expect(bills.getByText("Cloud storage")).toHaveCount(0);
-    await bills.getByRole("link", { name: /Manage/ }).click();
+    await bills.getByRole("link", { name: "Add bill" }).click();
     await expect(page).toHaveURL(/\/bills/);
+  });
+
+  test("the expenses card explains a month with nothing logged and links to Expenses", async ({ page }) => {
+    const expenses = page.getByRole("region", { name: "Expenses", exact: true });
+    await expect(expenses).toContainText("No expenses logged this month yet.");
+    await expenses.getByRole("link", { name: "Log expense" }).click();
+    await expect(page).toHaveURL(/\/expenses/);
   });
 
   test("the goals card shows the seeded Saving goal with its amount and check-off status (spec 015)", async ({ page }) => {
@@ -167,7 +179,7 @@ test.describe("with a seeded household", () => {
     await expect(goals).toContainText("Savings");
     await expect(goals).toContainText("Not checked off yet");
     await expect(goals).not.toContainText("Debt payoff");
-    await goals.getByRole("link", { name: /Manage/ }).click();
+    await goals.getByRole("link", { name: "Check off" }).click();
     await expect(page).toHaveURL(/\/goals/);
   });
 
@@ -193,7 +205,7 @@ test.describe("with a seeded household", () => {
     // Next month has unallocated income (not over-allocated), so Assign is offered.
     const free = list.getByRole("listitem").filter({ hasText: "is not assigned" });
     await expect(free.getByRole("link", { name: "Assign" })).toHaveAttribute("href", new RegExp(`/income\\?month=${next}#assign`));
-    await expect(page.getByRole("region", { name: "Income", exact: true }).getByRole("link", { name: /Manage/ })).toHaveAttribute("href", `/income?month=${next}`);
+    await expect(page.getByRole("region", { name: "Income", exact: true }).getByRole("link", { name: "Add income" })).toHaveAttribute("href", `/income?month=${next}`);
   });
 
   test("a past month is read-only: no Assign and no setup prompts", async ({ page }) => {
@@ -343,6 +355,7 @@ for (const [scheme, page, card, subtle] of [
         p.getByRole("region", { name: /^Cash flow in/ }),
         p.getByRole("region", { name: "Income", exact: true }),
         p.getByRole("region", { name: "Bills", exact: true }),
+        p.getByRole("region", { name: "Expenses", exact: true }),
         p.getByRole("region", { name: "Goals", exact: true }),
         p.getByRole("region", { name: "Needs attention" }).getByRole("listitem").first(),
       ];
