@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useState } from "react";
+import { useRouter } from "next/navigation";
 import { groupByType, type GoalType } from "@/lib/goalTypes";
 import { api } from "@/lib/client";
 import { formatMoney, parseMoney, toInputString } from "@/lib/money";
@@ -39,6 +40,7 @@ export default function GoalEditor({
     Object.fromEntries(lines.map((l) => [l.id, l.checked])),
   );
   const [status, setStatus] = useState<Record<string, string>>({});
+  const router = useRouter();
 
   function note(id: string, message: string) {
     setStatus((s) => ({ ...s, [id]: message }));
@@ -59,6 +61,7 @@ export default function GoalEditor({
     setSaved((s) => ({ ...s, [id]: minor }));
     setDrafts((d) => ({ ...d, [id]: toInputString(minor, currency) }));
     note(id, "Saved");
+    router.refresh(); // keep the Plan summary's Unallocated Income current
   }
 
   async function toggle(id: string) {
@@ -67,7 +70,8 @@ export default function GoalEditor({
     const { ok } = await api(`/api/goals/month/${month}/checkins/${id}`, "PUT", {
       checked: next,
     });
-    if (!ok) setChecked((c) => ({ ...c, [id]: !next })); // revert
+    if (!ok) return setChecked((c) => ({ ...c, [id]: !next })); // revert
+    router.refresh(); // keep the Plan summary's Unallocated Income current
   }
 
   if (lines.length === 0) {
