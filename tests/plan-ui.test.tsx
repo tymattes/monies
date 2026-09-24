@@ -54,7 +54,7 @@ describe("PlanSummary", () => {
   it("renders each task as a link chip, Assign among them like any other (spec 033)", () => {
     const html = renderToStaticMarkup(<PlanSummary {...base} tasks={[assignTask]} />);
     expect(html).toContain('aria-label="Tasks"');
-    expect(html).toMatch(/<a[^>]*href="\/goals\?month=2026-09#assign"[^>]*>Assign \$1,672\.00<\/a>/);
+    expect(html).toMatch(/<a[^>]*href="\/goals\?month=2026-09#assign"[^>]*>Assign Income to Goal<\/a>/);
   });
 
   it("names the goal in a check-off chip, so two goals aren't indistinguishable", () => {
@@ -63,8 +63,8 @@ describe("PlanSummary", () => {
       { code: "goal_not_checked", severity: "info", message: "Vacation hasn't been checked off yet this month.", href: "/goals", actionLabel: "Check off", goalId: "2", subject: "Vacation" },
     ];
     const html = renderToStaticMarkup(<PlanSummary {...base} tasks={checkOffs} />);
-    expect(html).toContain(">Check off Savings<");
-    expect(html).toContain(">Check off Vacation<");
+    expect(html).toContain(">Check off Savings goal<");
+    expect(html).toContain(">Check off Vacation goal<");
   });
 
   it("marks a warning task with the error color and a spoken Warning prefix", () => {
