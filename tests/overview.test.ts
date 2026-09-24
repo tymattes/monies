@@ -271,7 +271,7 @@ describe("attention items", () => {
 
     // Unallocated is income − bills (spec 022): 4,000 − 1,630 = 2,370.
     expect(attention[1]).toMatchObject({ severity: "info", amountCents: 237000, href: "/income#assign", actionLabel: "Assign" });
-    expect(attention[1].message).toBe("$2,370.00 is not assigned to a category yet.");
+    expect(attention[1].message).toBe("$2,370.00 is still unallocated — assign it to a goal.");
   });
 
   it("flags a category that goes over budget purely from logged expenses, with no bill at all (spec 021)", async () => {
@@ -377,7 +377,7 @@ describe("attention items", () => {
     expect(data.currency).toBe("EUR");
     // Unallocated = income − bills (spec 022): €1,000 with no bills, since
     // the €200 budgeted reserves nothing.
-    expect(data.attention.find((i) => i.code === "unallocated")!.message).toBe("€1,000.00 is not assigned to a category yet.");
+    expect(data.attention.find((i) => i.code === "unallocated")!.message).toBe("€1,000.00 is still unallocated — assign it to a goal.");
   });
 });
 

@@ -125,7 +125,7 @@ test.describe("with a seeded household", () => {
     await expect(over).toContainText("Warning:");
     await expect(over.getByRole("link", { name: "Adjust budget" })).toHaveAttribute("href", "/budget");
 
-    const free = list.getByRole("listitem").filter({ hasText: `${money(SEED.unallocatedCents)} is not assigned` });
+    const free = list.getByRole("listitem").filter({ hasText: `${money(SEED.unallocatedCents)} is still unallocated` });
     await expect(free.getByRole("link", { name: "Assign" })).toHaveAttribute("href", /\/income(\?month=[\d-]+)?#assign$/);
 
     // The seeded Savings goal is funded but unchecked this month (spec 015).
@@ -198,12 +198,12 @@ test.describe("with a seeded household", () => {
     // card, not as an alarm in the list.
     await expect(cashFlow(page)).toContainText("Variable income counts once you record it.");
     const list = page.getByRole("region", { name: "Needs attention" });
-    await expect(list).toContainText(`${money(SEED.salaryCents - SEED.billsCents)} is not assigned`);
+    await expect(list).toContainText(`${money(SEED.salaryCents - SEED.billsCents)} is still unallocated`);
     // The Utilities item (bills past a category's own budget) is still a warning.
     await expect(list.getByRole("listitem").filter({ hasText: "Utilities: is" })).toContainText("Warning:");
     await expect(list.getByRole("link", { name: "Adjust budget" })).toHaveAttribute("href", `/budget?month=${next}`);
     // Next month has unallocated income (not over-allocated), so Assign is offered.
-    const free = list.getByRole("listitem").filter({ hasText: "is not assigned" });
+    const free = list.getByRole("listitem").filter({ hasText: "is still unallocated" });
     await expect(free.getByRole("link", { name: "Assign" })).toHaveAttribute("href", new RegExp(`/income\\?month=${next}#assign`));
     await expect(page.getByRole("region", { name: "Income", exact: true }).getByRole("link", { name: "Add income" })).toHaveAttribute("href", `/income?month=${next}`);
   });
@@ -260,7 +260,7 @@ test.describe("an empty household", () => {
   test("explains what to add first, in order, with links", async ({ page }) => {
     await expect(page.getByRole("heading", { name: "Let's get your month set up" })).toBeVisible();
     const steps = page.getByRole("region", { name: /get your month set up/ }).getByRole("link");
-    await expect(steps).toHaveText(["Add your income", "Set your category budgets", "Add your recurring bills"]);
+    await expect(steps).toHaveText(["Add your income", "Set your category budgets", "Add your recurring bills", "Review your goals"]);
     await expect(steps.nth(0)).toHaveAttribute("href", "/income");
     await expect(cashFlow(page)).toHaveCount(0);
     await expect(page.getByRole("region", { name: "Needs attention" })).toHaveCount(0);

@@ -250,7 +250,7 @@ describe("CategoryTable", () => {
 
 const items: AttentionItem[] = [
   { code: "category_over_budget", severity: "warning", message: "Utilities: is $70.00 over its budget.", href: "/budget", actionLabel: "Adjust budget", categoryId: "c1", amountCents: 7000 },
-  { code: "unallocated", severity: "info", message: "$900.00 is not assigned to a category yet.", href: "/income#assign", actionLabel: "Assign", amountCents: 90000 },
+  { code: "unallocated", severity: "info", message: "$900.00 is still unallocated — assign it to a goal.", href: "/income#assign", actionLabel: "Assign", amountCents: 90000 },
 ];
 
 describe("AttentionList", () => {
@@ -370,9 +370,14 @@ describe("ExpensesCard", () => {
 });
 
 describe("GetStarted", () => {
-  it("links the three setup steps in order, keeping the month", () => {
+  it("links the four setup steps in order, keeping the month", () => {
     const html = renderToStaticMarkup(<GetStarted query="?month=2026-10" />);
     const hrefs = [...html.matchAll(/href="([^"]+)"/g)].map((m) => m[1]);
-    expect(hrefs).toEqual(["/income?month=2026-10", "/budget?month=2026-10", "/bills?month=2026-10"]);
+    expect(hrefs).toEqual([
+      "/income?month=2026-10",
+      "/budget?month=2026-10",
+      "/bills?month=2026-10",
+      "/goals?month=2026-10",
+    ]);
   });
 });
