@@ -137,7 +137,7 @@ describe("HeaderNav", () => {
     expect([...html.matchAll(/<a[^>]*>([^<]*)<\/a>/g)].map((m) => m[1])).toEqual([
       "Overview", "Plan", "Expenses", "Members",
     ]);
-    expect(html).toContain('href="/budget"'); // Plan opens Budget
+    expect(html).toContain('href="/income"'); // Plan opens Income
   });
 
   it.each([
