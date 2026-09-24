@@ -1,6 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import AttentionList from "@/components/overview/AttentionList";
 import BillsCard from "@/components/overview/BillsCard";
 import CashFlowCard from "@/components/overview/CashFlowCard";
 import CategoryTable from "@/components/overview/CategoryTable";
@@ -8,7 +7,8 @@ import ExpensesCard from "@/components/overview/ExpensesCard";
 import GetStarted from "@/components/overview/GetStarted";
 import GoalsCard from "@/components/overview/GoalsCard";
 import IncomeCard from "@/components/overview/IncomeCard";
-import type { AttentionItem, Overview, OverviewCategory, OverviewGoal } from "@/lib/overview";
+import TaskList from "@/components/overview/TaskList";
+import type { Overview, OverviewCategory, OverviewGoal, Task } from "@/lib/overview";
 
 const cashFlow = {
   incomeCents: 400000,
@@ -21,13 +21,12 @@ const cashFlow = {
   savingCents: 0,
   debtPayoffCents: 0,
 };
-const base = { cashFlow, currency: "USD", editable: true, incomeProvisional: false };
+const base = { cashFlow, currency: "USD", incomeProvisional: false };
 const card = (o: Partial<typeof base> = {}, cf: Partial<typeof cashFlow> = {}) =>
   renderToStaticMarkup(
     <CashFlowCard
       overview={{ ...base, ...o, cashFlow: { ...cashFlow, ...cf } }}
       monthName="September 2026"
-      assignHref="/income#assign"
     />,
   );
 
@@ -55,9 +54,8 @@ describe("CashFlowCard", () => {
     expect(html).toContain("width:59.25%"); // unallocated 2,370 of 4,000
   });
 
-  it("offers Assign only for an editable month with money left", () => {
-    expect(card()).toMatch(/<a[^>]*href="\/income#assign"[^>]*>Assign<\/a>/);
-    expect(card({ editable: false })).not.toContain(">Assign<");
+  it("never shows its own Assign button — it's a Tasks entry instead (spec 032)", () => {
+    expect(card()).not.toContain(">Assign<");
     expect(card({}, { unallocatedCents: 0, overAllocatedCents: 0 })).not.toContain(">Assign<");
   });
 
@@ -248,21 +246,21 @@ describe("CategoryTable", () => {
   });
 });
 
-const items: AttentionItem[] = [
+const items: Task[] = [
   { code: "category_over_budget", severity: "warning", message: "Utilities: is $70.00 over its budget.", href: "/budget", actionLabel: "Adjust budget", categoryId: "c1", amountCents: 7000 },
-  { code: "unallocated", severity: "info", message: "$900.00 is still unallocated — assign it to a goal.", href: "/income#assign", actionLabel: "Assign", amountCents: 90000 },
+  { code: "unallocated", severity: "info", message: "$900.00 is still unallocated — assign it to a goal.", href: "/goals#assign", actionLabel: "Assign", amountCents: 90000 },
 ];
 
-describe("AttentionList", () => {
+describe("TaskList (spec 032)", () => {
   it("renders nothing when there is nothing to say", () => {
-    expect(renderToStaticMarkup(<AttentionList items={[]} />)).toBe("");
+    expect(renderToStaticMarkup(<TaskList items={[]} />)).toBe("");
   });
 
   it("lists each item with its fix link and speaks a Warning prefix for warnings only", () => {
-    const html = renderToStaticMarkup(<AttentionList items={items} />);
-    expect(html).toContain("Needs attention");
+    const html = renderToStaticMarkup(<TaskList items={items} />);
+    expect(html).toContain("Tasks");
     expect(html).toMatch(/<a[^>]*href="\/budget"[^>]*>Adjust budget<\/a>/);
-    expect(html).toMatch(/<a[^>]*href="\/income#assign"[^>]*>Assign<\/a>/);
+    expect(html).toMatch(/<a[^>]*href="\/goals#assign"[^>]*>Assign<\/a>/);
     expect(html.match(/Warning: /g)?.length).toBe(1);
     expect(html).toContain("border-l-danger");
   });

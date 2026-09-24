@@ -129,27 +129,21 @@ test.describe("the summary bar and Assign", () => {
     await expect(bar.getByRole("button", { name: "Assign" })).toHaveCount(0);
   });
 
-  test("Assign in the bar links to the Income panel", async ({ page }) => {
-    await page.goto("/budget");
-    await waitHydrated(page);
-    await summary(page).getByRole("link", { name: "Assign" }).click();
-    await expect(page).toHaveURL(new RegExp(`/income\\?month=${monthKey()}#assign`));
-    await expect(page.locator("#assign select").first()).toBeFocused();
-    await expect(page.locator("#assign")).toBeInViewport();
-  });
-
-  test("Assign from Bills and Goals lands on the Income panel, focused", async ({ page }) => {
-    for (const from of ["/bills", "/goals"]) {
+  test("Assign in the bar links to the Goals panel, from the other Plan pages (spec 032)", async ({ page }) => {
+    // Not /goals itself: clicking Assign while already there is a same-page
+    // hash change, and the panel sits right below the bar with no jump needed.
+    for (const from of ["/budget", "/bills", "/income"]) {
       await page.goto(from);
+      await waitHydrated(page);
       await summary(page).getByRole("link", { name: "Assign" }).click();
-      await expect(page).toHaveURL(new RegExp(`/income\\?month=${monthKey()}#assign`));
+      await expect(page).toHaveURL(new RegExp(`/goals\\?month=${monthKey()}#assign`));
       await expect(page.locator("#assign select").first()).toBeFocused();
       await expect(page.locator("#assign")).toBeInViewport();
     }
   });
 
   test("Assigning everything raises the goal but Unallocated is unchanged, so the panel stays (spec 022)", async ({ page }) => {
-    await page.goto("/income");
+    await page.goto("/goals");
     await waitHydrated(page);
     const panel = page.locator("#assign");
     await panel.getByRole("button", { name: "Assign" }).click();

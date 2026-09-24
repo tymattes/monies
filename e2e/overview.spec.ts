@@ -119,24 +119,29 @@ test.describe("with a seeded household", () => {
     }
   });
 
-  test("needs attention names the over-budget category, the unallocated money, and the unchecked goal, with links", async ({ page }) => {
-    const list = page.getByRole("region", { name: "Needs attention" });
+  test("Tasks names the over-budget category, the unallocated money, and the unchecked goal, with links (spec 032)", async ({ page }) => {
+    const list = page.getByRole("region", { name: "Tasks" });
     const over = list.getByRole("listitem").filter({ hasText: "Utilities: is $70.00 over its budget." });
     await expect(over).toContainText("Warning:");
     await expect(over.getByRole("link", { name: "Adjust budget" })).toHaveAttribute("href", "/budget");
 
     const free = list.getByRole("listitem").filter({ hasText: `${money(SEED.unallocatedCents)} is still unallocated` });
-    await expect(free.getByRole("link", { name: "Assign" })).toHaveAttribute("href", /\/income(\?month=[\d-]+)?#assign$/);
+    await expect(free.getByRole("link", { name: "Assign" })).toHaveAttribute("href", /\/goals(\?month=[\d-]+)?#assign$/);
 
     // The seeded Savings goal is funded but unchecked this month (spec 015).
     const goal = list.getByRole("listitem").filter({ hasText: "Savings hasn't been checked off yet this month." });
     await expect(goal.getByRole("link", { name: "Check off" })).toHaveAttribute("href", "/goals");
-    await expect(list.getByRole("listitem")).toHaveCount(3);
+    // Plus the three permanent monthly reminders (spec 032).
+    await expect(list.getByRole("listitem").filter({ hasText: "Log this month's expenses as they happen." })).toBeVisible();
+    await expect(list.getByRole("listitem").filter({ hasText: "Keep this month's income up to date." })).toBeVisible();
+    await expect(list.getByRole("listitem").filter({ hasText: "Keep this month's recurring bills up to date." })).toBeVisible();
+    await expect(list.getByRole("listitem")).toHaveCount(6);
   });
 
-  test("Assign from the Overview reaches the Income panel, focused", async ({ page }) => {
-    await cashFlow(page).getByRole("link", { name: "Assign" }).click();
-    await expect(page).toHaveURL(/\/income.*#assign/);
+  test("Assign from the Overview's Tasks reaches the Goals panel, focused (spec 032)", async ({ page }) => {
+    const list = page.getByRole("region", { name: "Tasks" });
+    await list.getByRole("listitem").filter({ hasText: "is still unallocated" }).getByRole("link", { name: "Assign" }).click();
+    await expect(page).toHaveURL(/\/goals.*#assign/);
     await expect(page.locator("#assign select").first()).toBeFocused();
     await expect(page.locator("#assign")).toBeInViewport();
   });
@@ -197,14 +202,14 @@ test.describe("with a seeded household", () => {
     // Variable income may still arrive next month (provisional), shown on the
     // card, not as an alarm in the list.
     await expect(cashFlow(page)).toContainText("Variable income counts once you record it.");
-    const list = page.getByRole("region", { name: "Needs attention" });
+    const list = page.getByRole("region", { name: "Tasks" });
     await expect(list).toContainText(`${money(SEED.salaryCents - SEED.billsCents)} is still unallocated`);
     // The Utilities item (bills past a category's own budget) is still a warning.
     await expect(list.getByRole("listitem").filter({ hasText: "Utilities: is" })).toContainText("Warning:");
     await expect(list.getByRole("link", { name: "Adjust budget" })).toHaveAttribute("href", `/budget?month=${next}`);
     // Next month has unallocated income (not over-allocated), so Assign is offered.
     const free = list.getByRole("listitem").filter({ hasText: "is still unallocated" });
-    await expect(free.getByRole("link", { name: "Assign" })).toHaveAttribute("href", new RegExp(`/income\\?month=${next}#assign`));
+    await expect(free.getByRole("link", { name: "Assign" })).toHaveAttribute("href", new RegExp(`/goals\\?month=${next}#assign`));
     await expect(page.getByRole("region", { name: "Income", exact: true }).getByRole("link", { name: "Add income" })).toHaveAttribute("href", `/income?month=${next}`);
   });
 
@@ -212,7 +217,7 @@ test.describe("with a seeded household", () => {
     await page.goto(`/?month=${monthKey(-1)}`);
     await expect(cashFlow(page)).toBeVisible();
     await expect(page.getByRole("link", { name: "Assign" })).toHaveCount(0);
-    await expect(page.getByRole("region", { name: "Needs attention" })).toHaveCount(0);
+    await expect(page.getByRole("region", { name: "Tasks" })).toHaveCount(0);
     await expect(page.getByRole("heading", { name: /get your month set up/ })).toHaveCount(0);
   });
 });
@@ -265,7 +270,7 @@ test.describe("an empty household", () => {
     // The rest of Overview shows too, at its zeroed starting values — no more
     // all-or-nothing swap.
     await expect(cashFlow(page)).toBeVisible();
-    await expect(page.getByRole("region", { name: "Needs attention" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Tasks" })).toBeVisible();
   });
 
   for (const scheme of ["light", "dark"] as const) {
@@ -324,7 +329,7 @@ test.describe("over-committed while variable income may still arrive", () => {
     await expect(card.getByRole("img")).toHaveAttribute("aria-label", /above recorded income by \$1,000\.00/);
     await expect(card.getByRole("link", { name: "Assign" })).toHaveCount(0);
 
-    const item = page.getByRole("region", { name: "Needs attention" }).getByRole("listitem").filter({ hasText: "exceed the income recorded so far" });
+    const item = page.getByRole("region", { name: "Tasks" }).getByRole("listitem").filter({ hasText: "exceed the income recorded so far" });
     await expect(item).toContainText("Bills, expenses and checked-off goals exceed the income recorded so far by $1,000.00. Variable income counts once you record it.");
     await expect(item).not.toContainText("Warning:");
     await expect(item.getByRole("link", { name: "Review budget" })).toBeVisible();
@@ -347,7 +352,7 @@ test.describe("over-committed with only fixed income", () => {
     await expect(card.getByText("Over-allocated by").first()).toHaveCSS("color", LIGHT_DANGER);
     await expect(card.getByRole("img")).toHaveAttribute("aria-label", /over-allocated by \$1,000\.00/);
 
-    const warning = page.getByRole("region", { name: "Needs attention" }).getByRole("listitem").filter({ hasText: "Bills, expenses and checked-off goals exceed your income by $1,000.00." });
+    const warning = page.getByRole("region", { name: "Tasks" }).getByRole("listitem").filter({ hasText: "Bills, expenses and checked-off goals exceed your income by $1,000.00." });
     await expect(warning).toContainText("Warning:");
   });
 });
@@ -373,7 +378,7 @@ for (const [scheme, page, card, subtle] of [
         p.getByRole("region", { name: "Bills", exact: true }),
         p.getByRole("region", { name: "Expenses", exact: true }),
         p.getByRole("region", { name: "Goals", exact: true }),
-        p.getByRole("region", { name: "Needs attention" }).getByRole("listitem").first(),
+        p.getByRole("region", { name: "Tasks" }).getByRole("listitem").first(),
       ];
       for (const region of regions) {
         await expect(region).toHaveCSS("background-color", card);

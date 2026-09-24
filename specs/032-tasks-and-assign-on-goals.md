@@ -1,6 +1,6 @@
 # 032: Needs attention becomes Tasks, and Assign moves to Goals
 
-**Status:** draft
+**Status:** implemented
 
 ## Goal
 
@@ -32,19 +32,19 @@ Usability testing raised two related points about Overview's "Needs attention" l
 
 ## Acceptance criteria
 
-- [ ] Overview's section is titled "Tasks".
-- [ ] Viewing the current month always shows Log expenses, Update income and Update bills, whether or not anything's been entered.
-- [ ] A past or future month never shows those three.
-- [ ] Assign-unallocated appears once, as a Tasks entry, linking to the Goals page's panel — not inside the cash-flow card.
-- [ ] The Assign panel renders near the top of the Goals page and no longer on Income.
-- [ ] A successful assign's confirmation text doesn't link back to Goals from Goals.
-- [ ] Existing warning/info tasks (over-allocated, bills exceed income, category over budget, goal not checked off) keep their current wording and triggers.
-- [ ] Documentation updated (see Documentation).
+- [x] Overview's section is titled "Tasks".
+- [x] Viewing the current month always shows Log expenses, Update income and Update bills, whether or not anything's been entered.
+- [x] A past or future month never shows those three.
+- [x] Assign-unallocated appears once, as a Tasks entry, linking to the Goals page's panel — not inside the cash-flow card.
+- [x] The Assign panel renders near the top of the Goals page and no longer on Income.
+- [x] A successful assign's confirmation text doesn't link back to Goals from Goals.
+- [x] Existing warning/info tasks (over-allocated, bills exceed income, category over budget, goal not checked off) keep their current wording and triggers.
+- [x] Documentation updated (see Documentation).
 
 ## Technical notes
 
-- `src/lib/overview.ts`: drop the `no_income`/`no_bills` codes and their conditions; add unconditional `log_expenses`/`update_income`/`update_bills` items gated on `month === currentMonth()`; change the `unallocated` item's `href` to `/goals${q}#assign`. Renaming `AttentionCode`/`AttentionItem`/the `attention` field to `TaskCode`/`Task`/`tasks` is worth doing for clarity now that the concept has changed, but is a rename, not new behavior — call it out in the PR rather than gating on it here.
-- `src/components/overview/AttentionList.tsx`: heading text "Needs attention" → "Tasks" (component/file rename optional, same reasoning as above).
+- `src/lib/overview.ts`: drop the `no_income`/`no_bills` codes and their conditions; add unconditional `log_expenses`/`update_income`/`update_bills` items gated on `month === currentMonth()`; change the `unallocated` item's `href` to `/goals${q}#assign`. Done: renamed `AttentionCode`/`AttentionItem`/the `attention` field to `TaskCode`/`Task`/`tasks` for clarity now that the concept has changed.
+- `src/components/overview/AttentionList.tsx`: renamed to `TaskList.tsx`; heading text "Needs attention" → "Tasks".
 - `src/components/overview/CashFlowCard.tsx`: remove the `assignHref` prop and the "Assign" link inside the Unallocated stat; `src/app/page.tsx` drops the prop it was passing.
 - `src/app/goals/page.tsx`: render `<AssignUnallocated>` using the `budget` it already fetches for `planSummaryFromBudget` (no new query), guarded the same way the Income page guards it today (`budget.editable && budget.unallocatedCents > 0`).
 - `src/app/income/page.tsx`: remove the `AssignUnallocated` block; keep the `budget` fetch, still needed for `planSummaryFromBudget`.

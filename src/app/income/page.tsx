@@ -1,6 +1,5 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import AssignUnallocated from "@/components/AssignUnallocated";
 import IncomeView from "@/components/IncomeView";
 import PlanHeader from "@/components/PlanHeader";
 import { getBudget } from "@/lib/budgets";
@@ -36,16 +35,6 @@ export default async function IncomePage(props: PageProps<"/income">) {
         today={currentDate()}
         income={income}
       />
-      {budget.editable && budget.unallocatedCents > 0 && (
-        <AssignUnallocated
-          key={budget.unallocatedCents}
-          month={month}
-          monthName={monthLabel(month)}
-          currency={budget.currency}
-          goals={budget.goals}
-          unallocated={budget.unallocatedCents}
-        />
-      )}
     </main>
   );
 }
