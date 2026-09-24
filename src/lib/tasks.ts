@@ -21,6 +21,10 @@ export type Task = {
   amountCents?: number;
   categoryId?: string;
   goalId?: string;
+  // A short name for what the task is about (a goal's name, so far) —
+  // Overview's full-sentence cards don't need it, but the Plan summary's
+  // compact chips do, to tell two goal-check-off chips apart (spec 033).
+  subject?: string;
 };
 
 // This month's to-do list, built purely from a Budget so Overview's full
@@ -103,6 +107,7 @@ export function buildTasks(budget: Budget, month: string): Task[] {
           actionLabel: "Check off",
           amountCents: g.amountCents,
           goalId: g.id,
+          subject: g.name,
         });
       }
     }

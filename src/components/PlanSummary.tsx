@@ -1,7 +1,22 @@
 import Link from "next/link";
 import { formatMoney } from "@/lib/money";
 import type { PlanSummaryData } from "@/lib/plan";
+import type { Task } from "@/lib/tasks";
 import { secondaryButtonCls } from "./ui";
+
+// The chip's visible text needs enough context to stand alone at a glance —
+// two "Check off" chips for different goals are indistinguishable, and a
+// bare "Assign" hides the very number that makes it worth clicking. Every
+// other task's actionLabel is already specific enough on its own.
+function chipLabel(t: Task, currency: string): string {
+  if (t.code === "unallocated" && t.amountCents) {
+    return `Assign ${formatMoney(t.amountCents, currency)}`;
+  }
+  if (t.code === "goal_not_checked" && t.subject) {
+    return `Check off ${t.subject}`;
+  }
+  return t.actionLabel;
+}
 
 function Stat({
   label,
@@ -85,7 +100,7 @@ export default function PlanSummary({
                 }`}
               >
                 {t.severity === "warning" && <span className="sr-only">Warning: </span>}
-                {t.actionLabel}
+                {chipLabel(t, currency)}
               </Link>
             </li>
           ))}
