@@ -28,7 +28,7 @@ test.describe("navigation", () => {
       await expect(main.getByRole("link")).toHaveText(["Overview", "Plan", "Expenses", "Members"]);
       await expect(main.locator('[aria-current="page"]')).toHaveText(current);
     }
-    await expect(main.getByRole("link", { name: "Plan" })).toHaveAttribute("href", "/budget");
+    await expect(main.getByRole("link", { name: "Plan" })).toHaveAttribute("href", "/income");
   });
 
   test("the Plan tabs mark the current page and keep the selected month", async ({ page }) => {
