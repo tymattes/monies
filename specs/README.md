@@ -38,3 +38,5 @@ Monies is built spec-first. `brief.md` is the source of truth for product intent
 | 021 | [Overview shows budget vs. actual](021-overview-budget-vs-actual.md) | implemented |
 | 022 | [Unallocated reflects commitments, not plans](022-unallocated-reflects-commitments.md) | implemented |
 | 023 | [Overview sections — Budget, Expenses, and per-domain actions](023-overview-sections-and-actions.md) | implemented |
+| 024 | [Goals page refreshes the Plan summary after check-off and amount edits](024-goals-refresh-plan-summary.md) | implemented |
+| 025 | [Unallocated wording and a goals step in the get-started checklist](025-unallocated-wording-and-goals-onboarding.md) | implemented |

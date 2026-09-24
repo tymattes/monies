@@ -1,6 +1,6 @@
 # 025: Unallocated wording and a goals step in the get-started checklist
 
-**Status:** draft
+**Status:** implemented
 
 ## Goal
 Two small copy/onboarding gaps from the usability study
@@ -36,15 +36,15 @@ app's own model:
 - Changing when `GetStarted` is shown.
 
 ## Acceptance criteria
-- [ ] The `unallocated` attention message uses the new wording and never says
+- [x] The `unallocated` attention message uses the new wording and never says
       "category".
-- [ ] Existing assertions of the old string are updated: `tests/overview.test.ts`
+- [x] Existing assertions of the old string are updated: `tests/overview.test.ts`
       (lines ~274 and ~380), `tests/overview-ui.test.tsx` (~253), and
       `e2e/overview.spec.ts` (~128, ~201, ~206, which match on "is not assigned").
-- [ ] `GetStarted` renders four numbered steps including "Review your goals",
+- [x] `GetStarted` renders four numbered steps including "Review your goals",
       linking to `/goals` with the month query preserved; the empty-household
       case in `e2e/overview.spec.ts` checks the new step.
-- [ ] Documentation updated (see Documentation).
+- [x] Documentation updated (see Documentation).
 
 ## Technical notes
 - `src/lib/overview.ts` (~line 193): message string only.
