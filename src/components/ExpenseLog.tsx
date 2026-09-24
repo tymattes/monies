@@ -121,6 +121,20 @@ export default function ExpenseLog({
               className={`${inputCls} w-auto!`}
             />
           </div>
+          <div className="min-w-48 flex-1 space-y-1">
+            <label htmlFor="expense-description" className="block text-xs text-muted">
+              Description (optional)
+            </label>
+            <input
+              id="expense-description"
+              type="text"
+              maxLength={200}
+              placeholder="e.g. dinner with the team"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className={inputCls}
+            />
+          </div>
           <button type="submit" disabled={busy} className={buttonCls}>
             Add expense
           </button>
@@ -128,20 +142,6 @@ export default function ExpenseLog({
             {status}
           </span>
         </form>
-        <div className="mt-2">
-          <label htmlFor="expense-description" className="block text-xs text-muted">
-            Description (optional)
-          </label>
-          <input
-            id="expense-description"
-            type="text"
-            maxLength={200}
-            placeholder="e.g. dinner with the team"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className={`${inputCls} w-auto!`}
-          />
-        </div>
       </section>
 
       <section className={`${cardCls} overflow-hidden`}>
