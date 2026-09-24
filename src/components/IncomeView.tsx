@@ -300,10 +300,17 @@ function SourceRow({
   );
 }
 
-function AddSourceForm({ member }: { member: IncomeMemberView }) {
+function AddSourceForm({
+  member,
+  currency,
+}: {
+  member: IncomeMemberView;
+  currency: string;
+}) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [kind, setKind] = useState<"fixed" | "variable">("fixed");
+  const [amount, setAmount] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -311,14 +318,25 @@ function AddSourceForm({ member }: { member: IncomeMemberView }) {
     e.preventDefault();
     setBusy(true);
     setError("");
+    let amountCents: number | undefined;
+    if (kind === "fixed" && amount.trim() !== "") {
+      const minor = parseMoney(amount, currency);
+      if (minor === null) {
+        setBusy(false);
+        return setError("Enter an amount like 4000.00, or leave it blank");
+      }
+      amountCents = minor;
+    }
     const { ok, error } = await api("/api/income/sources", "POST", {
       name,
       kind,
       memberId: member.memberId,
+      amountCents,
     });
     setBusy(false);
     if (!ok) return setError(error ?? "Could not add");
     setName("");
+    setAmount("");
     router.refresh();
   }
 
@@ -348,6 +366,21 @@ function AddSourceForm({ member }: { member: IncomeMemberView }) {
         <option value="fixed">Fixed monthly</option>
         <option value="variable">Variable</option>
       </select>
+      {kind === "fixed" && (
+        <>
+          <label htmlFor={`new-amount-${member.memberId}`} className="sr-only">
+            Starting monthly amount (optional)
+          </label>
+          <input
+            id={`new-amount-${member.memberId}`}
+            inputMode="decimal"
+            placeholder="0.00"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            className={`${inputCls} w-28! text-right tabular-nums`}
+          />
+        </>
+      )}
       <button type="submit" disabled={busy} className={buttonCls}>
         Add
       </button>
@@ -420,7 +453,7 @@ export default function IncomeView({
                 />
               ))}
             </ul>
-            {m.canAdd && <AddSourceForm member={m} />}
+            {m.canAdd && <AddSourceForm member={m} currency={currency} />}
           </div>
         </section>
       ))}

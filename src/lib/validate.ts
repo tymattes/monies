@@ -26,6 +26,14 @@ export function parseAmount(value: unknown, min = 0): number {
   return value;
 }
 
+// Like `parseAmount`, but undefined (the field was left out entirely) passes
+// through as undefined instead of erroring — for a field that's optional on
+// create, not a required patch value.
+export function parseOptionalAmount(value: unknown, min = 0): number | undefined {
+  if (value === undefined) return undefined;
+  return parseAmount(value, min);
+}
+
 // Optional in requests (undefined = leave it unchanged on a patch; a goal's
 // type is required on create, so POST callers check for undefined
 // themselves); when present must be one of the known goal types.
