@@ -1,6 +1,6 @@
 # 028: Common currencies first in the setup currency picker
 
-**Status:** draft
+**Status:** implemented
 
 ## Goal
 The usability study (`usability-study-report.md`, issue 7) described the setup
