@@ -1,6 +1,6 @@
 # 031: A persistent set-up checklist on Overview
 
-**Status:** approved
+**Status:** implemented
 
 ## Goal
 
