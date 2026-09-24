@@ -7,6 +7,27 @@ import { buttonCls, inputCls, labelCls } from "./ui";
 const CURRENCIES = Intl.supportedValuesOf("currency");
 const currencyName = new Intl.DisplayNames("en", { type: "currency" });
 
+const COMMON_CODES = [
+  "USD",
+  "EUR",
+  "GBP",
+  "CAD",
+  "AUD",
+  "JPY",
+  "CHF",
+  "CNY",
+  "INR",
+  "MXN",
+  "BRL",
+  "NZD",
+];
+const COMMON_CURRENCIES = COMMON_CODES.filter((code) =>
+  CURRENCIES.includes(code),
+);
+const REST_CURRENCIES = CURRENCIES.filter(
+  (code) => !COMMON_CURRENCIES.includes(code),
+);
+
 type Mode = "sign-in" | "setup" | "join";
 
 const CONFIG: Record<Mode, { submit: string; ask: (t?: string) => string }> = {
@@ -94,11 +115,20 @@ export default function CredentialsForm({
             defaultValue="USD"
             className={inputCls}
           >
-            {CURRENCIES.map((code) => (
-              <option key={code} value={code}>
-                {code} · {currencyName.of(code)}
-              </option>
-            ))}
+            <optgroup label="Common">
+              {COMMON_CURRENCIES.map((code) => (
+                <option key={code} value={code}>
+                  {code} · {currencyName.of(code)}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label="All currencies">
+              {REST_CURRENCIES.map((code) => (
+                <option key={code} value={code}>
+                  {code} · {currencyName.of(code)}
+                </option>
+              ))}
+            </optgroup>
           </select>
           <p className="text-xs text-muted">
             Used for every amount in this household. Can&apos;t be changed later
