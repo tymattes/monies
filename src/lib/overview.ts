@@ -190,7 +190,7 @@ export async function getOverview(
     attention.push({
       code: "unallocated",
       severity: "info",
-      message: `${money(unallocatedCents)} is not assigned to a category yet.`,
+      message: `${money(unallocatedCents)} is still unallocated — assign it to a goal.`,
       href: `/income${q}#assign`,
       actionLabel: "Assign",
       amountCents: unallocatedCents,

@@ -6,6 +6,7 @@ export default function GetStarted({ query }: { query: string }) {
     { href: `/income${query}`, title: "Add your income", text: "Salary or other take-home pay, for you and anyone in the household." },
     { href: `/budget${query}`, title: "Set your category budgets", text: "Decide how much each category gets each month." },
     { href: `/bills${query}`, title: "Add your recurring bills", text: "Rent, subscriptions and insurance count against their category automatically." },
+    { href: `/goals${query}`, title: "Review your goals", text: "Saving or debt-payoff targets you check off each month once the money moves." },
   ];
   return (
     <section aria-labelledby="start-heading" className="space-y-3 rounded-xl border border-border bg-background shadow-sm p-6">
