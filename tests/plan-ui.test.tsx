@@ -54,7 +54,7 @@ describe("PlanSummary", () => {
   it("renders each task as a link chip, Assign among them like any other (spec 033)", () => {
     const html = renderToStaticMarkup(<PlanSummary {...base} tasks={[assignTask]} />);
     expect(html).toContain('aria-label="Tasks"');
-    expect(html).toMatch(/<a[^>]*href="\/goals\?month=2026-09#assign"[^>]*>Assign Income to Goal<\/a>/);
+    expect(html).toMatch(/<a[^>]*href="\/goals\?month=2026-09#assign"[^>]*>Assign income to goal<\/a>/);
   });
 
   it("names the goal in a check-off chip, so two goals aren't indistinguishable", () => {

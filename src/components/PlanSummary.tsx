@@ -9,7 +9,7 @@ import { secondaryButtonCls } from "./ui";
 // bare "Assign" doesn't say what it's for. Every other task's actionLabel
 // is already specific enough on its own.
 function chipLabel(t: Task): string {
-  if (t.code === "unallocated") return "Assign Income to Goal";
+  if (t.code === "unallocated") return "Assign income to goal";
   if (t.code === "goal_not_checked" && t.subject) {
     return `Check off ${t.subject} goal`;
   }
