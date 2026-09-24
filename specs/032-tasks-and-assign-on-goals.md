@@ -1,6 +1,6 @@
 # 032: Needs attention becomes Tasks, and Assign moves to Goals
 
-**Status:** approved
+**Status:** implemented
 
 ## Goal
 
