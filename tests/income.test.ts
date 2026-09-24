@@ -140,6 +140,27 @@ describe("creating sources", () => {
     expect((await addSource(owner, { name: "x", kind: "fixed", memberId: missing })).status).toBe(404);
   });
 
+  it("sets a fixed source's starting amount in the same call (spec 030)", async () => {
+    const owner = await setupOwner();
+    const withAmount = await addSource(owner, { name: "Salary", kind: "fixed", amountCents: 400000 });
+    expect(withAmount.status).toBe(201);
+    expect(await totalOf(owner, "2026-09", "Olive Owner")).toBe(400000);
+
+    // Left blank, behaves exactly as before: starts at $0.00.
+    const blank = await addSource(owner, { name: "Pension", kind: "fixed" });
+    expect(blank.status).toBe(201);
+    expect(await totalOf(owner, "2026-09", "Olive Owner")).toBe(400000); // unchanged
+  });
+
+  it("rejects an amount on a variable source and an invalid amount", async () => {
+    const owner = await setupOwner();
+    const withVariable = await addSource(owner, { name: "Freelance", kind: "variable", amountCents: 1000 });
+    expect(withVariable.status).toBe(400);
+    for (const bad of [-1, 12.5, "500"]) {
+      expect((await addSource(owner, { name: "Salary", kind: "fixed", amountCents: bad })).status).toBe(400);
+    }
+  });
+
   it("keeps names unique per member, case-insensitively", async () => {
     const owner = await setupOwner();
     const member = await joinAsMember(owner);

@@ -43,8 +43,8 @@ Monies is built spec-first. `brief.md` is the source of truth for product intent
 | 026 | [Assign confirms what happened and that money is claimed at check-off](026-assign-claims-on-checkoff-copy.md) | implemented |
 | 027 | [Expense description belongs inside the entry form](027-expense-description-in-form.md) | draft |
 | 028 | [Common currencies first in the setup currency picker](028-currency-picker-common-first.md) | implemented |
-| 029 | [Plan tabs match the onboarding order](029-plan-tabs-match-onboarding-order.md) | approved |
-| 030 | [Set a fixed source's amount when you add it](030-income-amount-on-creation.md) | draft |
+| 029 | [Plan tabs match the onboarding order](029-plan-tabs-match-onboarding-order.md) | implemented |
+| 030 | [Set a fixed source's amount when you add it](030-income-amount-on-creation.md) | implemented |
 | 031 | [A persistent set-up checklist on Overview](031-persistent-onboarding-checklist.md) | draft |
 | 032 | [Needs attention becomes Tasks, and Assign moves to Goals](032-tasks-and-assign-on-goals.md) | draft |
 | 033 | [Plan summary shows this month's tasks](033-plan-summary-tasks.md) | draft |

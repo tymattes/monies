@@ -1,6 +1,6 @@
 # 030: Set a fixed source's amount when you add it
 
-**Status:** draft
+**Status:** implemented
 
 ## Goal
 
@@ -21,11 +21,11 @@ Usability testing found that adding a fixed income source is a two-step chore: f
 
 ## Acceptance criteria
 
-- [ ] Adding a fixed source with an amount shows that amount immediately, with no extra edit.
-- [ ] Adding a fixed source with the amount left blank starts at $0.00, exactly as before.
-- [ ] The amount field isn't shown (or has no effect) when "Variable" is selected.
-- [ ] An invalid amount (unparseable, negative) is rejected with the same error the inline editor gives today.
-- [ ] Documentation updated (see Documentation).
+- [x] Adding a fixed source with an amount shows that amount immediately, with no extra edit.
+- [x] Adding a fixed source with the amount left blank starts at $0.00, exactly as before.
+- [x] The amount field isn't shown (or has no effect) when "Variable" is selected.
+- [x] An invalid amount (unparseable, negative) is rejected with the same error the inline editor gives today.
+- [x] Documentation updated (see Documentation).
 
 ## Technical notes
 
