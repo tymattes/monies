@@ -35,16 +35,50 @@ test("editing the amount saves and carries forward to later months", async ({ pa
   await expect(page.getByLabel("Savings", { exact: true })).toHaveValue("250.00");
 });
 
+test("saving an amount refreshes the Plan summary only when the goal is checked off", async ({ page }) => {
+  const amount = page.getByLabel("Savings", { exact: true });
+  const summary = page.getByRole("region", { name: "Plan summary" });
+
+  // Unchecked: the amount is a plan, so editing it does not move Unallocated (spec 022).
+  await amount.fill("250.00");
+  await amount.blur();
+  await expect(page.getByText("Saved")).toBeVisible();
+  await expect(summary).toContainText(money(SEED.unallocatedCents));
+
+  // Checked off: now the amount is a claim, so editing it moves Unallocated,
+  // and GoalEditor's own router.refresh() shows that without navigation.
+  await page.getByLabel("Savings: done this month", { exact: true }).check();
+  await expect(summary).toContainText(money(SEED.unallocatedCents - 25000));
+
+  await amount.fill("300.00");
+  await amount.blur();
+  await expect(page.getByText("Saved")).toBeVisible();
+  await expect(summary).toContainText(money(SEED.unallocatedCents - 30000));
+});
+
 test("checking a goal off persists, and is independent per month", async ({ page }) => {
   const box = page.getByLabel("Savings: done this month", { exact: true });
+  const summary = page.getByRole("region", { name: "Plan summary" });
+  await expect(summary).toContainText(money(SEED.unallocatedCents));
+
   const [response] = await Promise.all([
     page.waitForResponse((r) => r.url().includes("/checkins/") && r.request().method() === "PUT"),
     box.check(),
   ]);
   expect(response.ok()).toBeTruthy();
+  // No navigation: GoalEditor's own router.refresh() moves the Plan summary (spec 024).
+  await expect(summary).toContainText(money(SEED.unallocatedCents - SEED.goals.Savings));
+
+  const [unchecked] = await Promise.all([
+    page.waitForResponse((r) => r.url().includes("/checkins/") && r.request().method() === "PUT"),
+    box.uncheck(),
+  ]);
+  expect(unchecked.ok()).toBeTruthy();
+  await expect(summary).toContainText(money(SEED.unallocatedCents));
+
   await page.reload();
   await waitHydrated(page);
-  await expect(page.getByLabel("Savings: done this month", { exact: true })).toBeChecked();
+  await expect(page.getByLabel("Savings: done this month", { exact: true })).not.toBeChecked();
 
   await page.goto(`/goals?month=${monthKey(1)}`);
   await expect(page.getByLabel("Savings: done this month", { exact: true })).not.toBeChecked();
