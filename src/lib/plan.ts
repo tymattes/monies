@@ -1,5 +1,6 @@
 import { getBudget, type Budget } from "./budgets";
 import type { HouseholdContext } from "./household";
+import { buildTasks, collapseCategoryOverBudget, type Task } from "./tasks";
 
 // The numbers in the Plan summary bar (Budget, Bills, Income and Goals pages).
 // Unallocated is sourced from getBudget (spec 022: income minus bills,
@@ -17,6 +18,10 @@ export type PlanSummaryData = {
   billsCents: number;
   // Income minus bills, expenses and checked-off goals (spec 022).
   unallocatedCents: number;
+  // This month's open tasks, built the same way as Overview's (spec 032),
+  // with category-over-budget collapsed into one chip (spec 033) since this
+  // card is a header, not a second Tasks section.
+  tasks: Task[];
 };
 
 // Pure so the Income page (which needs the full Budget for Assign anyway,
@@ -31,6 +36,7 @@ export function planSummaryFromBudget(b: Budget, month: string): PlanSummaryData
     budgetedCents: b.totalCents + b.goalsTotalCents,
     billsCents: b.billsTotalCents,
     unallocatedCents: b.unallocatedCents,
+    tasks: collapseCategoryOverBudget(buildTasks(b, month)),
   };
 }
 

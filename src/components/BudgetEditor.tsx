@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { api } from "@/lib/client";
 import { formatMoney, parseMoney, toInputString } from "@/lib/money";
+import type { Task } from "@/lib/tasks";
 import PlanSummary from "./PlanSummary";
 import { inputCls } from "./ui";
 
@@ -25,6 +26,7 @@ export default function BudgetEditor({
   incomeProvisional,
   billsTotalCents,
   unallocatedCents,
+  tasks,
 }: {
   month: string;
   monthName: string;
@@ -33,8 +35,8 @@ export default function BudgetEditor({
   lines: Line[];
   // Saving/Debt payoff goals (spec 014): not edited here (see /goals), but
   // folded into the Budgeted total below, since that money is just as
-  // earmarked as a category's budget. Assign itself lives on the Income
-  // page (spec 015).
+  // earmarked as a category's budget. Assign itself lives on the Goals
+  // page (spec 032).
   goalsCommittedCents: number;
   incomeCents: number;
   incomeProvisional: boolean;
@@ -42,6 +44,9 @@ export default function BudgetEditor({
   // Server-given, static: editing a category's amount changes the Budgeted
   // total but never this (spec 022 — budgeted amounts don't claim income).
   unallocatedCents: number;
+  // Also server-given and static, like unallocatedCents above (spec 033) —
+  // editing a category amount doesn't recompute tasks live.
+  tasks: Task[];
 }) {
   // Last saved amount per category, and what is currently typed.
   const [saved, setSaved] = useState<Record<string, number>>(() =>
@@ -89,7 +94,7 @@ export default function BudgetEditor({
       budgetedCents={total + goalsCommittedCents}
       billsCents={billsTotalCents}
       unallocatedCents={unallocatedCents}
-      assign="link"
+      tasks={tasks}
     />
   );
 
