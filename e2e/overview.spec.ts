@@ -257,13 +257,15 @@ test.describe("an empty household", () => {
     await page.goto("/");
   });
 
-  test("explains what to add first, in order, with links", async ({ page }) => {
+  test("explains what to add first, in order, with links, alongside the rest of the page (spec 031)", async ({ page }) => {
     await expect(page.getByRole("heading", { name: "Let's get your month set up" })).toBeVisible();
     const steps = page.getByRole("region", { name: /get your month set up/ }).getByRole("link");
     await expect(steps).toHaveText(["Add your income", "Set your category budgets", "Add your recurring bills", "Review your goals"]);
     await expect(steps.nth(0)).toHaveAttribute("href", "/income");
-    await expect(cashFlow(page)).toHaveCount(0);
-    await expect(page.getByRole("region", { name: "Needs attention" })).toHaveCount(0);
+    // The rest of Overview shows too, at its zeroed starting values — no more
+    // all-or-nothing swap.
+    await expect(cashFlow(page)).toBeVisible();
+    await expect(page.getByRole("region", { name: "Needs attention" })).toBeVisible();
   });
 
   for (const scheme of ["light", "dark"] as const) {
@@ -276,6 +278,20 @@ test.describe("an empty household", () => {
       });
     });
   }
+
+  test("checks off a step once it's done, and the checklist disappears once every step is", async ({ page }) => {
+    const income = page.getByRole("region", { name: /get your month set up/ }).getByRole("link", { name: "Add your income" });
+    await expect(income).toHaveAccessibleName(/^Add your income/);
+
+    await page.request.post("/api/income/sources", {
+      data: { name: "Salary", kind: "fixed", amountCents: 400000 },
+    });
+    await page.goto("/");
+    await expect(
+      page.getByRole("region", { name: /get your month set up/ }).getByRole("link", { name: /^Done: Add your income/ }),
+    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Let's get your month set up" })).toBeVisible();
+  });
 });
 
 test.describe("over-committed while variable income may still arrive", () => {

@@ -1,6 +1,6 @@
 # 031: A persistent set-up checklist on Overview
 
-**Status:** draft
+**Status:** approved
 
 ## Goal
 
@@ -26,11 +26,11 @@ Usability testing found that Overview's set-up guide (`GetStarted`) is all-or-no
 
 ## Acceptance criteria
 
-- [ ] A brand-new household sees the checklist plus the rest of Overview (at its zeroed starting values), not a page swap.
-- [ ] Each step shows a checkmark once its own done-criterion is met, independent of the others.
-- [ ] The checklist disappears once income, a budget, bills and a goal amount are all in place.
-- [ ] Overview's other sections render the same way regardless of checklist progress.
-- [ ] Documentation updated (see Documentation).
+- [x] A brand-new household sees the checklist plus the rest of Overview (at its zeroed starting values), not a page swap.
+- [x] Each step shows a checkmark once its own done-criterion is met, independent of the others.
+- [x] The checklist disappears once income, a budget, bills and a goal amount are all in place.
+- [x] Overview's other sections render the same way regardless of checklist progress.
+- [x] Documentation updated (see Documentation).
 
 ## Technical notes
 
