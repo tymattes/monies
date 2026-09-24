@@ -8,6 +8,15 @@ const money = (cents: number) =>
 
 const input = (cents: number) => (cents / 100).toFixed(2);
 
+// Mirrors src/lib/months.ts monthLabel — the real clock, so tests compute
+// the label instead of hardcoding a month name.
+const monthName = (offset = 0) => {
+  const [y, m] = monthKey(offset).split("-").map(Number);
+  return new Intl.DateTimeFormat("en", { month: "long", year: "numeric", timeZone: "UTC" }).format(
+    new Date(Date.UTC(y, m - 1, 1)),
+  );
+};
+
 // Option labels carry the target's current amount (spec 016): goals read
 // "Name · $X" (no "budgeted" suffix — that was the removed category group).
 const optLabel = (name: string, amountCents: number) => `${name} · ${money(amountCents)}`;
@@ -133,6 +142,30 @@ test("can assign part of it; the goal grows but Unallocated is unchanged (spec 0
   await expect(page.getByRole("region", { name: "Plan summary" })).toContainText(money(SEED.unallocatedCents));
   await expect(panel(page)).toContainText(`Assign the unallocated ${money(SEED.unallocatedCents)}`);
 
+  // spec 026: the panel confirms what happened, links to Goals for this
+  // month, resets its rows to empty, and disables Assign until re-entered.
+  await expect(p).toContainText(`Added ${money(40000)} to Savings for ${monthName()}.`);
+  const goalsLink = p.getByRole("link", { name: "Goals" });
+  await expect(goalsLink).toBeVisible();
+  await expect(p.getByLabel("Amount for goal 1", { exact: true })).toHaveValue("");
+  await expect(p.getByRole("button", { name: "Assign" })).toBeDisabled();
+  await goalsLink.click();
+  await expect(page).toHaveURL(new RegExp(`/goals\\?month=${monthKey()}`));
+
   await page.goto("/goals");
   await expect(page.getByLabel("Savings", { exact: true })).toHaveValue(input(SEED.goals.Savings + 40000));
+});
+
+test("editing a row after a confirmed assign clears the confirmation", async ({ page }) => {
+  const p = panel(page);
+  await p.getByLabel("Amount for goal 1", { exact: true }).fill("400.00");
+  await Promise.all([
+    page.waitForResponse((r) => r.url().includes("/assign-unallocated") && r.request().method() === "POST"),
+    p.getByRole("button", { name: "Assign" }).click(),
+  ]);
+  await expect(p).toContainText("Added");
+
+  await p.getByLabel("Amount for goal 1", { exact: true }).fill("100.00");
+  await expect(p).not.toContainText("Added");
+  await expect(p).toContainText("stays unallocated");
 });
