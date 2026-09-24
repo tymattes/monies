@@ -70,8 +70,11 @@ export async function listSources(ctx: HouseholdContext) {
 
 export async function createSource(
   ctx: HouseholdContext,
-  input: { name: string; kind: SourceKind; memberId?: string },
+  input: { name: string; kind: SourceKind; memberId?: string; amountCents?: number },
 ) {
+  if (input.amountCents !== undefined && input.kind !== "fixed") {
+    throw new HttpError(400, "Only fixed sources have a monthly amount");
+  }
   const memberId = input.memberId ?? ctx.user.id;
   if (memberId !== ctx.user.id && ctx.role !== "owner") {
     throw new HttpError(403, "You can only add income for yourself");
@@ -98,6 +101,17 @@ export async function createSource(
         startMonth: monthStart(currentMonth()),
       })
       .returning();
+    // A starting amount is set effective this month, same as any other fixed
+    // amount (spec 030) — the source can't have existed before now, so
+    // there's no past month to protect.
+    if (input.amountCents) {
+      await getDb().insert(incomeAmounts).values({
+        sourceId: row.id,
+        effectiveMonth: monthStart(currentMonth()),
+        amountCents: input.amountCents,
+        createdBy: ctx.user.id,
+      });
+    }
     return row;
   } catch (e) {
     if (isUniqueViolation(e)) throw new HttpError(409, NAME_TAKEN);

@@ -1,6 +1,6 @@
 # 029: Plan tabs match the onboarding order
 
-**Status:** approved
+**Status:** implemented
 
 ## Goal
 
