@@ -22,7 +22,7 @@ import * as overviewRoute from "@/app/api/overview/[month]/route";
 import * as memberRoute from "@/app/api/members/[userId]/route";
 import { getDb, getSql } from "@/db";
 import { insertUserWithPassword, signInResponse } from "@/lib/accounts";
-import type { AttentionItem, Overview } from "@/lib/overview";
+import type { Overview, Task } from "@/lib/overview";
 import { call, cookieOf, joinAsMember, setupOwner } from "./helpers";
 
 async function overview(cookie: string, m = "2026-09") {
@@ -30,7 +30,11 @@ async function overview(cookie: string, m = "2026-09") {
   return { ...r, data: r.json as unknown as Overview };
 }
 
-const codes = (items: AttentionItem[]) => items.map((i) => i.code);
+const codes = (items: Task[]) => items.map((i) => i.code);
+// The three permanent monthly reminders (spec 032) — present on every
+// current-month view, so tests that check other codes filter them out.
+const EVERGREEN = ["log_expenses", "update_income", "update_bills"];
+const nonEvergreen = (items: Task[]) => codes(items.filter((i) => !EVERGREEN.includes(i.code)));
 
 async function categoryId(cookie: string, name: string) {
   const r = await call(budgetRoute.GET, "/api/budgets/2026-09", { cookie, params: { month: "2026-09" } });
@@ -256,22 +260,22 @@ describe("overview numbers", () => {
   });
 });
 
-describe("attention items", () => {
+describe("tasks (spec 032)", () => {
   it("flags a category whose bills exceed its budget and unallocated money, with links", async () => {
     const owner = await setupOwner();
     const member = await joinAsMember(owner);
     await scenario(owner, member.cookie);
-    const { attention } = (await overview(owner)).data;
-    expect(codes(attention)).toEqual(["category_over_budget", "unallocated"]);
+    const { tasks } = (await overview(owner)).data;
+    expect(nonEvergreen(tasks)).toEqual(["category_over_budget", "unallocated"]);
 
-    const over = attention[0];
+    const over = tasks[0];
     expect(over).toMatchObject({ severity: "warning", amountCents: 3000, href: "/budget", actionLabel: "Adjust budget" });
     expect(over.message).toBe("Utilities: is $30.00 over its budget.");
     expect(over.categoryId).toBe(await categoryId(owner, "Utilities"));
 
     // Unallocated is income − bills (spec 022): 4,000 − 1,630 = 2,370.
-    expect(attention[1]).toMatchObject({ severity: "info", amountCents: 237000, href: "/income#assign", actionLabel: "Assign" });
-    expect(attention[1].message).toBe("$2,370.00 is still unallocated — assign it to a goal.");
+    expect(tasks[1]).toMatchObject({ severity: "info", amountCents: 237000, href: "/goals#assign", actionLabel: "Assign" });
+    expect(tasks[1].message).toBe("$2,370.00 is still unallocated — assign it to a goal.");
   });
 
   it("flags a category that goes over budget purely from logged expenses, with no bill at all (spec 021)", async () => {
@@ -279,9 +283,9 @@ describe("attention items", () => {
     await salary(owner, 100000);
     await budget(owner, "Groceries", 50000);
     await expense(owner, "Groceries", 60000); // bills 0, expenses 600 > budget 500
-    const { attention } = (await overview(owner)).data;
-    expect(codes(attention)).toEqual(["category_over_budget", "unallocated", "no_bills"]);
-    const over = attention.find((i) => i.code === "category_over_budget")!;
+    const { tasks } = (await overview(owner)).data;
+    expect(nonEvergreen(tasks)).toEqual(["category_over_budget", "unallocated"]);
+    const over = tasks.find((i) => i.code === "category_over_budget")!;
     expect(over.message).toBe("Groceries: is $100.00 over its budget.");
     expect(over.amountCents).toBe(10000);
   });
@@ -292,10 +296,10 @@ describe("attention items", () => {
     // A logged expense tips real commitments over income, with no bill at all;
     // it also puts its (unbudgeted) category over budget (spec 021).
     await expense(owner, "Dining out", 150000);
-    const { attention } = (await overview(owner)).data;
-    expect(codes(attention)).toEqual(["over_allocated", "category_over_budget", "no_bills"]);
-    expect(attention[0]).toMatchObject({ amountCents: 50000, href: "/budget" });
-    expect(attention[0].message).toBe(
+    const { tasks } = (await overview(owner)).data;
+    expect(nonEvergreen(tasks)).toEqual(["over_allocated", "category_over_budget"]);
+    expect(tasks[0]).toMatchObject({ amountCents: 50000, href: "/budget" });
+    expect(tasks[0].message).toBe(
       "Bills, expenses and checked-off goals exceed your income by $500.00.",
     );
   });
@@ -304,8 +308,8 @@ describe("attention items", () => {
     const owner = await setupOwner();
     await salary(owner, 100000);
     await budget(owner, "Housing", 150000); // budgeted > income, but nothing real
-    const { attention } = (await overview(owner)).data;
-    expect(codes(attention)).toEqual(["unallocated", "no_bills"]);
+    const { tasks } = (await overview(owner)).data;
+    expect(nonEvergreen(tasks)).toEqual(["unallocated"]);
   });
 
   it("flags bills that exceed income", async () => {
@@ -313,16 +317,16 @@ describe("attention items", () => {
     await salary(owner, 100000);
     await budget(owner, "Housing", 200000);
     await bill(owner, "Rent", 150000, "Housing");
-    const { attention } = (await overview(owner)).data;
-    expect(codes(attention)).toEqual(["over_allocated", "bills_exceed_income"]);
-    expect(attention[1]).toMatchObject({ amountCents: 50000, href: "/bills" });
+    const { tasks } = (await overview(owner)).data;
+    expect(nonEvergreen(tasks)).toEqual(["over_allocated", "bills_exceed_income"]);
+    expect(tasks[1]).toMatchObject({ amountCents: 50000, href: "/bills" });
   });
 
-  it("shows only setup prompts for a household with nothing in it", async () => {
+  it("shows only the permanent monthly reminders for a household with nothing in it", async () => {
     const owner = await setupOwner();
     const { data } = await overview(owner);
-    expect(codes(data.attention)).toEqual(["no_income", "no_bills"]);
-    expect(data.attention.map((i) => i.href)).toEqual(["/income", "/bills"]);
+    expect(codes(data.tasks)).toEqual(["log_expenses", "update_income", "update_bills"]);
+    expect(data.tasks.map((i) => i.href)).toEqual(["/expenses", "/income", "/bills"]);
     expect(data.cashFlow).toEqual({
       incomeCents: 0, billsCents: 0, expensesCents: 0,
       checkedSavingCents: 0, checkedDebtPayoffCents: 0,
@@ -332,36 +336,35 @@ describe("attention items", () => {
     expect(data.income.byMember.map((m) => m.name)).toEqual(["Olive Owner"]);
   });
 
-  it("stops prompting once income is fully committed by a bill, and shows nothing when all is in order", async () => {
+  it("drops the warnings once income is fully committed by a bill, but keeps the permanent reminders", async () => {
     const owner = await setupOwner();
     await salary(owner, 100000);
     await budget(owner, "Housing", 100000);
     await bill(owner, "Rent", 100000, "Housing"); // bills consume all income
-    expect((await overview(owner)).data.attention).toEqual([]);
+    expect(codes((await overview(owner)).data.tasks)).toEqual(["log_expenses", "update_income", "update_bills"]);
   });
 
   it("puts the selected month in the links when it is not the current one", async () => {
     const owner = await setupOwner();
     await salary(owner, 400000);
     const next = await overview(owner, "2026-10"); // income carries forward, nothing budgeted yet
-    const unallocated = next.data.attention.find((i) => i.code === "unallocated")!;
-    expect(unallocated.href).toBe("/income?month=2026-10#assign");
+    const unallocated = next.data.tasks.find((i) => i.code === "unallocated")!;
+    expect(unallocated.href).toBe("/goals?month=2026-10#assign");
   });
 
-  it("offers no Assign or setup prompts for a past month", async () => {
+  it("offers no Assign, and no permanent reminders, for a past month", async () => {
     const owner = await setupOwner();
     const member = await joinAsMember(owner);
     await scenario(owner, member.cookie);
     clock.month = "2026-10";
     const past = (await overview(owner, "2026-09")).data;
     expect(past.editable).toBe(false);
-    expect(codes(past.attention)).toEqual(["category_over_budget"]); // history is still reported
-    expect(past.attention.some((i) => i.code === "unallocated" || i.code === "no_income" || i.code === "no_bills")).toBe(false);
+    expect(codes(past.tasks)).toEqual(["category_over_budget"]); // history is still reported
 
     clock.month = "2026-10";
     const empty = (await overview(owner, "2026-08")).data; // before the household existed
     expect(empty.editable).toBe(false);
-    expect(empty.attention).toEqual([]);
+    expect(empty.tasks).toEqual([]);
     expect(empty.categories).toEqual([]);
   });
 
@@ -377,7 +380,7 @@ describe("attention items", () => {
     expect(data.currency).toBe("EUR");
     // Unallocated = income − bills (spec 022): €1,000 with no bills, since
     // the €200 budgeted reserves nothing.
-    expect(data.attention.find((i) => i.code === "unallocated")!.message).toBe("€1,000.00 is still unallocated — assign it to a goal.");
+    expect(data.tasks.find((i) => i.code === "unallocated")!.message).toBe("€1,000.00 is still unallocated — assign it to a goal.");
   });
 });
 
@@ -386,7 +389,7 @@ describe("goal check-off reminder (spec 015)", () => {
     const owner = await setupOwner();
     await goalBudget(owner, "Savings", 30000); // the starter goal
 
-    const before = (await overview(owner)).data.attention;
+    const before = (await overview(owner)).data.tasks;
     const reminder = before.find((i) => i.code === "goal_not_checked")!;
     expect(reminder).toMatchObject({
       severity: "info", href: "/goals", actionLabel: "Check off", amountCents: 30000,
@@ -395,7 +398,7 @@ describe("goal check-off reminder (spec 015)", () => {
     expect(reminder.goalId).toBe(await goalId(owner, "Savings"));
 
     await checkGoal(owner, "Savings", "2026-09", true);
-    const after = (await overview(owner)).data.attention;
+    const after = (await overview(owner)).data.tasks;
     expect(after.some((i) => i.code === "goal_not_checked")).toBe(false);
   });
 
@@ -405,8 +408,8 @@ describe("goal check-off reminder (spec 015)", () => {
     await goalBudget(owner, "Savings", 30000);
     await goalBudget(owner, "Credit card", 15000);
 
-    const { attention } = (await overview(owner)).data;
-    const reminders = attention.filter((i) => i.code === "goal_not_checked");
+    const { tasks } = (await overview(owner)).data;
+    const reminders = tasks.filter((i) => i.code === "goal_not_checked");
     expect(reminders.map((r) => r.message).sort()).toEqual([
       "Credit card hasn't been checked off yet this month.",
       "Savings hasn't been checked off yet this month.",
@@ -416,8 +419,8 @@ describe("goal check-off reminder (spec 015)", () => {
   it("skips a goal with nothing budgeted this month", async () => {
     const owner = await setupOwner();
     // The starter goal exists but has $0 budgeted.
-    const { attention } = (await overview(owner)).data;
-    expect(attention.some((i) => i.code === "goal_not_checked")).toBe(false);
+    const { tasks } = (await overview(owner)).data;
+    expect(tasks.some((i) => i.code === "goal_not_checked")).toBe(false);
   });
 
   it("never shows for a past or future month", async () => {
@@ -425,11 +428,11 @@ describe("goal check-off reminder (spec 015)", () => {
     await goalBudget(owner, "Savings", 30000);
 
     clock.month = "2026-10";
-    const past = (await overview(owner, "2026-09")).data.attention;
+    const past = (await overview(owner, "2026-09")).data.tasks;
     expect(past.some((i) => i.code === "goal_not_checked")).toBe(false);
 
     clock.month = "2026-09";
-    const future = (await overview(owner, "2026-10")).data.attention;
+    const future = (await overview(owner, "2026-10")).data.tasks;
     expect(future.some((i) => i.code === "goal_not_checked")).toBe(false);
   });
 });
@@ -480,12 +483,12 @@ describe("provisional income (spec 010)", () => {
     await variableSource(owner);
     await budget(owner, "Housing", 200000);
     await bill(owner, "Rent", 150000, "Housing"); // bills alone exceed income
-    const { attention } = (await overview(owner)).data;
-    expect(codes(attention)).toEqual(["over_allocated", "bills_exceed_income"]);
-    expect(attention.map((i) => i.severity)).toEqual(["info", "info"]);
-    expect(attention[0].message).toBe("Bills, expenses and checked-off goals exceed the income recorded so far by $500.00. Variable income counts once you record it.");
-    expect(attention[1].message).toBe("Bills ($1,500.00) are more than the income recorded so far ($1,000.00). Variable income counts once you record it.");
-    expect(attention[0]).toMatchObject({ href: "/budget", amountCents: 50000 });
+    const { tasks } = (await overview(owner)).data;
+    expect(nonEvergreen(tasks)).toEqual(["over_allocated", "bills_exceed_income"]);
+    expect(tasks.slice(0, 2).map((i) => i.severity)).toEqual(["info", "info"]);
+    expect(tasks[0].message).toBe("Bills, expenses and checked-off goals exceed the income recorded so far by $500.00. Variable income counts once you record it.");
+    expect(tasks[1].message).toBe("Bills ($1,500.00) are more than the income recorded so far ($1,000.00). Variable income counts once you record it.");
+    expect(tasks[0]).toMatchObject({ href: "/budget", amountCents: 50000 });
   });
 
   it("keeps them as warnings with the original wording when the income is final", async () => {
@@ -493,12 +496,12 @@ describe("provisional income (spec 010)", () => {
     await salary(owner, 100000);
     await budget(owner, "Housing", 200000);
     await bill(owner, "Rent", 150000, "Housing");
-    const { attention } = (await overview(owner)).data;
-    expect(attention.map((i) => [i.code, i.severity])).toEqual([
+    const { tasks } = (await overview(owner)).data;
+    expect(tasks.slice(0, 2).map((i) => [i.code, i.severity])).toEqual([
       ["over_allocated", "warning"],
       ["bills_exceed_income", "warning"],
     ]);
-    expect(attention[0].message).toBe("Bills, expenses and checked-off goals exceed your income by $500.00.");
+    expect(tasks[0].message).toBe("Bills, expenses and checked-off goals exceed your income by $500.00.");
   });
 
   it("never softens a category whose bills exceed its own budget", async () => {
@@ -507,7 +510,7 @@ describe("provisional income (spec 010)", () => {
     await variableSource(owner);
     await budget(owner, "Utilities", 10000);
     await bill(owner, "Phone", 15000, "Utilities");
-    const over = (await overview(owner)).data.attention.find((i) => i.code === "category_over_budget")!;
+    const over = (await overview(owner)).data.tasks.find((i) => i.code === "category_over_budget")!;
     expect(over.severity).toBe("warning");
   });
 
@@ -536,7 +539,7 @@ describe("provisional income (spec 010)", () => {
     const next = (await overview(owner, "2026-10")).data;
     expect(next.income.totalCents).toBe(300000); // the deposit does not repeat
     expect(next.incomeProvisional).toBe(true);
-    const over = next.attention.find((i) => i.code === "over_allocated")!;
+    const over = next.tasks.find((i) => i.code === "over_allocated")!;
     expect(over.severity).toBe("info");
     expect(over.href).toBe("/budget?month=2026-10");
     expect(over.message).toContain("recorded so far");

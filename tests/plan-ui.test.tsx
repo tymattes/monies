@@ -35,9 +35,9 @@ describe("PlanSummary", () => {
     expect(html).not.toContain("Over-allocated");
   });
 
-  it("links Assign to the Income page's panel from other pages", () => {
+  it("links Assign to the Goals page's panel (spec 032)", () => {
     const html = renderToStaticMarkup(<PlanSummary {...base} assign="link" />);
-    expect(html).toMatch(/<a[^>]*href="\/income\?month=2026-09#assign"[^>]*>Assign<\/a>/);
+    expect(html).toMatch(/<a[^>]*href="\/goals\?month=2026-09#assign"[^>]*>Assign<\/a>/);
   });
 
   it("uses a button that scrolls to the panel on the Budget page", () => {
