@@ -136,7 +136,9 @@ test.describe("the summary bar and Assign", () => {
       await page.goto(from);
       await waitHydrated(page);
       await summary(page).getByRole("link", { name: "Assign" }).click();
-      await expect(page).toHaveURL(new RegExp(`/goals\\?month=${monthKey()}#assign`));
+      // No ?month= for the current month (spec 033's shared task-building
+      // logic omits it, like every other link in the app).
+      await expect(page).toHaveURL(/\/goals#assign$/);
       await expect(page.locator("#assign select").first()).toBeFocused();
       await expect(page.locator("#assign")).toBeInViewport();
     }

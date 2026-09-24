@@ -67,9 +67,10 @@ beforeEach(async () => {
 });
 
 describe("plan summary", () => {
-  it("is all zeros for a new household", async () => {
+  it("is all zeros for a new household, with only the permanent reminders as tasks (spec 032/033)", async () => {
     const owner = await setupOwner();
-    expect(await getPlanSummary(await ctxFor(owner), "2026-09")).toEqual({
+    const summary = await getPlanSummary(await ctxFor(owner), "2026-09");
+    expect(summary).toEqual({
       month: "2026-09",
       currency: "USD",
       editable: true,
@@ -78,7 +79,9 @@ describe("plan summary", () => {
       budgetedCents: 0,
       billsCents: 0,
       unallocatedCents: 0,
+      tasks: expect.any(Array),
     });
+    expect(summary.tasks.map((t) => t.code)).toEqual(["log_expenses", "update_income", "update_bills"]);
   });
 
   it("combines income, budgeted and bills, and agrees with the budget API", async () => {
@@ -141,5 +144,40 @@ describe("plan summary", () => {
     expect(past.editable).toBe(false);
     expect(past.incomeCents).toBe(400000);
     expect((await getPlanSummary(await ctxFor(owner), "2026-10")).editable).toBe(true);
+  });
+});
+
+describe("tasks (spec 033)", () => {
+  it("includes Assign, pointing at the Goals page, when money is unallocated", async () => {
+    const owner = await setupOwner();
+    await income(owner, 400000);
+    const { tasks } = await getPlanSummary(await ctxFor(owner), "2026-09");
+    const assign = tasks.find((t) => t.code === "unallocated")!;
+    expect(assign).toMatchObject({ actionLabel: "Assign", href: "/goals#assign" });
+  });
+
+  it("collapses several over-budget categories into one chip, unlike Overview's per-category list", async () => {
+    const owner = await setupOwner();
+    await income(owner, 400000);
+    await budget(owner, "Housing", 1000);
+    await bill(owner, "Rent", 5000, "Housing");
+    await budget(owner, "Utilities", 1000);
+    await bill(owner, "Power", 5000, "Utilities");
+
+    const { tasks } = await getPlanSummary(await ctxFor(owner), "2026-09");
+    const overBudget = tasks.filter((t) => t.code === "category_over_budget");
+    expect(overBudget).toHaveLength(1);
+    expect(overBudget[0].message).toBe("2 categories are over budget.");
+  });
+
+  it("never shows the permanent reminders for a past or future month", async () => {
+    const owner = await setupOwner();
+    clock.month = "2026-10";
+    const past = await getPlanSummary(await ctxFor(owner), "2026-09");
+    expect(past.tasks).toEqual([]);
+
+    clock.month = "2026-09";
+    const future = await getPlanSummary(await ctxFor(owner), "2026-10");
+    expect(future.tasks.map((t) => t.code)).toEqual([]);
   });
 });

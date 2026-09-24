@@ -8,6 +8,7 @@ import HeaderNav from "@/components/HeaderNav";
 import PlanHeader from "@/components/PlanHeader";
 import PlanSummary from "@/components/PlanSummary";
 import PlanTabs from "@/components/PlanTabs";
+import type { Task } from "@/lib/tasks";
 
 const base = {
   month: "2026-09",
@@ -18,6 +19,16 @@ const base = {
   budgetedCents: 760000,
   billsCents: 271735,
   unallocatedCents: 167200,
+  tasks: [] as Task[],
+};
+
+const assignTask: Task = {
+  code: "unallocated",
+  severity: "info",
+  message: "$1,672.00 is still unallocated — assign it to a goal.",
+  href: "/goals?month=2026-09#assign",
+  actionLabel: "Assign",
+  amountCents: 167200,
 };
 
 function labelledCurrent(html: string) {
@@ -26,7 +37,7 @@ function labelledCurrent(html: string) {
 
 describe("PlanSummary", () => {
   it("shows income, budgeted with the bills inside it, and unallocated", () => {
-    const html = renderToStaticMarkup(<PlanSummary {...base} assign="link" />);
+    const html = renderToStaticMarkup(<PlanSummary {...base} />);
     expect(html).toContain("$9,272.00");
     expect(html).toContain("$7,600.00");
     expect(html).toContain("of which bills $2,717.35");
@@ -35,30 +46,33 @@ describe("PlanSummary", () => {
     expect(html).not.toContain("Over-allocated");
   });
 
-  it("links Assign to the Goals page's panel (spec 032)", () => {
-    const html = renderToStaticMarkup(<PlanSummary {...base} assign="link" />);
+  it("shows no tasks row when there are none", () => {
+    const html = renderToStaticMarkup(<PlanSummary {...base} />);
+    expect(html).not.toContain('aria-label="Tasks"');
+  });
+
+  it("renders each task as a link chip, Assign among them like any other (spec 033)", () => {
+    const html = renderToStaticMarkup(<PlanSummary {...base} tasks={[assignTask]} />);
+    expect(html).toContain('aria-label="Tasks"');
     expect(html).toMatch(/<a[^>]*href="\/goals\?month=2026-09#assign"[^>]*>Assign<\/a>/);
   });
 
-  it("uses a button that scrolls to the panel on the Budget page", () => {
-    const html = renderToStaticMarkup(<PlanSummary {...base} assign="scroll" />);
-    expect(html).toMatch(/<button[^>]*type="button"[^>]*>Assign<\/button>/);
-    expect(html).not.toContain("#assign");
-  });
-
-  it.each([
-    ["the month is read-only", { editable: false }],
-    ["nothing is unallocated", { unallocatedCents: 0 }],
-    ["committed more than income", { unallocatedCents: -72800 }],
-  ])("hides Assign when %s", (_label, overrides) => {
-    for (const mode of ["link", "scroll"] as const) {
-      const html = renderToStaticMarkup(<PlanSummary {...base} {...overrides} assign={mode} />);
-      expect(html).not.toContain(">Assign<");
-    }
+  it("marks a warning task with the error color and a spoken Warning prefix", () => {
+    const warning: Task = {
+      code: "over_allocated",
+      severity: "warning",
+      message: "Bills, expenses and checked-off goals exceed your income by $728.00.",
+      href: "/budget?month=2026-09",
+      actionLabel: "Review budget",
+    };
+    const html = renderToStaticMarkup(<PlanSummary {...base} tasks={[warning]} />);
+    expect(html).toContain("border-danger");
+    expect(html).toContain("text-danger");
+    expect(html).toContain("Warning: ");
   });
 
   it("flags over-allocation with the amount and the error color", () => {
-    const html = renderToStaticMarkup(<PlanSummary {...base} unallocatedCents={-72800} assign="link" />);
+    const html = renderToStaticMarkup(<PlanSummary {...base} unallocatedCents={-72800} />);
     expect(html).toContain("Over-allocated by");
     expect(html).toContain("$728.00");
     expect(html).toContain("text-danger");
@@ -69,13 +83,13 @@ describe("PlanSummary", () => {
     const provisional = { ...base, incomeProvisional: true };
 
     it("notes that variable income counts once recorded", () => {
-      const html = renderToStaticMarkup(<PlanSummary {...provisional} assign="link" />);
+      const html = renderToStaticMarkup(<PlanSummary {...provisional} />);
       expect(html).toContain("Variable income counts once you record it.");
-      expect(renderToStaticMarkup(<PlanSummary {...base} assign="link" />)).not.toContain("Variable income counts");
+      expect(renderToStaticMarkup(<PlanSummary {...base} />)).not.toContain("Variable income counts");
     });
 
     it("shows being above income plainly, not as an error", () => {
-      const html = renderToStaticMarkup(<PlanSummary {...provisional} unallocatedCents={-72800} assign="link" />);
+      const html = renderToStaticMarkup(<PlanSummary {...provisional} unallocatedCents={-72800} />);
       expect(html).toContain("Over recorded income by");
       expect(html).toContain("$728.00");
       expect(html).not.toContain("Over-allocated");
@@ -83,20 +97,15 @@ describe("PlanSummary", () => {
     });
 
     it("is still an error when the income is final", () => {
-      const html = renderToStaticMarkup(<PlanSummary {...base} unallocatedCents={-72800} assign="link" />);
+      const html = renderToStaticMarkup(<PlanSummary {...base} unallocatedCents={-72800} />);
       expect(html).toContain("Over-allocated by");
       expect(html).toContain("text-danger");
       expect(html).not.toContain("Over recorded income");
     });
-
-    it("keeps Assign hidden when over, and shown when money is left", () => {
-      expect(renderToStaticMarkup(<PlanSummary {...provisional} unallocatedCents={-72800} assign="link" />)).not.toContain(">Assign<");
-      expect(renderToStaticMarkup(<PlanSummary {...provisional} assign="link" />)).toContain(">Assign<");
-    });
   });
 
   it("does not use the error color when within income", () => {
-    expect(renderToStaticMarkup(<PlanSummary {...base} assign="link" />)).not.toContain("text-danger");
+    expect(renderToStaticMarkup(<PlanSummary {...base} />)).not.toContain("text-danger");
   });
 });
 

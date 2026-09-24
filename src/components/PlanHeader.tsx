@@ -30,7 +30,7 @@ export default function PlanHeader({
         <MonthNav basePath={`/${title.toLowerCase()}`} month={month} now={now} />
       </div>
       <PlanTabs month={month} now={now} />
-      {summary && <PlanSummary {...summary} assign="link" />}
+      {summary && <PlanSummary {...summary} />}
     </header>
   );
 }
