@@ -369,9 +369,16 @@ describe("ExpensesCard", () => {
   });
 });
 
-describe("GetStarted", () => {
+describe("GetStarted (spec 031)", () => {
+  const notStarted: Pick<Overview, "income" | "categories" | "bills" | "goals"> = {
+    income: { totalCents: 0, fixedCents: 0, variableCents: 0, byMember: [] },
+    categories: [],
+    bills: { totalCents: 0, byCategory: [], largest: [] },
+    goals: [],
+  };
+
   it("links the four setup steps in order, keeping the month", () => {
-    const html = renderToStaticMarkup(<GetStarted query="?month=2026-10" />);
+    const html = renderToStaticMarkup(<GetStarted overview={notStarted} query="?month=2026-10" />);
     const hrefs = [...html.matchAll(/href="([^"]+)"/g)].map((m) => m[1]);
     expect(hrefs).toEqual([
       "/income?month=2026-10",
@@ -379,5 +386,40 @@ describe("GetStarted", () => {
       "/bills?month=2026-10",
       "/goals?month=2026-10",
     ]);
+  });
+
+  it("checks off only the steps that are actually done", () => {
+    const partial: typeof notStarted = {
+      ...notStarted,
+      income: { ...notStarted.income, totalCents: 400000 },
+      categories: [{ id: "1", name: "Groceries", budgetedCents: 50000, billsCents: 0, expensesCents: 0, leftCents: 50000 }],
+    };
+    const html = renderToStaticMarkup(<GetStarted overview={partial} query="" />);
+    // The sr-only "Done: " prefix sits in its own <span>, so check for the
+    // rendered adjacency rather than a plain substring across tags.
+    expect(html).toContain('sr-only">Done: </span>Add your income');
+    expect(html).toContain('sr-only">Done: </span>Set your category budgets');
+    expect(html).not.toContain('sr-only">Done: </span>Add your recurring bills');
+    expect(html).not.toContain('sr-only">Done: </span>Review your goals');
+  });
+
+  it("a goal that exists but has no amount doesn't count as reviewed", () => {
+    const withUnfundedGoal: typeof notStarted = {
+      ...notStarted,
+      goals: [{ id: "1", name: "Starter Savings", type: "saving", amountCents: 0, checked: false }],
+    };
+    const html = renderToStaticMarkup(<GetStarted overview={withUnfundedGoal} query="" />);
+    expect(html).not.toContain('sr-only">Done: </span>Review your goals');
+  });
+
+  it("renders nothing once every step is done", () => {
+    const done: typeof notStarted = {
+      income: { totalCents: 400000, fixedCents: 400000, variableCents: 0, byMember: [] },
+      categories: [{ id: "1", name: "Groceries", budgetedCents: 50000, billsCents: 0, expensesCents: 0, leftCents: 50000 }],
+      bills: { totalCents: 20000, byCategory: [], largest: [] },
+      goals: [{ id: "1", name: "Savings", type: "saving", amountCents: 10000, checked: false }],
+    };
+    const html = renderToStaticMarkup(<GetStarted overview={done} query="" />);
+    expect(html).toBe("");
   });
 });
