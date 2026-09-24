@@ -4,13 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const TABS = [
+  { href: "/income", label: "Income" },
   { href: "/budget", label: "Budget" },
   { href: "/bills", label: "Bills" },
-  { href: "/income", label: "Income" },
   { href: "/goals", label: "Goals" },
 ];
 
-// Budget | Bills | Income | Goals: four views of one monthly plan. Keeps the
+// Income | Budget | Bills | Goals: four views of one monthly plan. Keeps the
 // selected month when switching between them.
 export default function PlanTabs({ month, now }: { month: string; now: string }) {
   const pathname = usePathname();
