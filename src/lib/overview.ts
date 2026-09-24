@@ -3,29 +3,9 @@ import { getBudget } from "./budgets";
 import type { GoalType } from "./goalTypes";
 import type { HouseholdContext } from "./household";
 import { getIncomeMonth } from "./income";
-import { formatMoney } from "./money";
-import { currentMonth } from "./months";
+import { buildTasks, type Task } from "./tasks";
 
-export type TaskCode =
-  | "over_allocated"
-  | "bills_exceed_income"
-  | "category_over_budget"
-  | "unallocated"
-  | "goal_not_checked"
-  | "log_expenses"
-  | "update_income"
-  | "update_bills";
-
-export type Task = {
-  code: TaskCode;
-  severity: "warning" | "info";
-  message: string;
-  href: string;
-  actionLabel: string;
-  amountCents?: number;
-  categoryId?: string;
-  goalId?: string;
-};
+export type { TaskCode, Task } from "./tasks";
 
 export type OverviewCategory = {
   id: string;
@@ -118,8 +98,6 @@ export async function getOverview(
     getBillsMonth(ctx, month),
   ]);
   const currency = ctx.household.currency;
-  const money = (cents: number) => formatMoney(cents, currency);
-  const q = month === currentMonth() ? "" : `?month=${month}`;
 
   const categories: OverviewCategory[] = budget.categories.map((c) => ({
     id: c.id,
@@ -147,111 +125,16 @@ export async function getOverview(
   const checkedSavingCents = sumCheckedByType("saving");
   const checkedDebtPayoffCents = sumCheckedByType("debt payoff");
 
-  const tasks: Task[] = [];
-  // Income that may still grow (variable deposits not recorded yet) makes a
-  // shortfall informational rather than an error.
-  const provisional = budget.incomeProvisional;
-  const shortfallSeverity = provisional ? "info" : "warning";
-  const note = provisional ? " Variable income counts once you record it." : "";
-  if (incomeCents > 0 && unallocatedCents < 0) {
-    tasks.push({
-      code: "over_allocated",
-      severity: shortfallSeverity,
-      message: provisional
-        ? `Bills, expenses and checked-off goals exceed the income recorded so far by ${money(-unallocatedCents)}.${note}`
-        : `Bills, expenses and checked-off goals exceed your income by ${money(-unallocatedCents)}.`,
-      href: `/budget${q}`,
-      actionLabel: "Review budget",
-      amountCents: -unallocatedCents,
-    });
-  }
-  if (incomeCents > 0 && budget.billsTotalCents > incomeCents) {
-    tasks.push({
-      code: "bills_exceed_income",
-      severity: shortfallSeverity,
-      message: provisional
-        ? `Bills (${money(budget.billsTotalCents)}) are more than the income recorded so far (${money(incomeCents)}).${note}`
-        : `Bills (${money(budget.billsTotalCents)}) are more than your income (${money(incomeCents)}).`,
-      href: `/bills${q}`,
-      actionLabel: "Review bills",
-      amountCents: budget.billsTotalCents - incomeCents,
-    });
-  }
-  for (const c of categories) {
-    if (c.leftCents < 0) {
-      tasks.push({
-        code: "category_over_budget",
-        severity: "warning",
-        message: `${c.name}: is ${money(-c.leftCents)} over its budget.`,
-        href: `/budget${q}`,
-        actionLabel: "Adjust budget",
-        amountCents: -c.leftCents,
-        categoryId: c.id,
-      });
-    }
-  }
-  if (budget.editable && unallocatedCents > 0) {
-    // Assign lives on the Goals page, next to where it's checked off
-    // (spec 032).
-    tasks.push({
-      code: "unallocated",
-      severity: "info",
-      message: `${money(unallocatedCents)} is still unallocated — assign it to a goal.`,
-      href: `/goals${q}#assign`,
-      actionLabel: "Assign",
-      amountCents: unallocatedCents,
-    });
-  }
-  // A reminder to confirm a funded goal actually happened (spec 015), and
-  // the permanent monthly reminders below, are both only for the current
-  // month: a past month is for review, and a future month has nothing to do
-  // yet.
-  if (month === currentMonth()) {
-    for (const g of budget.goals) {
-      if (g.amountCents > 0 && !g.checked) {
-        tasks.push({
-          code: "goal_not_checked",
-          severity: "info",
-          message: `${g.name} hasn't been checked off yet this month.`,
-          href: "/goals",
-          actionLabel: "Check off",
-          amountCents: g.amountCents,
-          goalId: g.id,
-        });
-      }
-    }
-    // Routine upkeep, shown every month regardless of what's already been
-    // done — unlike the old no_income/no_bills checks, these never resolve
-    // (spec 032).
-    tasks.push({
-      code: "log_expenses",
-      severity: "info",
-      message: "Log this month's expenses as they happen.",
-      href: `/expenses${q}`,
-      actionLabel: "Log expense",
-    });
-    tasks.push({
-      code: "update_income",
-      severity: "info",
-      message: "Keep this month's income up to date.",
-      href: `/income${q}`,
-      actionLabel: "Update income",
-    });
-    tasks.push({
-      code: "update_bills",
-      severity: "info",
-      message: "Keep this month's recurring bills up to date.",
-      href: `/bills${q}`,
-      actionLabel: "Update bills",
-    });
-  }
+  // Shared with the Plan summary's compact tasks row (spec 033), so the two
+  // can never disagree.
+  const tasks = buildTasks(budget, month);
 
   return {
     month,
     currency,
     householdName: ctx.household.name,
     editable: budget.editable,
-    incomeProvisional: provisional,
+    incomeProvisional: budget.incomeProvisional,
     income: {
       totalCents: income.totalCents,
       fixedCents: sum("fixed"),

@@ -7,6 +7,7 @@ import { getBudget } from "@/lib/budgets";
 import { listCategories } from "@/lib/categories";
 import { getHouseholdContext } from "@/lib/household";
 import { currentMonth, isMonth, monthLabel } from "@/lib/months";
+import { planSummaryFromBudget } from "@/lib/plan";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,7 @@ export default async function BudgetPage(props: PageProps<"/budget">) {
     getBudget(ctx, month),
     listCategories(ctx.household.id),
   ]);
+  const { tasks } = planSummaryFromBudget(budget, month);
 
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 space-y-10 px-4 py-10">
@@ -42,6 +44,7 @@ export default async function BudgetPage(props: PageProps<"/budget">) {
           incomeProvisional={budget.incomeProvisional}
           billsTotalCents={budget.billsTotalCents}
           unallocatedCents={budget.unallocatedCents}
+          tasks={tasks}
         />
       </section>
 

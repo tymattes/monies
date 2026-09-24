@@ -1,6 +1,6 @@
 # 033: Plan summary shows this month's tasks
 
-**Status:** draft
+**Status:** implemented
 
 ## Goal
 
@@ -9,7 +9,7 @@ Usability testing found that the summary card at the top of every Plan page (Bud
 ## Requirements
 
 - The Plan summary card (`PlanSummary`, shown via `PlanHeader` on all four Plan pages) shows the current month's open tasks below its three stats, sourced from the same task-building logic Overview's Tasks list uses (spec 032) — not a second implementation that can disagree with it.
-- Tasks render compactly — short link chips, not Overview's full sentences — since the card already carries three stats and needs to stay a header, not a second Tasks section.
+- Tasks render compactly — short link chips, not Overview's full sentences — since the card already carries three stats and needs to stay a header, not a second Tasks section. Each chip still needs to stand alone at a glance: the Assign chip reads "Assign income to goal," and a goal-check-off chip includes the goal's name plus "goal" ("Check off Savings goal"), so two goals due don't render as two identical "Check off" chips.
 - Category-over-budget tasks collapse into a single chip ("N categories over budget," linking to Budget) here, rather than Overview's one-per-category — the only place this spec simplifies what Overview shows in full.
 - Assign-unallocated is one of these task chips, linking to `/goals?month=...#assign` — it's no longer a distinct button styled apart from the rest (folding it in is the point: "make Assign a task, not a special case").
 - The three permanent monthly reminders (Log expenses, Update income, Update bills) and the goal-check-off reminder appear here too, under the same current-month-only scoping as Overview (spec 032).
@@ -23,19 +23,20 @@ Usability testing found that the summary card at the top of every Plan page (Bud
 
 ## Acceptance criteria
 
-- [ ] Every Plan page's summary card shows a row of task chips for the current month when any are open.
-- [ ] The chip set matches Overview's Tasks for the same month, except category-over-budget is one combined chip here.
-- [ ] Assign shows as a task chip like any other, not a separate button.
-- [ ] A month with no open tasks shows the card with no tasks row.
-- [ ] A past or future month never shows the three permanent reminders.
-- [ ] Documentation updated (see Documentation).
+- [x] Every Plan page's summary card shows a row of task chips for the current month when any are open.
+- [x] The chip set matches Overview's Tasks for the same month, except category-over-budget is one combined chip here.
+- [x] Assign shows as a task chip like any other, not a separate button.
+- [x] A month with no open tasks shows the card with no tasks row.
+- [x] A past or future month never shows the three permanent reminders.
+- [x] Documentation updated (see Documentation).
 
 ## Technical notes
 
-- Extract the task-building logic added in spec 032 into a pure function taking a `Budget` and a `month` (everything it needs — `editable`, `incomeCents`, `unallocatedCents`, `billsTotalCents`, `categories`, `goals` — is already on `Budget`, `src/lib/budgets.ts`) and returning the task list. `getOverview` (`src/lib/overview.ts`) calls it for the full list; `planSummaryFromBudget`/`getPlanSummary` (`src/lib/plan.ts`) call it for this one, so both stay in sync by construction.
-- `PlanSummaryData` (`src/lib/plan.ts`) gains a `tasks` field carrying this list (or the simplified/collapsed form — decide whether collapsing category-over-budget happens in the shared builder with a `compact` flag, or as a presentation step in `PlanSummary.tsx`; either is fine as long as Overview's per-category detail is untouched).
-- `src/components/PlanSummary.tsx`: renders the tasks as a row of small links below the stats grid; the `assign: "scroll" | "link"` prop and its dedicated Assign button are removed now that Assign is just another task chip. `assign="scroll"` was already unused by every call site (`grep` shows only `"link"` in production code) — confirm before deleting the mode and its now-orphaned test cases in `tests/plan-ui.test.tsx`.
-- Callers of `PlanSummary` (`PlanHeader.tsx`, `BudgetEditor.tsx`) drop the `assign` prop.
+- Done: extracted the task-building logic added in spec 032 into `src/lib/tasks.ts` (`buildTasks(budget, month)`, plus `TaskCode`/`Task`), a pure function taking a `Budget` (everything it needs is already on it). `getOverview` (`src/lib/overview.ts`) calls it for the full list; `planSummaryFromBudget`/`getPlanSummary` (`src/lib/plan.ts`) call it for the compact one via `collapseCategoryOverBudget(buildTasks(b, month))` — a second exported function in `tasks.ts` that merges multiple `category_over_budget` items into one, so both places read the same underlying logic and can't drift apart.
+- `PlanSummaryData` (`src/lib/plan.ts`) gained the `tasks` field, already collapsed.
+- `src/components/PlanSummary.tsx`: renders the tasks as a row of small link chips below the stats grid; the `assign: "scroll" | "link"` prop and its dedicated Assign button are gone — confirmed `"scroll"` was unused by every call site before deleting it and its orphaned tests in `tests/plan-ui.test.tsx`. The component no longer needs `"use client"` (no hooks left).
+- Callers of `PlanSummary` (`PlanHeader.tsx`, `BudgetEditor.tsx`) drop the `assign` prop; `src/app/budget/page.tsx` computes `tasks` via `planSummaryFromBudget` and passes it into `BudgetEditor`, which (like `unallocatedCents`) treats it as server-given and static, not recomputed as the user edits amounts.
+- One behavior fix that fell out of sharing `buildTasks`: the Assign link now omits `?month=` for the current month, matching every other link in the app — the old hardcoded Income link always included it, inconsistently.
 
 ## Documentation
 
