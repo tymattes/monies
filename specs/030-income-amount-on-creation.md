@@ -1,6 +1,6 @@
 # 030: Set a fixed source's amount when you add it
 
-**Status:** approved
+**Status:** implemented
 
 ## Goal
 
