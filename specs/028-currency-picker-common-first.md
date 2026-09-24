@@ -35,7 +35,7 @@ code. This is low priority; the choice is made once per instance.
       code appearing exactly once and USD selected.
 - [x] Any common code missing from `Intl.supportedValuesOf("currency")` on the
       running engine is skipped rather than rendered.
-- [ ] The existing setup e2e and the axe scan in `e2e/a11y.spec.ts` still pass.
+- [x] The existing setup e2e and the axe scan in `e2e/a11y.spec.ts` still pass.
 - [x] A render test asserts the group order and that no code is duplicated.
 - [x] Documentation updated (see Documentation).
 
