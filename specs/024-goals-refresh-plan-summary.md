@@ -1,6 +1,6 @@
 # 024: Goals page refreshes the Plan summary after check-off and amount edits
 
-**Status:** draft
+**Status:** implemented
 
 ## Goal
 The usability study (`usability-study-report.md`, bug 1) found that on `/goals`,
