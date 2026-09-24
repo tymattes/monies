@@ -1,6 +1,6 @@
 # 033: Plan summary shows this month's tasks
 
-**Status:** approved
+**Status:** implemented
 
 ## Goal
 
