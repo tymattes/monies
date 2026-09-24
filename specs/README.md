@@ -42,4 +42,4 @@ Monies is built spec-first. `brief.md` is the source of truth for product intent
 | 025 | [Unallocated wording and a goals step in the get-started checklist](025-unallocated-wording-and-goals-onboarding.md) | implemented |
 | 026 | [Assign confirms what happened and that money is claimed at check-off](026-assign-claims-on-checkoff-copy.md) | implemented |
 | 027 | [Expense description belongs inside the entry form](027-expense-description-in-form.md) | draft |
-| 028 | [Common currencies first in the setup currency picker](028-currency-picker-common-first.md) | draft |
+| 028 | [Common currencies first in the setup currency picker](028-currency-picker-common-first.md) | implemented |
