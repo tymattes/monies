@@ -24,7 +24,7 @@ const optLabel = (name: string, amountCents: number) => `${name} · ${money(amou
 test.beforeEach(async ({ page }) => {
   await resetAndSeed(); // each test changes budget amounts
   await signIn(page, OWNER);
-  await page.goto("/income");
+  await page.goto("/goals"); // the panel lives here, near the top (spec 032)
   await waitHydrated(page);
 });
 
@@ -80,8 +80,8 @@ test("splits across two goals in one click", async ({ page }) => {
   expect(response.ok()).toBeTruthy();
 
   // Both goal targets grew by their split. Unallocated is unchanged (spec
-  // 022: a target is a plan, not a claim), so the panel stays open.
-  await page.goto("/goals");
+  // 022: a target is a plan, not a claim), so the panel stays open. Already
+  // on Goals (spec 032), so the refreshed amounts show with no navigation.
   await expect(page.getByLabel("Savings", { exact: true })).toHaveValue(input(SEED.goals.Savings + half + 1));
   await expect(page.getByLabel("Vacation", { exact: true })).toHaveValue(input(half));
 });
@@ -111,8 +111,6 @@ test("stays disabled with a clear message when the amounts are too large", async
 });
 
 test("preselects by type, not name: renaming the Savings goal keeps it preselected", async ({ page }) => {
-  await page.goto("/goals");
-  await waitHydrated(page);
   const nameInput = page.getByLabel("Name of Savings", { exact: true });
   await nameInput.fill("House Fund");
   const [response] = await Promise.all([
@@ -121,7 +119,7 @@ test("preselects by type, not name: renaming the Savings goal keeps it preselect
   ]);
   expect(response.ok()).toBeTruthy();
 
-  await page.goto("/income");
+  // Already on Goals (spec 032) — no navigation needed to see the panel.
   const p = panel(page);
   await expect(p.getByLabel("Goal 1", { exact: true }).locator("option:checked")).toHaveText(
     optLabel("House Fund", SEED.goals.Savings),
@@ -142,17 +140,14 @@ test("can assign part of it; the goal grows but Unallocated is unchanged (spec 0
   await expect(page.getByRole("region", { name: "Plan summary" })).toContainText(money(SEED.unallocatedCents));
   await expect(panel(page)).toContainText(`Assign the unallocated ${money(SEED.unallocatedCents)}`);
 
-  // spec 026: the panel confirms what happened, links to Goals for this
-  // month, resets its rows to empty, and disables Assign until re-entered.
-  await expect(p).toContainText(`Added ${money(40000)} to Savings for ${monthName()}.`);
-  const goalsLink = p.getByRole("link", { name: "Goals" });
-  await expect(goalsLink).toBeVisible();
+  // spec 026: the panel confirms what happened and resets its rows to empty,
+  // disabling Assign until re-entered. It no longer links to Goals for the
+  // confirmation (spec 032) — the panel already lives there.
+  await expect(p).toContainText(`Added ${money(40000)} to Savings for ${monthName()}. Check it off below when the money moves.`);
   await expect(p.getByLabel("Amount for goal 1", { exact: true })).toHaveValue("");
   await expect(p.getByRole("button", { name: "Assign" })).toBeDisabled();
-  await goalsLink.click();
-  await expect(page).toHaveURL(new RegExp(`/goals\\?month=${monthKey()}`));
 
-  await page.goto("/goals");
+  // The refreshed Goals editor, right below, already shows the new amount.
   await expect(page.getByLabel("Savings", { exact: true })).toHaveValue(input(SEED.goals.Savings + 40000));
 });
 

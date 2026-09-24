@@ -1,15 +1,17 @@
 import Link from "next/link";
-import type { AttentionItem } from "@/lib/overview";
+import type { Task } from "@/lib/overview";
 import { secondaryButtonCls } from "../ui";
 
-// Things worth a look, each with a link to where it is fixed. Warnings get an
-// error-colored edge and a spoken "Warning" prefix, so they never rely on color.
-export default function AttentionList({ items }: { items: AttentionItem[] }) {
+// This month's to-do list: warnings, a funded-but-unchecked goal, assigning
+// unallocated income, and the permanent reminders to log expenses and keep
+// income and bills current (spec 032). Warnings get an error-colored edge
+// and a spoken "Warning" prefix, so they never rely on color.
+export default function TaskList({ items }: { items: Task[] }) {
   if (items.length === 0) return null;
   return (
-    <section aria-labelledby="attention-heading" className="space-y-2">
-      <h2 id="attention-heading" className="text-lg font-semibold tracking-tight">
-        Needs attention
+    <section aria-labelledby="tasks-heading" className="space-y-2">
+      <h2 id="tasks-heading" className="text-lg font-semibold tracking-tight">
+        Tasks
       </h2>
       <ul className="space-y-2">
         {items.map((item) => (

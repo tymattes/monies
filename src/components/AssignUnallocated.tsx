@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { GoalType } from "@/lib/goalTypes";
@@ -37,9 +36,9 @@ function formatList(parts: string[]): string {
 // click, from this month onward. Nothing is assigned automatically: the user
 // picks the goals and amounts (the first row starts on the first Saving goal,
 // if there is one, with the whole amount — debt payoff is never preselected,
-// since topping it up is a deliberate choice, spec 012/014). Lives on the
-// Income page (spec 015) — money coming in and where it's going fit
-// naturally on the same page.
+// since topping it up is a deliberate choice, spec 012/014). Lives near the
+// top of the Goals page (spec 032) — leftover income and the goal it funds,
+// and the check-off right below once the money moves.
 export default function AssignUnallocated({
   month,
   monthName,
@@ -67,7 +66,7 @@ export default function AssignUnallocated({
   const [error, setError] = useState("");
   const [done, setDone] = useState<Done | null>(null);
 
-  // Arriving from the Plan summary on another page (…/income#assign).
+  // Arriving from the Plan summary on another page (…/goals#assign).
   const arrivedViaHash = useRef(false);
   useEffect(() => {
     if (arrivedViaHash.current) return;
@@ -247,11 +246,7 @@ export default function AssignUnallocated({
             {formatList(
               done.items.map((i) => `${formatMoney(i.amountCents, currency)} to ${i.name}`),
             )}{" "}
-            for {monthName}. Check it off on{" "}
-            <Link href={`/goals?month=${month}`} className="underline">
-              Goals
-            </Link>{" "}
-            when the money moves.
+            for {monthName}. Check it off below when the money moves.
           </>
         ) : left === 0 ? (
           `Assigning all of it to ${monthName}; ${nextMonthName} goes back to the earlier amount unless you change it. It counts against Unallocated Income once you check the goal off on Goals.`

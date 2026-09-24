@@ -1,7 +1,6 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import MonthNav from "@/components/MonthNav";
-import AttentionList from "@/components/overview/AttentionList";
 import BillsCard from "@/components/overview/BillsCard";
 import CashFlowCard from "@/components/overview/CashFlowCard";
 import CategoryTable from "@/components/overview/CategoryTable";
@@ -9,6 +8,7 @@ import ExpensesCard from "@/components/overview/ExpensesCard";
 import GetStarted from "@/components/overview/GetStarted";
 import GoalsCard from "@/components/overview/GoalsCard";
 import IncomeCard from "@/components/overview/IncomeCard";
+import TaskList from "@/components/overview/TaskList";
 import { getHouseholdContext } from "@/lib/household";
 import { currentMonth, isMonth, monthLabel } from "@/lib/months";
 import { getOverview } from "@/lib/overview";
@@ -42,12 +42,8 @@ export default async function OverviewPage(props: PageProps<"/">) {
       </div>
 
       {o.editable && <GetStarted overview={o} query={q} />}
-      <AttentionList items={o.attention} />
-      <CashFlowCard
-        overview={o}
-        monthName={monthLabel(month)}
-        assignHref={`/income${q}#assign`}
-      />
+      <TaskList items={o.tasks} />
+      <CashFlowCard overview={o} monthName={monthLabel(month)} />
       {o.categories.length > 0 && (
         <CategoryTable rows={o.categories} currency={o.currency} editHref={`/budget${q}`} />
       )}

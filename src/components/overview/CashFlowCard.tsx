@@ -1,7 +1,5 @@
-import Link from "next/link";
 import { formatMoney } from "@/lib/money";
 import type { Overview } from "@/lib/overview";
-import { buttonCls } from "../ui";
 
 function Stat({
   label,
@@ -37,13 +35,11 @@ function Stat({
 export default function CashFlowCard({
   overview,
   monthName,
-  assignHref,
 }: {
-  overview: Pick<Overview, "cashFlow" | "currency" | "editable" | "incomeProvisional">;
+  overview: Pick<Overview, "cashFlow" | "currency" | "incomeProvisional">;
   monthName: string;
-  assignHref: string;
 }) {
-  const { cashFlow: cf, currency, editable, incomeProvisional } = overview;
+  const { cashFlow: cf, currency, incomeProvisional } = overview;
   const money = (c: number) => formatMoney(c, currency);
   const committed =
     cf.billsCents + cf.expensesCents + cf.checkedSavingCents + cf.checkedDebtPayoffCents;
@@ -97,13 +93,7 @@ export default function CashFlowCard({
           }
           value={money(over ? cf.overAllocatedCents : cf.unallocatedCents)}
           danger={overIsError}
-        >
-          {editable && cf.unallocatedCents > 0 && (
-            <Link href={assignHref} className={`${buttonCls} mt-2 inline-block`}>
-              Assign
-            </Link>
-          )}
-        </Stat>
+        />
         {/* Full per-type goal targets (spec 013) — a planning figure, distinct
             from the bar's checked segments. Hidden when zero so a household
             that hasn't used the type does not see a permanent "$0.00". */}

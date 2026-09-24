@@ -1,12 +1,13 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import AssignUnallocated from "@/components/AssignUnallocated";
 import GoalEditor from "@/components/GoalEditor";
 import GoalManager from "@/components/GoalManager";
 import PlanHeader from "@/components/PlanHeader";
 import { getBudget } from "@/lib/budgets";
 import { getGoalsMonth, listGoals } from "@/lib/goals";
 import { getHouseholdContext } from "@/lib/household";
-import { currentMonth, isMonth } from "@/lib/months";
+import { currentMonth, isMonth, monthLabel } from "@/lib/months";
 import { planSummaryFromBudget } from "@/lib/plan";
 
 export const dynamic = "force-dynamic";
@@ -32,6 +33,16 @@ export default async function GoalsPage(props: PageProps<"/goals">) {
     <main className="mx-auto w-full max-w-5xl flex-1 space-y-10 px-4 py-10">
       <section className="space-y-4">
         <PlanHeader title="Goals" month={month} now={now} summary={summary} />
+        {budget.editable && budget.unallocatedCents > 0 && (
+          <AssignUnallocated
+            key={budget.unallocatedCents}
+            month={month}
+            monthName={monthLabel(month)}
+            currency={budget.currency}
+            goals={budget.goals}
+            unallocated={budget.unallocatedCents}
+          />
+        )}
         <p className="text-sm text-muted">
           {data.editable
             ? "Amounts apply from this month onward. The checkmark can be set for any month."
