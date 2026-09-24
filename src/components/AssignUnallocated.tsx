@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { GoalType } from "@/lib/goalTypes";
@@ -14,11 +15,22 @@ type Goal = { id: string; name: string; type: GoalType; amountCents: number };
 // budget is set by hand on Budget or reflects what it actually costs).
 type Row = { key: number; target: string; amount: string };
 
+// The last successful assign, kept only long enough to show the confirmation
+// (spec 026); cleared by any edit.
+type Done = { items: { name: string; amountCents: number }[] };
+
 // Splits `total` minor units across `n` rows; leftover cents go to the first rows.
 function evenSplit(total: number, n: number): number[] {
   const base = Math.floor(total / n);
   const extra = total - base * n;
   return Array.from({ length: n }, (_, i) => base + (i < extra ? 1 : 0));
+}
+
+// "a", "a and b", "a, b, and c".
+function formatList(parts: string[]): string {
+  if (parts.length <= 1) return parts.join("");
+  if (parts.length === 2) return parts.join(" and ");
+  return `${parts.slice(0, -1).join(", ")}, and ${parts[parts.length - 1]}`;
 }
 
 // Puts part or all of the month's leftover into one or more goals in one
@@ -53,6 +65,7 @@ export default function AssignUnallocated({
   const [nextKey, setNextKey] = useState(1);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [done, setDone] = useState<Done | null>(null);
 
   // Arriving from the Plan summary on another page (…/income#assign).
   const arrivedViaHash = useRef(false);
@@ -77,10 +90,12 @@ export default function AssignUnallocated({
   const targetCount = goals.length;
 
   function update(key: number, patch: Partial<Row>) {
+    setDone(null);
     setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
   }
 
   function addRow() {
+    setDone(null);
     setRows((rs) => [
       ...rs,
       { key: nextKey, target: "", amount: left > 0 ? toInputString(left, currency) : "" },
@@ -89,6 +104,7 @@ export default function AssignUnallocated({
   }
 
   function splitEvenly() {
+    setDone(null);
     const parts = evenSplit(unallocated, rows.length);
     setRows((rs) =>
       rs.map((r, i) => ({ ...r, amount: toInputString(parts[i], currency) })),
@@ -121,6 +137,14 @@ export default function AssignUnallocated({
     );
     setBusy(false);
     if (!ok) return setError(error ?? "Could not assign");
+    setDone({
+      items: parsed.map((r) => ({
+        name: goals.find((g) => g.id === r.target)?.name ?? "",
+        amountCents: r.minor ?? 0,
+      })),
+    });
+    setRows([{ key: 0, target: savings ? savings.id : "", amount: "" }]);
+    setNextKey(1);
     router.refresh();
   }
 
@@ -215,11 +239,25 @@ export default function AssignUnallocated({
         aria-live="polite"
         className={`text-xs ${left < 0 ? "text-danger" : "text-muted"}`}
       >
-        {left < 0
-          ? `That is ${formatMoney(-left, currency)} more than the unallocated amount.`
-          : left === 0
-            ? `Assigning all of it to ${monthName}; ${nextMonthName} goes back to the earlier amount unless you change it.`
-            : `Assigning ${formatMoney(total, currency)} to ${monthName}; ${formatMoney(left, currency)} stays unallocated. ${nextMonthName} goes back to the earlier amount unless you change it.`}
+        {left < 0 ? (
+          `That is ${formatMoney(-left, currency)} more than the unallocated amount.`
+        ) : done ? (
+          <>
+            Added{" "}
+            {formatList(
+              done.items.map((i) => `${formatMoney(i.amountCents, currency)} to ${i.name}`),
+            )}{" "}
+            for {monthName}. Check it off on{" "}
+            <Link href={`/goals?month=${month}`} className="underline">
+              Goals
+            </Link>{" "}
+            when the money moves.
+          </>
+        ) : left === 0 ? (
+          `Assigning all of it to ${monthName}; ${nextMonthName} goes back to the earlier amount unless you change it. It counts against Unallocated Income once you check the goal off on Goals.`
+        ) : (
+          `Assigning ${formatMoney(total, currency)} to ${monthName}; ${formatMoney(left, currency)} stays unallocated. ${nextMonthName} goes back to the earlier amount unless you change it. It counts against Unallocated Income once you check the goal off on Goals.`
+        )}
       </p>
       {error && (
         <p role="alert" className="text-xs text-danger">

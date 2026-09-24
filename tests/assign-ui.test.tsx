@@ -77,4 +77,13 @@ describe("AssignUnallocated (spec 020)", () => {
     expect(liveRegions).toHaveLength(1);
     expect(html).toContain("Assigning all of it to September 2026; October 2026 goes back to the earlier amount unless you change it.");
   });
+
+  // spec 026: the claim-at-check-off sentence sits alongside the existing
+  // one-month top-up wording, in the same footnote.
+  it("explains that assigned money is claimed when the goal is checked off", () => {
+    const html = panel();
+    expect(html).toContain(
+      "It counts against Unallocated Income once you check the goal off on Goals.",
+    );
+  });
 });

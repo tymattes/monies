@@ -40,3 +40,4 @@ Monies is built spec-first. `brief.md` is the source of truth for product intent
 | 023 | [Overview sections — Budget, Expenses, and per-domain actions](023-overview-sections-and-actions.md) | implemented |
 | 024 | [Goals page refreshes the Plan summary after check-off and amount edits](024-goals-refresh-plan-summary.md) | implemented |
 | 025 | [Unallocated wording and a goals step in the get-started checklist](025-unallocated-wording-and-goals-onboarding.md) | implemented |
+| 026 | [Assign confirms what happened and that money is claimed at check-off](026-assign-claims-on-checkoff-copy.md) | implemented |
