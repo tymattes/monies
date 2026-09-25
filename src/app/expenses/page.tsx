@@ -37,6 +37,10 @@ export default async function ExpensesPage(props: PageProps<"/expenses">) {
           <h1 className="text-2xl font-semibold tracking-tight">
             What you spent
           </h1>
+          <p className="text-sm text-muted">
+            Log every purchase, or just the big ones — as detailed or as
+            rough as you want, the app works either way.
+          </p>
         </div>
         <MonthNav basePath="/expenses" month={month} now={now} />
       </div>
