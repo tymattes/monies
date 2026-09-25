@@ -1,6 +1,6 @@
 # 035: Overview's Tasks can be completed inline
 
-**Status:** draft
+**Status:** implemented
 
 ## Goal
 Every Task on Overview (spec 032) links out to another page to be resolved —
