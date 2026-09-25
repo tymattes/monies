@@ -48,3 +48,4 @@ Monies is built spec-first. `brief.md` is the source of truth for product intent
 | 031 | [A persistent set-up checklist on Overview](031-persistent-onboarding-checklist.md) | implemented |
 | 032 | [Needs attention becomes Tasks, and Assign moves to Goals](032-tasks-and-assign-on-goals.md) | implemented |
 | 033 | [Plan summary shows this month's tasks](033-plan-summary-tasks.md) | implemented |
+| 034 | [Overview shows a recent-expenses ledger instead of a total-only card](034-overview-recent-expenses.md) | draft |

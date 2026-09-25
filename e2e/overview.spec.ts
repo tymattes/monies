@@ -170,7 +170,7 @@ test.describe("with a seeded household", () => {
     await expect(page).toHaveURL(/\/bills/);
   });
 
-  test("the expenses card explains a month with nothing logged and links to Expenses", async ({ page }) => {
+  test("the expenses section explains a month with nothing logged and links to Expenses (spec 034)", async ({ page }) => {
     const expenses = page.getByRole("region", { name: "Expenses", exact: true });
     await expect(expenses).toContainText("No expenses logged this month yet.");
     await expenses.getByRole("link", { name: "Log expense" }).click();
@@ -219,6 +219,53 @@ test.describe("with a seeded household", () => {
     await expect(page.getByRole("link", { name: "Assign" })).toHaveCount(0);
     await expect(page.getByRole("region", { name: "Tasks" })).toHaveCount(0);
     await expect(page.getByRole("heading", { name: /get your month set up/ })).toHaveCount(0);
+  });
+});
+
+test.describe("the expenses ledger (spec 034)", () => {
+  test.beforeEach(async ({ page }) => {
+    await resetAndSeed();
+    await signIn(page, OWNER);
+  });
+
+  test("groups logged expenses by day and totals them from cashFlow, not the visible rows", async ({ page }) => {
+    const M = monthKey();
+    const budget = await (await page.request.get(`/api/budgets/${M}`)).json();
+    const groceries = budget.categories.find((c: { name: string }) => c.name === "Groceries").id;
+    // Day 1 is always <= today regardless of when this test runs.
+    await page.request.post("/api/expenses", {
+      data: { categoryId: groceries, amountCents: 4200, spentOn: `${M}-01`, description: "Farmers market" },
+    });
+    await page.request.post("/api/expenses", {
+      data: { categoryId: groceries, amountCents: 1500, spentOn: `${M}-01` },
+    });
+
+    await page.goto("/");
+    const expenses = page.getByRole("region", { name: "Expenses", exact: true });
+    await expect(expenses).toContainText("Groceries");
+    await expect(expenses).toContainText("Farmers market");
+    await expect(expenses).toContainText(money(4200));
+    await expect(expenses).toContainText(money(1500));
+    await expect(expenses).toContainText(`Total${money(5700)}`);
+    await expect(expenses.getByRole("link", { name: "View all in Expenses" })).toHaveCount(0);
+  });
+
+  test("caps the ledger at ten rows and offers a link to see the rest", async ({ page }) => {
+    const M = monthKey();
+    const budget = await (await page.request.get(`/api/budgets/${M}`)).json();
+    const groceries = budget.categories.find((c: { name: string }) => c.name === "Groceries").id;
+    for (let i = 1; i <= 11; i++) {
+      await page.request.post("/api/expenses", {
+        data: { categoryId: groceries, amountCents: i * 100, spentOn: `${M}-01` },
+      });
+    }
+
+    await page.goto("/");
+    const expenses = page.getByRole("region", { name: "Expenses", exact: true });
+    await expect(expenses.locator("ul ul li")).toHaveCount(10);
+    await expect(expenses.getByRole("link", { name: "View all in Expenses" })).toHaveAttribute("href", /\/expenses/);
+    // 100 + 200 + ... + 1100 = 6,600 — the full month's total, not just the ten shown rows.
+    await expect(expenses).toContainText(`Total${money(6600)}`);
   });
 });
 
