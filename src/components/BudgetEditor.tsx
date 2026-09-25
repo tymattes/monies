@@ -11,8 +11,10 @@ type Line = {
   id: string;
   name: string;
   amountCents: number;
-  // Monthly cost of the bills in this category (spec 007).
+  // Monthly cost of the bills in this category (spec 007), and the
+  // expenses logged against it this month (spec 038).
   billsCents: number;
+  expensesCents: number;
 };
 
 export default function BudgetEditor({
@@ -110,7 +112,8 @@ export default function BudgetEditor({
   }
 
   const billsColumn = lines.reduce((sum, l) => sum + l.billsCents, 0);
-  const leftColumn = total - billsColumn;
+  const expensesColumn = lines.reduce((sum, l) => sum + l.expensesCents, 0);
+  const leftColumn = total - billsColumn - expensesColumn;
 
   return (
     <div className="space-y-3">
@@ -128,13 +131,14 @@ export default function BudgetEditor({
           <span>Category</span>
           <div className="flex items-center gap-4">
             <span className="w-24 text-right">Bills</span>
+            <span className="w-24 text-right">Expenses</span>
             <span className="w-24 text-right">Left</span>
             <span className="w-32 text-right">Budgeted</span>
           </div>
         </li>
         {lines.map((l) => {
           const budgeted = saved[l.id] ?? 0;
-          const left = budgeted - l.billsCents;
+          const left = budgeted - l.billsCents - l.expensesCents;
           return (
             <li key={l.id} className="px-4 py-3">
               <div className="flex items-center justify-between gap-4">
@@ -147,6 +151,9 @@ export default function BudgetEditor({
                 <div className="flex shrink-0 items-center gap-4">
                   <span className="hidden w-24 text-right text-sm tabular-nums text-muted sm:block">
                     {formatMoney(l.billsCents, currency)}
+                  </span>
+                  <span className="hidden w-24 text-right text-sm tabular-nums text-muted sm:block">
+                    {formatMoney(l.expensesCents, currency)}
                   </span>
                   <span
                     className={`hidden w-24 text-right text-sm tabular-nums sm:block ${
@@ -183,7 +190,8 @@ export default function BudgetEditor({
                 }`}
               >
                 <span className={`sm:hidden ${left < 0 ? "text-danger" : "text-muted"}`}>
-                  Bills {formatMoney(l.billsCents, currency)} · Left{" "}
+                  Bills {formatMoney(l.billsCents, currency)} · Expenses{" "}
+                  {formatMoney(l.expensesCents, currency)} · Left{" "}
                   {formatMoney(left, currency)}
                 </span>
                 <span
@@ -205,6 +213,9 @@ export default function BudgetEditor({
           <div className="flex items-center gap-4 tabular-nums">
             <span className="hidden w-24 text-right sm:block">
               {formatMoney(billsColumn, currency)}
+            </span>
+            <span className="hidden w-24 text-right sm:block">
+              {formatMoney(expensesColumn, currency)}
             </span>
             <span className="hidden w-24 text-right sm:block">
               {formatMoney(leftColumn, currency)}

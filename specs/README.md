@@ -50,5 +50,6 @@ Monies is built spec-first. `brief.md` is the source of truth for product intent
 | 033 | [Plan summary shows this month's tasks](033-plan-summary-tasks.md) | implemented |
 | 034 | [Overview shows a recent-expenses ledger instead of a total-only card](034-overview-recent-expenses.md) | implemented |
 | 035 | [Overview's Tasks can be completed inline](035-overview-tasks-inline-actions.md) | implemented |
-| 036 | [The Overview page is renamed "Hub"](036-overview-becomes-hub.md) | draft |
-| 037 | [Header nav polish — accent underline, bigger touch targets, a Plan hint](037-header-nav-polish.md) | approved |
+| 036 | [The Overview page is renamed "Hub"](036-overview-becomes-hub.md) | implemented |
+| 037 | [Header nav polish — accent underline, bigger touch targets, a Plan hint](037-header-nav-polish.md) | implemented |
+| 038 | [Budget page shows Expenses, like Bills](038-budget-page-expenses-column.md) | approved |

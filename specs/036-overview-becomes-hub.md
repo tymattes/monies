@@ -1,6 +1,6 @@
 # 036: The Overview page is renamed "Hub"
 
-**Status:** draft
+**Status:** implemented
 
 ## Goal
 "Overview" is a plain, purely descriptive label for the app's home page —
