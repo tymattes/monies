@@ -44,6 +44,10 @@ export default function GetStarted({
       <h2 id="start-heading" className="text-lg font-semibold tracking-tight">
         Let&apos;s get your month set up
       </h2>
+      <p className="text-sm text-muted">
+        This is a starting point, not a requirement — rough numbers are fine,
+        and you can always come back and refine them later.
+      </p>
       <ol className="space-y-3">
         {steps.map((s, i) => (
           <li key={s.href} className="flex gap-3">
