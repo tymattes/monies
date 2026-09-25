@@ -5,6 +5,7 @@ import { getAuth } from "./auth";
 import { HttpError } from "./http";
 
 export type Role = "owner" | "member";
+export const ROLES: Role[] = ["owner", "member"];
 
 export type HouseholdContext = {
   user: { id: string; name: string; email: string };
