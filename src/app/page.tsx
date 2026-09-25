@@ -4,7 +4,7 @@ import MonthNav from "@/components/MonthNav";
 import BillsCard from "@/components/overview/BillsCard";
 import CashFlowCard from "@/components/overview/CashFlowCard";
 import CategoryTable from "@/components/overview/CategoryTable";
-import ExpensesCard from "@/components/overview/ExpensesCard";
+import ExpensesList from "@/components/overview/ExpensesList";
 import GetStarted from "@/components/overview/GetStarted";
 import GoalsCard from "@/components/overview/GoalsCard";
 import IncomeCard from "@/components/overview/IncomeCard";
@@ -47,16 +47,17 @@ export default async function OverviewPage(props: PageProps<"/">) {
       {o.categories.length > 0 && (
         <CategoryTable rows={o.categories} currency={o.currency} editHref={`/budget${q}`} />
       )}
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <IncomeCard income={o.income} currency={o.currency} href={`/income${q}`} />
         <BillsCard bills={o.bills} currency={o.currency} href={`/bills${q}`} />
-        <ExpensesCard
-          totalCents={o.cashFlow.expensesCents}
-          currency={o.currency}
-          href={`/expenses${q}`}
-        />
         <GoalsCard goals={o.goals} currency={o.currency} href={`/goals${q}`} />
       </div>
+      <ExpensesList
+        expenses={o.expenses}
+        totalCents={o.cashFlow.expensesCents}
+        currency={o.currency}
+        href={`/expenses${q}`}
+      />
     </main>
   );
 }

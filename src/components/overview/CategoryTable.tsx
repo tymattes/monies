@@ -6,7 +6,10 @@ import { secondaryButtonCls } from "../ui";
 // A compact bullet-style bar: the fill is the category's actual spend (bills +
 // expenses), the vertical marker is its budget, and any part of the spend past
 // the budget is drawn in the error color. The table's numbers carry the same
-// information, so the bar is decorative for assistive technology.
+// information, so the bar is decorative for assistive technology. Neutral gray,
+// not one of the chart-1..4 hues — those are reserved for the four real
+// cash-flow terms (Bills, Saving, Debt payoff, Expenses), and a category's
+// budget is a plan, not a commitment (spec 022), so it gets no hue of its own.
 function SpendBar({ budgeted, spent }: { budgeted: number; spent: number }) {
   const scale = Math.max(budgeted, spent, 1);
   const within = (Math.min(spent, budgeted) / scale) * 100;
@@ -17,7 +20,7 @@ function SpendBar({ budgeted, spent }: { budgeted: number; spent: number }) {
       aria-hidden="true"
       className="relative h-2.5 w-40 rounded-sm border border-border-strong bg-background"
     >
-      <div className="absolute inset-y-0 left-0 bg-chart-1" style={{ width: `${within}%` }} />
+      <div className="absolute inset-y-0 left-0 bg-border-strong" style={{ width: `${within}%` }} />
       {over > 0 && (
         <div
           className="absolute inset-y-0 bg-danger"
@@ -55,15 +58,16 @@ export default function CategoryTable({
 
   return (
     <section aria-labelledby="budget-heading" className="space-y-2">
-      <div className="flex items-center justify-between gap-3">
-        <h2 id="budget-heading" className="text-lg font-semibold tracking-tight">
-          Budget
-        </h2>
-        <Link href={editHref} className={`${secondaryButtonCls} inline-block`}>
-          Edit budget
-        </Link>
-      </div>
       <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
+        <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+          <h2 id="budget-heading" className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+            <span aria-hidden="true" className="h-2.5 w-2.5 shrink-0 rounded-full bg-border-strong" />
+            Budget
+          </h2>
+          <Link href={editHref} className={`${secondaryButtonCls} inline-block`}>
+            Edit budget
+          </Link>
+        </div>
         <table className="w-full text-sm">
           <caption className="sr-only">
             Budget by category: budgeted, bills, expenses, and what is left of the budget

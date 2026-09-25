@@ -260,6 +260,23 @@ describe("overview numbers", () => {
   });
 });
 
+describe("expenses ledger (spec 034)", () => {
+  it("caps the recent list at ten, newest first, but keeps the real count and total", async () => {
+    const owner = await setupOwner();
+    for (let i = 1; i <= 11; i++) {
+      await expense(owner, "Other", i * 100, `2026-09-${String(i).padStart(2, "0")}`);
+    }
+    const { data } = await overview(owner);
+    expect(data.expenses.recent).toHaveLength(10);
+    expect(data.expenses.count).toBe(11);
+    expect(data.expenses.recent[0].spentOn).toBe("2026-09-11");
+    // The 11th (oldest) expense is dropped from `recent` but still counted in
+    // the real total, which comes from cashFlow, not a sum of the capped list.
+    expect(data.expenses.recent.some((e) => e.spentOn === "2026-09-01")).toBe(false);
+    expect(data.cashFlow.expensesCents).toBe(6600); // 100+200+...+1100
+  });
+});
+
 describe("tasks (spec 032)", () => {
   it("flags a category whose bills exceed its budget and unallocated money, with links", async () => {
     const owner = await setupOwner();
