@@ -23,7 +23,12 @@ export default async function MembersPage() {
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 space-y-10 px-4 py-10">
       <section className="space-y-3">
-        <h1 className="text-2xl font-semibold tracking-tight">Members</h1>
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Members</h1>
+          <p className="text-sm text-muted">
+            Who&apos;s in the household, their role, and invites to join.
+          </p>
+        </div>
         {isOwner && <HouseholdNameForm name={ctx.household.name} />}
       </section>
 
