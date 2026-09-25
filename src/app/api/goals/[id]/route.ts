@@ -1,7 +1,7 @@
 import { updateGoal, type GoalPatch } from "@/lib/goals";
 import { requireHousehold } from "@/lib/household";
 import { HttpError, readJson, route, str } from "@/lib/http";
-import { parseGoalType } from "@/lib/validate";
+import { parseGoalType, parseLabel } from "@/lib/validate";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -18,6 +18,7 @@ export const PATCH = route(
     if (body.name !== undefined) patch.name = str(body, "name", { max: 60 });
     const type = parseGoalType(body.type);
     if (type !== undefined) patch.type = type;
+    if (body.note !== undefined) patch.note = parseLabel(body.note, "note", 200);
     if (body.archived !== undefined) {
       if (typeof body.archived !== "boolean") {
         throw new HttpError(400, "archived must be true or false");

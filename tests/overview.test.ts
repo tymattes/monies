@@ -193,8 +193,8 @@ describe("overview numbers", () => {
 
     const { data } = await overview(owner);
     expect(data.goals).toEqual([
-      { id: await goalId(owner, "Savings"), name: "Savings", type: "saving", amountCents: 30000, checked: true },
-      { id: await goalId(owner, "Roth IRA"), name: "Roth IRA", type: "saving", amountCents: 20000, checked: false },
+      { id: await goalId(owner, "Savings"), name: "Savings", type: "saving", note: null, amountCents: 30000, checked: true },
+      { id: await goalId(owner, "Roth IRA"), name: "Roth IRA", type: "saving", note: null, amountCents: 20000, checked: false },
     ]);
   });
 

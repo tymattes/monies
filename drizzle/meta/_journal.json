@@ -64,6 +64,13 @@
       "when": 1790115600087,
       "tag": "0008_expense_description",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790366486256,
+      "tag": "0009_goal_notes",
+      "breakpoints": true
     }
   ]
 }
