@@ -1,7 +1,7 @@
 import { and, count, eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { householdMembers, user } from "@/db/schema";
-import type { HouseholdContext } from "./household";
+import type { HouseholdContext, Role } from "./household";
 import { HttpError } from "./http";
 
 export async function listMembers(householdId: string) {
@@ -54,5 +54,50 @@ export async function removeMember(ctx: HouseholdContext, targetUserId: string) 
       }
     }
     await tx.delete(user).where(eq(user.id, targetUserId));
+  });
+}
+
+// Any owner can promote a member to owner or demote an owner back to
+// member — including themselves (spec 041: a household can have more than
+// one owner, with full parity, so there's no separate "admin" tier to
+// learn about). The only rule is the same one removeMember already
+// enforces for leaving/removal: the last owner can never lose the role.
+export async function updateMemberRole(
+  ctx: HouseholdContext,
+  targetUserId: string,
+  role: Role,
+) {
+  await getDb().transaction(async (tx) => {
+    const [target] = await tx
+      .select({ role: householdMembers.role })
+      .from(householdMembers)
+      .where(
+        and(
+          eq(householdMembers.userId, targetUserId),
+          eq(householdMembers.householdId, ctx.household.id),
+        ),
+      )
+      .for("update");
+    if (!target) throw new HttpError(404, "Member not found");
+
+    if (target.role === "owner" && role === "member") {
+      const [{ owners }] = await tx
+        .select({ owners: count() })
+        .from(householdMembers)
+        .where(
+          and(
+            eq(householdMembers.householdId, ctx.household.id),
+            eq(householdMembers.role, "owner"),
+          ),
+        );
+      if (owners <= 1) {
+        throw new HttpError(409, "The last owner cannot be demoted");
+      }
+    }
+
+    await tx
+      .update(householdMembers)
+      .set({ role })
+      .where(eq(householdMembers.userId, targetUserId));
   });
 }
