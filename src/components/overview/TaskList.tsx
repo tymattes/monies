@@ -79,7 +79,10 @@ export default function TaskList({
       <h2 id="tasks-heading" className="text-lg font-semibold tracking-tight">
         Tasks
       </h2>
-      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {/* items-start: without it, CSS Grid stretches every card in a row to
+          match its tallest sibling, so expanding one task's panel would
+          visually grow every other card in that row too (spec 035). */}
+      <ul className="grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((item) => {
           const key = keyOf(item);
           // unallocated and category_over_budget only get an inline form
