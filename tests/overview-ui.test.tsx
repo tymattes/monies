@@ -65,15 +65,15 @@ describe("CashFlowCard", () => {
     expect(card({}, { unallocatedCents: 0, overAllocatedCents: 0 })).not.toContain(">Assign<");
   });
 
-  it("marks over-allocation with the amount, the income line and the error color", () => {
+  it("marks over-allocation with the amount and the error color, past the income line", () => {
     const html = card({}, { billsCents: 560000, unallocatedCents: 0, overAllocatedCents: 160000 });
-    expect(html).toContain("Over-allocated by");
+    expect(html).toContain("Over-allocated (past the income line)");
     expect(html).toContain("$1,600.00");
     expect(html).toContain("over-allocated by $1,600.00"); // in the bar's text equivalent
-    expect(html).toContain("bg-danger"); // the income line
+    expect(html).toContain("bg-danger"); // the overflow segment past the income line
     expect(html).not.toContain(">Assign<");
-    // The bar is scaled to the commitments (5,600), so the income line (4,000) sits at 71.4%.
-    expect(html).toContain("left:71.42857142857143%");
+    // The bar is scaled to the commitments (5,600); the overflow past income (1,600) is 28.57%.
+    expect(html).toContain("width:28.57142857142857%");
   });
 
   describe("provisional income", () => {
@@ -82,18 +82,17 @@ describe("CashFlowCard", () => {
     it("shows a shortfall plainly, with the variable-income note and no error color", () => {
       const html = card({ incomeProvisional: true }, over);
       expect(html).toContain("Variable income counts once you record it.");
-      expect(html).toContain("Over recorded income by");
       expect(html).toContain("Above recorded income (past the income line)");
       expect(html).toContain("above recorded income by $1,600.00"); // the bar's text equivalent
       expect(html).not.toContain("Over-allocated");
       expect(html).not.toContain("text-danger");
       expect(html).not.toContain("bg-danger");
-      expect(html).toContain("bg-foreground"); // the income line is still drawn, neutrally
+      expect(html).toContain("bg-foreground"); // the overflow segment is still drawn, neutrally
     });
 
     it("keeps the error styling when the income is final", () => {
       const html = card({}, over);
-      expect(html).toContain("Over-allocated by");
+      expect(html).toContain("Over-allocated (past the income line)");
       expect(html).toContain("text-danger");
       expect(html).toContain("bg-danger");
       expect(html).not.toContain("Variable income counts");
@@ -109,26 +108,26 @@ describe("CashFlowCard", () => {
   describe("Saving and Debt payoff stats (spec 013)", () => {
     it("shows neither when both are zero", () => {
       const html = card();
-      expect(html).not.toContain(">Saving<");
-      expect(html).not.toContain(">Debt payoff<");
+      expect(html).not.toContain(">Saving goal<");
+      expect(html).not.toContain(">Debt payoff goal<");
     });
 
     it("shows only the nonzero one", () => {
       const savingOnly = card({}, { savingCents: 50000 });
-      expect(savingOnly).toContain(">Saving<");
+      expect(savingOnly).toContain(">Saving goal<");
       expect(savingOnly).toContain("$500.00");
-      expect(savingOnly).not.toContain(">Debt payoff<");
+      expect(savingOnly).not.toContain(">Debt payoff goal<");
 
       const debtOnly = card({}, { debtPayoffCents: 25000 });
-      expect(debtOnly).toContain(">Debt payoff<");
+      expect(debtOnly).toContain(">Debt payoff goal<");
       expect(debtOnly).toContain("$250.00");
-      expect(debtOnly).not.toContain(">Saving<");
+      expect(debtOnly).not.toContain(">Saving goal<");
     });
 
     it("shows both together, without changing any other figure", () => {
       const html = card({}, { savingCents: 50000, debtPayoffCents: 25000 });
-      expect(html).toContain(">Saving<");
-      expect(html).toContain(">Debt payoff<");
+      expect(html).toContain(">Saving goal<");
+      expect(html).toContain(">Debt payoff goal<");
       // The always-present figures are untouched by the new stats.
       expect(html).toContain("$4,000.00"); // income
       expect(html).toContain("$2,370.00"); // unallocated
@@ -140,7 +139,7 @@ describe("CashFlowCard", () => {
       // Saving is funded at $500 but unchecked: the headline stat shows it,
       // the bar segment (checkedSavingCents) does not.
       const html = card({}, { savingCents: 50000, checkedSavingCents: 0 });
-      expect(html).toContain(">Saving<"); // the headline stat
+      expect(html).toContain(">Saving goal<"); // the headline stat
       expect(html).not.toContain("bg-chart-3"); // no checked Saving segment in the bar
       expect(html).not.toContain(">Debt payoff<");
     });

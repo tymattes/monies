@@ -2,13 +2,12 @@ import Link from "next/link";
 import { formatMoney } from "@/lib/money";
 import type { Overview } from "@/lib/overview";
 import { secondaryButtonCls } from "../ui";
-import { MiniBar, pctOf } from "./MiniBar";
 
 // Tailwind's scanner needs literal class strings, so each type keeps its own
 // full class name rather than being built from a shared token.
 const TYPE_COLOR = {
-  saving: { bg: "bg-chart-3", var: "var(--chart-3)" },
-  "debt payoff": { bg: "bg-chart-4", var: "var(--chart-4)" },
+  saving: "bg-chart-3",
+  "debt payoff": "bg-chart-4",
 } as const;
 
 // Only goals funded this month are listed — an unfunded goal has nothing to
@@ -32,7 +31,14 @@ export default function GoalsCard({
   const debtPayoffCents = funded
     .filter((g) => g.type === "debt payoff")
     .reduce((t, g) => t + g.amountCents, 0);
-  const maxFunded = Math.max(0, ...funded.map((g) => g.amountCents));
+  const checkedSavingCents = funded
+    .filter((g) => g.type === "saving" && g.checked)
+    .reduce((t, g) => t + g.amountCents, 0);
+  const checkedDebtPayoffCents = funded
+    .filter((g) => g.type === "debt payoff" && g.checked)
+    .reduce((t, g) => t + g.amountCents, 0);
+  const checkedCents = checkedSavingCents + checkedDebtPayoffCents;
+  const pct = (c: number) => (totalCents > 0 ? (c / totalCents) * 100 : 0);
 
   return (
     <section aria-labelledby="goals-heading" className="space-y-3 rounded-xl border border-border bg-background shadow-sm p-5">
@@ -75,28 +81,38 @@ export default function GoalsCard({
               </div>
             )}
           </dl>
-          <ul className="space-y-2 text-sm">
-            {funded.map((g) => {
-              const color = TYPE_COLOR[g.type];
-              return (
-                <li key={g.id} className="space-y-1">
-                  <div className="flex justify-between gap-3">
-                    <span className="min-w-0 truncate">{g.name}</span>
-                    <span className="shrink-0 text-right tabular-nums">
-                      {money(g.amountCents)}
-                      <span className="block text-xs text-muted">
-                        {g.checked ? "Checked off" : "Not checked off yet"}
-                      </span>
-                    </span>
-                  </div>
-                  <MiniBar
-                    pct={pctOf(g.amountCents, maxFunded)}
-                    colorClassName={g.checked ? color.bg : undefined}
-                    hatchColor={g.checked ? undefined : color.var}
-                  />
-                </li>
-              );
-            })}
+          <div>
+            <h3 className="mb-1 text-xs text-muted">
+              Checked off: {money(checkedCents)} of {money(totalCents)}
+            </h3>
+            <div
+              role="img"
+              aria-label={`${money(checkedCents)} checked off of ${money(totalCents)} funded`}
+              className="flex h-2 w-full overflow-hidden rounded-full bg-surface-subtle"
+            >
+              {checkedSavingCents > 0 && (
+                <div className="h-full bg-chart-3" style={{ width: `${pct(checkedSavingCents)}%` }} />
+              )}
+              {checkedDebtPayoffCents > 0 && (
+                <div className="h-full bg-chart-4" style={{ width: `${pct(checkedDebtPayoffCents)}%` }} />
+              )}
+            </div>
+          </div>
+          <ul className="space-y-1.5 text-sm">
+            {funded.map((g) => (
+              <li key={g.id} className="flex justify-between gap-3">
+                <span className="flex min-w-0 items-center gap-2">
+                  <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${TYPE_COLOR[g.type]}`} />
+                  <span className="min-w-0 truncate">{g.name}</span>
+                </span>
+                <span className="shrink-0 text-right tabular-nums">
+                  {money(g.amountCents)}
+                  <span className={`block text-xs ${g.checked ? "text-accent" : "text-muted"}`}>
+                    {g.checked ? "✓ Checked off" : "Not checked off yet"}
+                  </span>
+                </span>
+              </li>
+            ))}
           </ul>
         </>
       )}

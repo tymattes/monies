@@ -30,8 +30,10 @@ function Stat({
 // Bills, checked-off Saving, checked-off Debt payoff, Expenses, and the
 // Unallocated remainder (drawn as a hatched gap). A stacked bar (never a pie
 // or gauge) with a legend that repeats every number, so nothing depends on
-// color alone. The full Saving/Debt payoff targets stay as headline stats; the
-// bar draws only the checked amount, so the four segments sum to income.
+// color alone. The bar/legend is the only place Bills, Expenses and
+// Unallocated Income appear — the headline stats above it stay to figures the
+// bar can't show: take-home income and the full Saving/Debt payoff targets
+// (planning figures, distinct from the bar's checked-off amount).
 export default function CashFlowCard({
   overview,
   monthName,
@@ -70,36 +72,37 @@ export default function CashFlowCard({
     `, ${money(cf.unallocatedCents)} unallocated income` +
     (over ? `, ${overWord} by ${money(cf.overAllocatedCents)}` : "");
 
+  // Same convention as the Budget table's per-category SpendBar: the part of
+  // the bar past the income line is drawn in the error color regardless of
+  // which segment(s) it came from, rather than letting Bills/Saving/etc. hues
+  // run past what income actually covers.
+  let cumCents = 0;
+  const barSegments = segments.map((s) => {
+    const start = cumCents;
+    cumCents += s.cents;
+    const visibleCents = Math.max(0, Math.min(cumCents, cf.incomeCents) - start);
+    return { ...s, visibleCents };
+  });
+
   return (
     <section aria-labelledby="cash-flow-heading" className="space-y-4 rounded-xl border border-border bg-background shadow-sm p-5">
       <h2 id="cash-flow-heading" className="text-lg font-semibold tracking-tight">
         Cash flow in {monthName}
       </h2>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <Stat
           label="Income (take-home)"
           value={money(cf.incomeCents)}
           note={incomeProvisional ? "Variable income counts once you record it." : undefined}
         />
-        <Stat label="Bills" value={money(cf.billsCents)} />
-        <Stat
-          label={
-            over
-              ? incomeProvisional
-                ? "Over recorded income by"
-                : "Over-allocated by"
-              : "Unallocated Income"
-          }
-          value={money(over ? cf.overAllocatedCents : cf.unallocatedCents)}
-          danger={overIsError}
-        />
         {/* Full per-type goal targets (spec 013) — a planning figure, distinct
-            from the bar's checked segments. Hidden when zero so a household
-            that hasn't used the type does not see a permanent "$0.00". */}
-        {cf.savingCents > 0 && <Stat label="Saving" value={money(cf.savingCents)} />}
+            from the bar's checked segments below. Hidden when zero so a
+            household that hasn't used the type does not see a permanent
+            "$0.00". */}
+        {cf.savingCents > 0 && <Stat label="Saving goal" value={money(cf.savingCents)} />}
         {cf.debtPayoffCents > 0 && (
-          <Stat label="Debt payoff" value={money(cf.debtPayoffCents)} />
+          <Stat label="Debt payoff goal" value={money(cf.debtPayoffCents)} />
         )}
       </div>
 
@@ -108,33 +111,33 @@ export default function CashFlowCard({
         aria-label={summary}
         className="relative flex h-6 overflow-hidden rounded-md border border-border-strong bg-background"
       >
-        {segments.map((s) => (
+        {barSegments.map((s) => (
           <div
             key={s.key}
-            className={`h-full border-r-2 border-background ${s.cls}`}
-            style={{ width: pct(s.cents) }}
+            className={`h-full ${s.visibleCents > 0 ? "border-r-2 border-background" : ""} ${s.cls}`}
+            style={{ width: pct(s.visibleCents) }}
             aria-hidden="true"
           />
         ))}
+        {over && (
+          <div
+            aria-hidden="true"
+            className={`h-full ${overIsError ? "bg-danger" : "bg-foreground"}`}
+            style={{ width: pct(cf.overAllocatedCents) }}
+          />
+        )}
         <div
           aria-hidden="true"
           className="h-full"
           style={{
             width: pct(cf.unallocatedCents),
             backgroundImage:
-              "repeating-linear-gradient(45deg, var(--border-strong) 0 2px, transparent 2px 7px)",
+              "repeating-linear-gradient(45deg, var(--accent) 0 2px, transparent 2px 7px)",
           }}
         />
-        {over && (
-          <div
-            aria-hidden="true"
-            className={`absolute inset-y-0 w-0.5 ${overIsError ? "bg-danger" : "bg-foreground"}`}
-            style={{ left: pct(cf.incomeCents) }}
-          />
-        )}
       </div>
 
-      <ul className="grid gap-3 text-sm sm:grid-cols-3">
+      <ul className="grid gap-3 text-sm sm:grid-cols-4">
         {segments.map((s) => (
           <li key={s.key} className="flex items-start gap-2">
             <span aria-hidden="true" className={`mt-1 h-3 w-3 shrink-0 rounded-sm ${s.cls}`} />
@@ -147,10 +150,10 @@ export default function CashFlowCard({
         <li className="flex items-start gap-2">
           <span
             aria-hidden="true"
-            className="mt-1 h-3 w-3 shrink-0 rounded-sm border border-border-strong"
+            className="mt-1 h-3 w-3 shrink-0 rounded-sm border border-accent"
             style={{
               backgroundImage:
-                "repeating-linear-gradient(45deg, var(--border-strong) 0 2px, transparent 2px 5px)",
+                "repeating-linear-gradient(45deg, var(--accent) 0 2px, transparent 2px 5px)",
             }}
           />
           <span>
@@ -159,10 +162,10 @@ export default function CashFlowCard({
           </span>
         </li>
         {over && (
-          <li className={`flex items-start gap-2 sm:col-span-3 ${overIsError ? "text-danger" : ""}`}>
+          <li className={`flex items-start gap-2 sm:col-span-4 ${overIsError ? "text-danger" : ""}`}>
             <span
               aria-hidden="true"
-              className={`mt-1 h-3 w-0.5 shrink-0 ${overIsError ? "bg-danger" : "bg-foreground"}`}
+              className={`mt-1 h-3 w-3 shrink-0 rounded-sm ${overIsError ? "bg-danger" : "bg-foreground"}`}
             />
             <span>
               <span className="block">

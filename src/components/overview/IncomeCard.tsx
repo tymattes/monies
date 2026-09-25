@@ -2,7 +2,13 @@ import Link from "next/link";
 import { formatMoney } from "@/lib/money";
 import type { Overview } from "@/lib/overview";
 import { secondaryButtonCls } from "../ui";
-import { MiniBar, pctOf } from "./MiniBar";
+import { pctOf } from "./MiniBar";
+
+// Members are an arbitrary-length list (unlike Fixed/Variable's fixed two),
+// so they share one hue at descending opacity rather than distinct chart
+// colors — cycled by index. Tailwind's scanner needs these as literal
+// strings (see GoalsCard).
+const MEMBER_COLORS = ["bg-accent", "bg-accent/70", "bg-accent/45", "bg-accent/25"] as const;
 
 export default function IncomeCard({
   income,
@@ -14,7 +20,6 @@ export default function IncomeCard({
   href: string;
 }) {
   const money = (c: number) => formatMoney(c, currency);
-  const maxMember = Math.max(0, ...income.byMember.map((m) => m.totalCents));
   return (
     <section aria-labelledby="income-heading" className="space-y-3 rounded-xl border border-border bg-background shadow-sm p-5">
       <div className="flex items-center justify-between gap-3">
@@ -62,17 +67,25 @@ export default function IncomeCard({
           </dl>
           <div>
             <h3 className="mb-1 text-xs text-muted">By member</h3>
-            <ul className="space-y-2 text-sm">
-              {income.byMember.map((m) => (
-                <li key={m.memberId ?? "former"} className="space-y-1">
-                  <div className="flex justify-between gap-3">
-                    <span>{m.name}</span>
-                    <span className="tabular-nums">{money(m.totalCents)}</span>
-                  </div>
-                  <MiniBar pct={pctOf(m.totalCents, maxMember)} colorClassName="bg-accent" />
-                </li>
+            <dl className="space-y-1 text-sm">
+              {income.byMember.map((m, i) => (
+                <div key={m.memberId ?? "former"} className="flex items-center justify-between gap-3">
+                  <dt className="flex min-w-0 items-center gap-2">
+                    <span
+                      aria-hidden="true"
+                      className={`h-2.5 w-2.5 shrink-0 rounded-sm ${MEMBER_COLORS[i % MEMBER_COLORS.length]}`}
+                    />
+                    <span className="min-w-0 truncate">{m.name}</span>
+                  </dt>
+                  <dd className="text-right tabular-nums">
+                    {money(m.totalCents)}
+                    <span className="block text-xs text-muted">
+                      {pctOf(m.totalCents, income.totalCents).toFixed(1)}%
+                    </span>
+                  </dd>
+                </div>
               ))}
-            </ul>
+            </dl>
           </div>
         </>
       )}
