@@ -52,10 +52,10 @@ for (const scheme of ["light", "dark"] as const) {
   });
 }
 
-// The Overview's other states, for review: a brand-new household, and a month
+// The Hub's other states, for review: a brand-new household, and a month
 // budgeted past its income. (These change the data, so they run last.)
 for (const scheme of ["light", "dark"] as const) {
-  test.describe(`${scheme} Overview states`, () => {
+  test.describe(`${scheme} Hub states`, () => {
     test.use({ colorScheme: scheme });
 
     test("empty household", async ({ page }, info) => {

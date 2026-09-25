@@ -37,9 +37,9 @@ test.describe("with a seeded household", () => {
   });
 
   test("is the home page", async ({ page }) => {
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Overview");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Hub");
     await expect(page.getByText(SEED.household, { exact: true })).toBeVisible();
-    await expect(page.getByRole("navigation", { name: "Main" }).locator('[aria-current="page"]')).toHaveText("Overview");
+    await expect(page.getByRole("navigation", { name: "Main" }).locator('[aria-current="page"]')).toHaveText("Hub");
   });
 
   test("the cash-flow card shows the month's headline numbers", async ({ page }) => {

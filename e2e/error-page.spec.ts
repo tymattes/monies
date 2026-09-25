@@ -43,6 +43,6 @@ test("Try again keeps the page usable and Reload page reloads it", async ({ page
   await page.goto("/e2e-error");
   await page.getByRole("button", { name: "Try again" }).click();
   await expect(page.getByRole("alert").filter({ hasText: "Something went wrong" })).toBeVisible(); // still failing, still handled
-  await page.getByRole("link", { name: "Overview" }).click();
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Overview");
+  await page.getByRole("link", { name: "Hub" }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Hub");
 });

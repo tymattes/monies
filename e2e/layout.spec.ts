@@ -51,7 +51,7 @@ test("the header's controls are all on screen and reachable on a phone", async (
   await waitHydrated(page);
   const viewport = page.viewportSize()!;
   const targets = [
-    page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Overview" }),
+    page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Hub" }),
     page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Plan" }),
     page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Members" }),
     page.getByRole("button", { name: "Sign out" }),

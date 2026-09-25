@@ -50,3 +50,4 @@ Monies is built spec-first. `brief.md` is the source of truth for product intent
 | 033 | [Plan summary shows this month's tasks](033-plan-summary-tasks.md) | implemented |
 | 034 | [Overview shows a recent-expenses ledger instead of a total-only card](034-overview-recent-expenses.md) | implemented |
 | 035 | [Overview's Tasks can be completed inline](035-overview-tasks-inline-actions.md) | implemented |
+| 036 | [The Overview page is renamed "Hub"](036-overview-becomes-hub.md) | draft |
