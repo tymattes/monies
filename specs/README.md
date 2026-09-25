@@ -54,3 +54,4 @@ Monies is built spec-first. `brief.md` is the source of truth for product intent
 | 037 | [Header nav polish — accent underline, bigger touch targets, a Plan hint](037-header-nav-polish.md) | implemented |
 | 038 | [Budget page shows Expenses, like Bills, and "Left" becomes "Remaining"](038-budget-page-expenses-column.md) | implemented |
 | 039 | [Hub cards — honest bars, less duplication](039-hub-card-bar-cleanup.md) | implemented |
+| 040 | [Notes on Goals](040-goal-notes.md) | implemented |

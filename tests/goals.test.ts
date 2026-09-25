@@ -29,6 +29,11 @@ async function idOf(cookie: string, name: string) {
   return (r.json.goals as { id: string; name: string }[]).find((g) => g.name === name)!.id;
 }
 
+async function noteOf(cookie: string, id: string) {
+  const r = await call(goalsRoute.GET, "/api/goals", { cookie });
+  return (r.json.goals as { id: string; note: string | null }[]).find((g) => g.id === id)?.note;
+}
+
 async function addGoal(cookie: string, name: string, type = "saving") {
   return call(goalsRoute.POST, "/api/goals", { method: "POST", cookie, body: { name, type } });
 }
@@ -139,6 +144,23 @@ describe("goal CRUD", () => {
     expect((await patchGoal(cookie, savings, { type: "vibes" })).status).toBe(400);
     const missing = "00000000-0000-0000-0000-000000000000";
     expect((await patchGoal(cookie, missing, { name: "x" })).status).toBe(404);
+  });
+
+  it("sets, trims, and clears a note; rejects one over 200 chars (spec 040)", async () => {
+    const cookie = await setupOwner();
+    const savings = await idOf(cookie, "Savings");
+    expect(await noteOf(cookie, savings)).toBeNull();
+
+    expect((await patchGoal(cookie, savings, { note: "  Kids' 529, contribute after bonus  " })).status).toBe(204);
+    expect(await noteOf(cookie, savings)).toBe("Kids' 529, contribute after bonus");
+
+    expect((await patchGoal(cookie, savings, { name: "Vacation fund" })).status).toBe(204);
+    expect(await noteOf(cookie, savings)).toBe("Kids' 529, contribute after bonus"); // untouched by an unrelated patch
+
+    expect((await patchGoal(cookie, savings, { note: null })).status).toBe(204);
+    expect(await noteOf(cookie, savings)).toBeNull();
+
+    expect((await patchGoal(cookie, savings, { note: "x".repeat(201) })).status).toBe(400);
   });
 });
 

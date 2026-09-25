@@ -6,7 +6,13 @@ import { GOAL_TYPES, TYPE_LABELS, type GoalType } from "@/lib/goalTypes";
 import { api } from "@/lib/client";
 import { buttonCls, inputCls, secondaryButtonCls } from "./ui";
 
-type Goal = { id: string; name: string; type: GoalType; archived: boolean };
+type Goal = {
+  id: string;
+  name: string;
+  type: GoalType;
+  note: string | null;
+  archived: boolean;
+};
 
 function TypeSelect({
   id,
@@ -65,6 +71,40 @@ function RenameInput({
   );
 }
 
+function NoteInput({
+  goal,
+  onSave,
+}: {
+  goal: Goal;
+  onSave: (note: string | null) => Promise<void>;
+}) {
+  const [value, setValue] = useState(goal.note ?? "");
+  return (
+    <>
+      <label htmlFor={`note-${goal.id}`} className="sr-only">
+        Note for {goal.name}
+      </label>
+      <input
+        id={`note-${goal.id}`}
+        value={value}
+        maxLength={200}
+        placeholder="Add a note (optional)"
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={async () => {
+          const trimmed = value.trim();
+          if (trimmed === (goal.note ?? "")) return setValue(goal.note ?? "");
+          await onSave(trimmed || null);
+          setValue(goal.note ?? "");
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") e.currentTarget.blur();
+        }}
+        className={`${inputCls} max-w-md`}
+      />
+    </>
+  );
+}
+
 export default function GoalManager({ goals }: { goals: Goal[] }) {
   const router = useRouter();
   const [newName, setNewName] = useState("");
@@ -110,45 +150,48 @@ export default function GoalManager({ goals }: { goals: Goal[] }) {
 
       <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-background shadow-sm">
         {active.map((g, i) => (
-          <li key={g.id} className="flex flex-wrap items-center gap-2 px-4 py-2">
-            <RenameInput goal={g} onSave={(name) => patch(g.id, { name }).then(() => {})} />
-            <label htmlFor={`type-${g.id}`} className="sr-only">
-              Type of {g.name}
-            </label>
-            <TypeSelect
-              id={`type-${g.id}`}
-              value={g.type}
-              onChange={(type) => patch(g.id, { type })}
-            />
-            <button
-              type="button"
-              aria-label={`Move ${g.name} up`}
-              disabled={i === 0}
-              onClick={() => patch(g.id, { position: i - 1 })}
-              className={secondaryButtonCls}
-            >
-              ↑
-            </button>
-            <button
-              type="button"
-              aria-label={`Move ${g.name} down`}
-              disabled={i === active.length - 1}
-              onClick={() => patch(g.id, { position: i + 1 })}
-              className={secondaryButtonCls}
-            >
-              ↓
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (window.confirm(`Archive ${g.name}? It will be hidden from this month onward.`)) {
-                  patch(g.id, { archived: true });
-                }
-              }}
-              className={secondaryButtonCls}
-            >
-              Archive
-            </button>
+          <li key={g.id} className="space-y-2 px-4 py-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <RenameInput goal={g} onSave={(name) => patch(g.id, { name }).then(() => {})} />
+              <label htmlFor={`type-${g.id}`} className="sr-only">
+                Type of {g.name}
+              </label>
+              <TypeSelect
+                id={`type-${g.id}`}
+                value={g.type}
+                onChange={(type) => patch(g.id, { type })}
+              />
+              <button
+                type="button"
+                aria-label={`Move ${g.name} up`}
+                disabled={i === 0}
+                onClick={() => patch(g.id, { position: i - 1 })}
+                className={secondaryButtonCls}
+              >
+                ↑
+              </button>
+              <button
+                type="button"
+                aria-label={`Move ${g.name} down`}
+                disabled={i === active.length - 1}
+                onClick={() => patch(g.id, { position: i + 1 })}
+                className={secondaryButtonCls}
+              >
+                ↓
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm(`Archive ${g.name}? It will be hidden from this month onward.`)) {
+                    patch(g.id, { archived: true });
+                  }
+                }}
+                className={secondaryButtonCls}
+              >
+                Archive
+              </button>
+            </div>
+            <NoteInput goal={g} onSave={(note) => patch(g.id, { note }).then(() => {})} />
           </li>
         ))}
       </ul>
@@ -194,6 +237,7 @@ export default function GoalManager({ goals }: { goals: Goal[] }) {
               >
                 <span className="text-muted">
                   {g.name} · {TYPE_LABELS[g.type]}
+                  {g.note && ` · ${g.note}`}
                 </span>
                 <button
                   type="button"

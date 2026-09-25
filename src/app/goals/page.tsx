@@ -63,6 +63,7 @@ export default async function GoalsPage(props: PageProps<"/goals">) {
           id: g.id,
           name: g.name,
           type: g.type,
+          note: g.note,
           archived: g.archivedFrom !== null,
         }))}
       />
