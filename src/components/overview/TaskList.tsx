@@ -104,7 +104,12 @@ export default function TaskList({
                 item.severity === "warning" ? "border-l-danger" : "border-l-border-strong"
               }`}
             >
-              <span>
+              {/* min-h-10 reserves two lines' worth of height (text-sm's
+                  line-height is 1.25rem) so every collapsed card lines up
+                  regardless of message length — the masonry columns below
+                  size each card to its own content, so without this a
+                  one-line message and a two-line one look uneven. */}
+              <span className="min-h-10">
                 {item.severity === "warning" && <span className="sr-only">Warning: </span>}
                 {item.message}
               </span>
