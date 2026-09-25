@@ -1,6 +1,6 @@
 # 037: Header nav polish — accent underline, bigger touch targets, a Plan hint
 
-**Status:** approved
+**Status:** implemented
 
 ## Goal
 The top bar (`HeaderNav.tsx`) is the app's primary navigation but currently
