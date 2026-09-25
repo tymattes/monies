@@ -17,7 +17,7 @@ import { goals } from "@/db/schema";
 import { insertUserWithPassword, signInResponse } from "@/lib/accounts";
 import { call, cookieOf, joinAsMember, setupOwner } from "./helpers";
 
-type GoalLine = { id: string; name: string; type: string; amountCents: number; checked: boolean };
+type GoalLine = { id: string; name: string; type: string; note: string | null; amountCents: number; checked: boolean };
 
 async function goalsMonth(cookie: string, month = "2026-09") {
   const r = await call(goalMonthRoute.GET, `/api/goals/month/${month}`, { cookie, params: { month } });
@@ -27,6 +27,11 @@ async function goalsMonth(cookie: string, month = "2026-09") {
 async function idOf(cookie: string, name: string) {
   const r = await call(goalsRoute.GET, "/api/goals", { cookie });
   return (r.json.goals as { id: string; name: string }[]).find((g) => g.name === name)!.id;
+}
+
+async function noteOf(cookie: string, id: string) {
+  const r = await call(goalsRoute.GET, "/api/goals", { cookie });
+  return (r.json.goals as { id: string; note: string | null }[]).find((g) => g.id === id)?.note;
 }
 
 async function addGoal(cookie: string, name: string, type = "saving") {
@@ -65,7 +70,7 @@ describe("setup", () => {
     const cookie = await setupOwner();
     const { lines } = await goalsMonth(cookie, "2026-09");
     expect(lines).toEqual([
-      { id: expect.any(String), name: "Savings", type: "saving", amountCents: 0, checked: false },
+      { id: expect.any(String), name: "Savings", type: "saving", note: null, amountCents: 0, checked: false },
     ]);
   });
 });
@@ -139,6 +144,23 @@ describe("goal CRUD", () => {
     expect((await patchGoal(cookie, savings, { type: "vibes" })).status).toBe(400);
     const missing = "00000000-0000-0000-0000-000000000000";
     expect((await patchGoal(cookie, missing, { name: "x" })).status).toBe(404);
+  });
+
+  it("sets, trims, and clears a note; rejects one over 200 chars (spec 040)", async () => {
+    const cookie = await setupOwner();
+    const savings = await idOf(cookie, "Savings");
+    expect(await noteOf(cookie, savings)).toBeNull();
+
+    expect((await patchGoal(cookie, savings, { note: "  Kids' 529, contribute after bonus  " })).status).toBe(204);
+    expect(await noteOf(cookie, savings)).toBe("Kids' 529, contribute after bonus");
+
+    expect((await patchGoal(cookie, savings, { name: "Vacation fund" })).status).toBe(204);
+    expect(await noteOf(cookie, savings)).toBe("Kids' 529, contribute after bonus"); // untouched by an unrelated patch
+
+    expect((await patchGoal(cookie, savings, { note: null })).status).toBe(204);
+    expect(await noteOf(cookie, savings)).toBeNull();
+
+    expect((await patchGoal(cookie, savings, { note: "x".repeat(201) })).status).toBe(400);
   });
 });
 

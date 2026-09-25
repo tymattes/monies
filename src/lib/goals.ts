@@ -30,6 +30,7 @@ export async function listGoals(householdId: string) {
       id: goals.id,
       name: goals.name,
       type: sql<GoalType>`${goals.type}`,
+      note: goals.note,
       position: goals.position,
       startMonth: goals.startMonth,
       archivedFrom: goals.archivedFrom,
@@ -71,6 +72,9 @@ export async function createGoal(
 export type GoalPatch = {
   name?: string;
   type?: GoalType;
+  // undefined = leave unchanged, null = clear, string = set (parseLabel's
+  // three-way semantics, same as bills' note/paidWith).
+  note?: string | null;
   archived?: boolean;
   position?: number;
 };
@@ -92,6 +96,7 @@ export async function updateGoal(
       const set: Partial<typeof goals.$inferInsert> = {};
       if (patch.name !== undefined) set.name = patch.name;
       if (patch.type !== undefined) set.type = patch.type;
+      if (patch.note !== undefined) set.note = patch.note;
       if (patch.archived === true && existing.archivedFrom === null) {
         set.archivedFrom = monthStart(currentMonth());
       }
@@ -131,6 +136,7 @@ export type GoalLine = {
   id: string;
   name: string;
   type: GoalType;
+  note: string | null;
   amountCents: number;
   // Whether the goal was checked off for this month (spec 014). Unlike
   // amountCents, this is not time-versioned "latest so far" — it is exactly
@@ -166,6 +172,7 @@ export async function getGoalsMonth(
       id: goals.id,
       name: goals.name,
       type: sql<GoalType>`${goals.type}`,
+      note: goals.note,
       amountCents: sql<number>`coalesce((
         select a.amount_cents from ${goalAmounts} a
         where a.goal_id = "goals"."id"

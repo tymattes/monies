@@ -226,6 +226,10 @@ export const goals = pgTable(
       .references(() => households.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     type: text("type").notNull(),
+    // Optional free-text detail about the goal (e.g. account name, timeline,
+    // a transfer reference). Trimmed and capped at 200 chars by the API;
+    // empty means none.
+    note: text("note"),
     position: integer("position").notNull(),
     startMonth: date("start_month", { mode: "string" }).notNull(),
     archivedFrom: date("archived_from", { mode: "string" }),
