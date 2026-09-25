@@ -1,6 +1,6 @@
 # 034: Overview shows a recent-expenses ledger instead of a total-only card
 
-**Status:** draft
+**Status:** implemented
 
 ## Goal
 Spec 023 gave Expenses a card in the Income/Bills/Expenses/Goals grid but
