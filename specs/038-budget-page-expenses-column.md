@@ -1,6 +1,6 @@
 # 038: Budget page shows Expenses, like Bills, and "Left" becomes "Remaining"
 
-**Status:** approved
+**Status:** implemented
 
 ## Goal
 The Hub's Budget table (`CategoryTable.tsx`) already shows Bills and
