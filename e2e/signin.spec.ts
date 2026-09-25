@@ -16,12 +16,12 @@ async function open(page: Page) {
 
 async function expectSignedIn(page: Page, problems: string[]) {
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Overview");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Hub");
   await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
   expect(problems, "the page threw errors").toEqual([]);
 }
 
-test("clicking Sign in signs in and lands on the Overview", async ({ page }) => {
+test("clicking Sign in signs in and lands on the Hub", async ({ page }) => {
   const problems = await open(page);
   await page.getByLabel("Email").fill(OWNER.email);
   await page.getByLabel("Password").fill(OWNER.password);

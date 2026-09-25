@@ -36,7 +36,7 @@ export default async function OverviewPage(props: PageProps<"/">) {
           <p className="text-xs font-medium uppercase tracking-wide text-muted">
             {o.householdName}
           </p>
-          <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Hub</h1>
         </div>
         <MonthNav basePath="/" month={month} now={now} />
       </div>
