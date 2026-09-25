@@ -31,8 +31,16 @@ const assignTask: Task = {
   amountCents: 167200,
 };
 
+// Strips nested tags (e.g. HeaderNav's aria-hidden "Plan" hint span) so
+// assertions read the link's accessible label, not its raw inner markup.
+function textOnly(html: string) {
+  return html.replace(/<[^>]+>/g, "").trim();
+}
+
 function labelledCurrent(html: string) {
-  return [...html.matchAll(/<a[^>]*aria-current="page"[^>]*>([^<]*)<\/a>/g)].map((m) => m[1]);
+  return [...html.matchAll(/<a[^>]*aria-current="page"[^>]*>(.*?)<\/a>/g)].map((m) =>
+    textOnly(m[1]),
+  );
 }
 
 describe("PlanSummary", () => {
@@ -153,18 +161,18 @@ describe("HeaderNav", () => {
   it("has exactly Hub, Plan, Expenses and Members", () => {
     nav.path = "/";
     const html = renderToStaticMarkup(<HeaderNav />);
-    expect([...html.matchAll(/<a[^>]*>([^<]*)<\/a>/g)].map((m) => m[1])).toEqual([
-      "Hub", "Plan", "Expenses", "Members",
+    expect([...html.matchAll(/<a[^>]*>(.*?)<\/a>/g)].map((m) => textOnly(m[1]))).toEqual([
+      "Hub", "Plan▾", "Expenses", "Members",
     ]);
     expect(html).toContain('href="/income"'); // Plan opens Income
   });
 
   it.each([
     ["/", "Hub"],
-    ["/budget", "Plan"],
-    ["/bills", "Plan"],
-    ["/income", "Plan"],
-    ["/goals", "Plan"],
+    ["/budget", "Plan▾"],
+    ["/bills", "Plan▾"],
+    ["/income", "Plan▾"],
+    ["/goals", "Plan▾"],
     ["/expenses", "Expenses"],
     ["/members", "Members"],
   ])("highlights the right destination on %s", (path, label) => {
