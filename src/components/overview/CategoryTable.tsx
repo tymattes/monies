@@ -70,7 +70,7 @@ export default function CategoryTable({
         </div>
         <table className="w-full text-sm">
           <caption className="sr-only">
-            Budget by category: budgeted, bills, expenses, and what is left of the budget
+            Budget by category: budgeted, bills, expenses, and what remains of the budget
           </caption>
           <thead>
             <tr className="border-b border-border bg-surface-subtle text-xs text-muted">
@@ -78,7 +78,7 @@ export default function CategoryTable({
               <th scope="col" className="hidden px-2 py-2 text-right font-normal sm:table-cell">Budgeted</th>
               <th scope="col" className="hidden px-2 py-2 text-right font-normal sm:table-cell">Bills</th>
               <th scope="col" className="hidden px-2 py-2 text-right font-normal sm:table-cell">Expenses</th>
-              <th scope="col" className="px-2 py-2 text-right font-normal">Left</th>
+              <th scope="col" className="px-2 py-2 text-right font-normal">Remaining</th>
               <th scope="col" className="hidden py-2 pl-2 pr-4 text-left font-normal sm:table-cell">
                 <span className="sr-only">Spend against budget</span>
               </th>
