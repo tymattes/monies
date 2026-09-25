@@ -79,10 +79,13 @@ export default function TaskList({
       <h2 id="tasks-heading" className="text-lg font-semibold tracking-tight">
         Tasks
       </h2>
-      {/* items-start: without it, CSS Grid stretches every card in a row to
-          match its tallest sibling, so expanding one task's panel would
-          visually grow every other card in that row too (spec 035). */}
-      <ul className="grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {/* A CSS multi-column layout, not a grid: cards stack top-to-bottom
+          within their own column, so a tall expanded panel only pushes down
+          the cards below it in that same column — it can't leave a gap of
+          dead space in the row next to it, or stretch/shift unrelated cards
+          in other columns (spec 035). break-inside-avoid keeps a single card
+          from being split across two columns. */}
+      <ul className="columns-1 gap-3 sm:columns-2 lg:columns-3">
         {items.map((item) => {
           const key = keyOf(item);
           // unallocated and category_over_budget only get an inline form
@@ -97,7 +100,7 @@ export default function TaskList({
           return (
             <li
               key={key}
-              className={`flex flex-col items-start gap-3 rounded-xl border border-border bg-background shadow-sm border-l-4 p-4 text-sm ${
+              className={`mb-3 flex break-inside-avoid flex-col items-start gap-3 rounded-xl border border-border bg-background shadow-sm border-l-4 p-4 text-sm ${
                 item.severity === "warning" ? "border-l-danger" : "border-l-border-strong"
               }`}
             >
