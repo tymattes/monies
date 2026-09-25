@@ -76,11 +76,14 @@ describe("access control", () => {
       call(householdRoute.PATCH, "/api/household", { method: "PATCH", body: { name: "x" } }),
       call(membersRoute.GET, "/api/members"),
       call(memberRoute.DELETE, `/api/members/${userId}`, { method: "DELETE", params: { userId } }),
+      call(memberRoute.PATCH, `/api/members/${userId}`, {
+        method: "PATCH", params: { userId }, body: { role: "owner" },
+      }),
       call(invitesRoute.GET, "/api/invites"),
       call(invitesRoute.POST, "/api/invites", { method: "POST" }),
       call(inviteRoute.DELETE, `/api/invites/${userId}`, { method: "DELETE", params: { id: userId } }),
     ]);
-    expect(results.map((r) => r.status)).toEqual(Array(7).fill(401));
+    expect(results.map((r) => r.status)).toEqual(Array(8).fill(401));
   });
 
   it("rejects a signed-in user who is not a household member", async () => {
@@ -274,4 +277,120 @@ describe("members", () => {
     const me = await call(householdRoute.GET, "/api/household", { cookie: owner });
     expect(me.json.household).toMatchObject({ name: "The Joneses" });
   });
+});
+
+describe("member roles (spec 041 — multiple owners)", () => {
+  async function meId(cookie: string) {
+    const me = await call(householdRoute.GET, "/api/household", { cookie });
+    return (me.json.me as { id: string }).id;
+  }
+
+  async function roleOf(cookie: string, userId: string) {
+    const members = await call(membersRoute.GET, "/api/members", { cookie });
+    return (members.json.members as { userId: string; role: string }[]).find(
+      (m) => m.userId === userId,
+    )?.role;
+  }
+
+  it("lets an owner promote a member to owner", async () => {
+    const owner = await setupOwner();
+    const { cookie, userId } = await joinAsMember(owner);
+    expect(await roleOf(owner, userId)).toBe("member");
+
+    const promoted = await call(memberRoute.PATCH, `/api/members/${userId}`, {
+      method: "PATCH",
+      cookie: owner,
+      params: { userId },
+      body: { role: "owner" },
+    });
+    expect(promoted.status).toBe(204);
+    expect(await roleOf(owner, userId)).toBe("owner");
+
+    // Full owner parity, immediately — no other code needed to learn about
+    // the new owner (spec 041): they can now invite, an owner-only action.
+    const created = await call(invitesRoute.POST, "/api/invites", { method: "POST", cookie });
+    expect(created.status).toBe(201);
+  });
+
+  it("lets an owner demote another owner back to member", async () => {
+    const owner = await setupOwner();
+    const { userId } = await joinAsMember(owner);
+    await call(memberRoute.PATCH, `/api/members/${userId}`, {
+      method: "PATCH", cookie: owner, params: { userId }, body: { role: "owner" },
+    });
+
+    const demoted = await call(memberRoute.PATCH, `/api/members/${userId}`, {
+      method: "PATCH", cookie: owner, params: { userId }, body: { role: "member" },
+    });
+    expect(demoted.status).toBe(204);
+    expect(await roleOf(owner, userId)).toBe("member");
+  });
+
+  it("lets an owner demote themselves if another owner exists", async () => {
+    const owner = await setupOwner();
+    const ownerId = await meId(owner);
+    const { cookie: memberCookie, userId: memberId } = await joinAsMember(owner);
+    await call(memberRoute.PATCH, `/api/members/${memberId}`, {
+      method: "PATCH", cookie: owner, params: { userId: memberId }, body: { role: "owner" },
+    });
+
+    const selfDemote = await call(memberRoute.PATCH, `/api/members/${ownerId}`, {
+      method: "PATCH", cookie: owner, params: { userId: ownerId }, body: { role: "member" },
+    });
+    expect(selfDemote.status).toBe(204);
+
+    // The original owner immediately loses owner-only access...
+    expect((await call(invitesRoute.POST, "/api/invites", { method: "POST", cookie: owner })).status).toBe(403);
+    // ...while the newly promoted owner has it.
+    expect((await call(invitesRoute.POST, "/api/invites", { method: "POST", cookie: memberCookie })).status).toBe(201);
+  });
+
+  it("never lets the last owner be demoted", async () => {
+    const owner = await setupOwner();
+    const ownerId = await meId(owner);
+    const attempt = await call(memberRoute.PATCH, `/api/members/${ownerId}`, {
+      method: "PATCH", cookie: owner, params: { userId: ownerId }, body: { role: "member" },
+    });
+    expect(attempt.status).toBe(409);
+    expect(await roleOf(owner, ownerId)).toBe("owner");
+  });
+
+  it("rejects a member changing any role, including their own", async () => {
+    const owner = await setupOwner();
+    const ownerId = await meId(owner);
+    const { cookie: memberCookie, userId: memberId } = await joinAsMember(owner);
+
+    const selfPromote = await call(memberRoute.PATCH, `/api/members/${memberId}`, {
+      method: "PATCH", cookie: memberCookie, params: { userId: memberId }, body: { role: "owner" },
+    });
+    expect(selfPromote.status).toBe(403);
+
+    const demoteOwner = await call(memberRoute.PATCH, `/api/members/${ownerId}`, {
+      method: "PATCH", cookie: memberCookie, params: { userId: ownerId }, body: { role: "member" },
+    });
+    expect(demoteOwner.status).toBe(403);
+  });
+
+  it("validates the role body", async () => {
+    const owner = await setupOwner();
+    const { userId } = await joinAsMember(owner);
+    const bad = await call(memberRoute.PATCH, `/api/members/${userId}`, {
+      method: "PATCH", cookie: owner, params: { userId }, body: { role: "admin" },
+    });
+    expect(bad.status).toBe(400);
+    const missing = await call(memberRoute.PATCH, `/api/members/${userId}`, {
+      method: "PATCH", cookie: owner, params: { userId }, body: {},
+    });
+    expect(missing.status).toBe(400);
+  });
+
+  it("404s promoting an unknown member", async () => {
+    const owner = await setupOwner();
+    const missing = "00000000-0000-0000-0000-000000000000";
+    const attempt = await call(memberRoute.PATCH, `/api/members/${missing}`, {
+      method: "PATCH", cookie: owner, params: { userId: missing }, body: { role: "owner" },
+    });
+    expect(attempt.status).toBe(404);
+  });
+
 });

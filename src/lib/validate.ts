@@ -1,5 +1,6 @@
 import { MAX_AMOUNT } from "./budgets";
 import { GOAL_TYPES, type GoalType } from "./goalTypes";
+import { ROLES, type Role } from "./household";
 import { HttpError } from "./http";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -43,6 +44,14 @@ export function parseGoalType(value: unknown): GoalType | undefined {
     throw new HttpError(400, `type must be one of: ${GOAL_TYPES.join(", ")}`);
   }
   return value as GoalType;
+}
+
+// Required, unlike parseGoalType — this endpoint's whole body is { role }.
+export function parseRole(value: unknown): Role {
+  if (!ROLES.includes(value as Role)) {
+    throw new HttpError(400, `role must be one of: ${ROLES.join(", ")}`);
+  }
+  return value as Role;
 }
 
 export function parseNote(value: unknown): string | null {
