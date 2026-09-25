@@ -95,7 +95,7 @@ function GoalRow({
           value={name}
           maxLength={60}
           onChange={(e) => setName(e.target.value)}
-          className={`${inputCls} w-48!`}
+          className={`${inputCls} min-w-40 flex-1`}
         />
         <label htmlFor={`type-${goal.id}`} className="sr-only">
           Type of {goal.name}
@@ -133,7 +133,7 @@ function GoalRow({
           maxLength={200}
           placeholder="Add a note (optional)"
           onChange={(e) => setNote(e.target.value)}
-          className={`${inputCls} max-w-md`}
+          className={`${inputCls} min-w-48 flex-1`}
         />
         <button type="button" onClick={save} disabled={!dirty || saving} className={buttonCls}>
           {saving ? "Saving…" : "Save"}
