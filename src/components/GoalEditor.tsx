@@ -11,6 +11,7 @@ type Line = {
   id: string;
   name: string;
   type: GoalType;
+  note: string | null;
   amountCents: number;
   // Whether the goal is checked off for this month (spec 014).
   checked: boolean;
@@ -100,15 +101,20 @@ export default function GoalEditor({
           {group.lines.map((l) => (
             <li key={l.id} className="px-4 py-3">
               <div className="flex items-center justify-between gap-4">
-                <label className="flex min-w-0 items-center gap-2">
+                <label className="flex min-w-0 items-start gap-2">
                   <input
                     type="checkbox"
                     checked={checked[l.id] ?? false}
                     onChange={() => toggle(l.id)}
                     aria-label={`${l.name}: done this month`}
-                    className="h-4 w-4 shrink-0 accent-accent"
+                    className="mt-0.5 h-4 w-4 shrink-0 accent-accent"
                   />
-                  <span className="truncate font-medium">{l.name}</span>
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium">{l.name}</span>
+                    {l.note && (
+                      <span className="block truncate text-xs text-muted">{l.note}</span>
+                    )}
+                  </span>
                 </label>
                 {editable ? (
                   <input

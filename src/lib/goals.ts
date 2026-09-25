@@ -136,6 +136,7 @@ export type GoalLine = {
   id: string;
   name: string;
   type: GoalType;
+  note: string | null;
   amountCents: number;
   // Whether the goal was checked off for this month (spec 014). Unlike
   // amountCents, this is not time-versioned "latest so far" — it is exactly
@@ -171,6 +172,7 @@ export async function getGoalsMonth(
       id: goals.id,
       name: goals.name,
       type: sql<GoalType>`${goals.type}`,
+      note: goals.note,
       amountCents: sql<number>`coalesce((
         select a.amount_cents from ${goalAmounts} a
         where a.goal_id = "goals"."id"

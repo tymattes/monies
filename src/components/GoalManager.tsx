@@ -39,69 +39,107 @@ function TypeSelect({
   );
 }
 
-function RenameInput({
-  goal,
-  onSave,
-}: {
-  goal: Goal;
-  onSave: (name: string) => Promise<void>;
-}) {
-  const [value, setValue] = useState(goal.name);
-  return (
-    <>
-      <label htmlFor={`name-${goal.id}`} className="sr-only">
-        Name of {goal.name}
-      </label>
-      <input
-        id={`name-${goal.id}`}
-        value={value}
-        maxLength={60}
-        onChange={(e) => setValue(e.target.value)}
-        onBlur={async () => {
-          if (value.trim() === goal.name) return setValue(goal.name);
-          await onSave(value);
-          setValue(goal.name);
-        }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") e.currentTarget.blur();
-        }}
-        className={`${inputCls} w-48!`}
-      />
-    </>
-  );
-}
+type GoalBody = { name?: string; type?: GoalType; note?: string | null };
 
-function NoteInput({
+// Name, type and note are drafted locally and committed together on Save,
+// rather than each auto-saving on its own blur/change — with three fields
+// on one row it was unclear whether an edit had actually landed. The
+// `saved` baseline is set once at mount and only updated after a successful
+// save (not re-derived from the `goal` prop): after router.refresh() the
+// prop drifts, but this row isn't remounted, so re-deriving from props
+// would either fight the user's in-progress draft or require an effect
+// just to ignore its own writes.
+function GoalRow({
   goal,
+  index,
+  total,
   onSave,
+  onMove,
+  onArchive,
 }: {
   goal: Goal;
-  onSave: (note: string | null) => Promise<void>;
+  index: number;
+  total: number;
+  onSave: (id: string, body: GoalBody) => Promise<boolean>;
+  onMove: (id: string, position: number) => void;
+  onArchive: (goal: Goal) => void;
 }) {
-  const [value, setValue] = useState(goal.note ?? "");
+  const [name, setName] = useState(goal.name);
+  const [type, setType] = useState(goal.type);
+  const [note, setNote] = useState(goal.note ?? "");
+  const [saved, setSaved] = useState({ name: goal.name, type: goal.type, note: goal.note ?? "" });
+  const [saving, setSaving] = useState(false);
+
+  const trimmedNote = note.trim();
+  const dirty = name !== saved.name || type !== saved.type || trimmedNote !== saved.note;
+
+  async function save() {
+    setSaving(true);
+    const body: GoalBody = {};
+    if (name !== saved.name) body.name = name;
+    if (type !== saved.type) body.type = type;
+    if (trimmedNote !== saved.note) body.note = trimmedNote || null;
+    const ok = await onSave(goal.id, body);
+    if (ok) setSaved({ name, type, note: trimmedNote });
+    setSaving(false);
+  }
+
   return (
-    <>
-      <label htmlFor={`note-${goal.id}`} className="sr-only">
-        Note for {goal.name}
-      </label>
-      <input
-        id={`note-${goal.id}`}
-        value={value}
-        maxLength={200}
-        placeholder="Add a note (optional)"
-        onChange={(e) => setValue(e.target.value)}
-        onBlur={async () => {
-          const trimmed = value.trim();
-          if (trimmed === (goal.note ?? "")) return setValue(goal.note ?? "");
-          await onSave(trimmed || null);
-          setValue(goal.note ?? "");
-        }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") e.currentTarget.blur();
-        }}
-        className={`${inputCls} max-w-md`}
-      />
-    </>
+    <li className="space-y-2 px-4 py-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <label htmlFor={`name-${goal.id}`} className="sr-only">
+          Name of {goal.name}
+        </label>
+        <input
+          id={`name-${goal.id}`}
+          value={name}
+          maxLength={60}
+          onChange={(e) => setName(e.target.value)}
+          className={`${inputCls} w-48!`}
+        />
+        <label htmlFor={`type-${goal.id}`} className="sr-only">
+          Type of {goal.name}
+        </label>
+        <TypeSelect id={`type-${goal.id}`} value={type} onChange={setType} />
+        <button
+          type="button"
+          aria-label={`Move ${goal.name} up`}
+          disabled={index === 0}
+          onClick={() => onMove(goal.id, index - 1)}
+          className={secondaryButtonCls}
+        >
+          ↑
+        </button>
+        <button
+          type="button"
+          aria-label={`Move ${goal.name} down`}
+          disabled={index === total - 1}
+          onClick={() => onMove(goal.id, index + 1)}
+          className={secondaryButtonCls}
+        >
+          ↓
+        </button>
+        <button type="button" onClick={() => onArchive(goal)} className={secondaryButtonCls}>
+          Archive
+        </button>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <label htmlFor={`note-${goal.id}`} className="sr-only">
+          Note for {goal.name}
+        </label>
+        <input
+          id={`note-${goal.id}`}
+          value={note}
+          maxLength={200}
+          placeholder="Add a note (optional)"
+          onChange={(e) => setNote(e.target.value)}
+          className={`${inputCls} max-w-md`}
+        />
+        <button type="button" onClick={save} disabled={!dirty || saving} className={buttonCls}>
+          {saving ? "Saving…" : "Save"}
+        </button>
+      </div>
+    </li>
   );
 }
 
@@ -150,49 +188,19 @@ export default function GoalManager({ goals }: { goals: Goal[] }) {
 
       <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-background shadow-sm">
         {active.map((g, i) => (
-          <li key={g.id} className="space-y-2 px-4 py-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <RenameInput goal={g} onSave={(name) => patch(g.id, { name }).then(() => {})} />
-              <label htmlFor={`type-${g.id}`} className="sr-only">
-                Type of {g.name}
-              </label>
-              <TypeSelect
-                id={`type-${g.id}`}
-                value={g.type}
-                onChange={(type) => patch(g.id, { type })}
-              />
-              <button
-                type="button"
-                aria-label={`Move ${g.name} up`}
-                disabled={i === 0}
-                onClick={() => patch(g.id, { position: i - 1 })}
-                className={secondaryButtonCls}
-              >
-                ↑
-              </button>
-              <button
-                type="button"
-                aria-label={`Move ${g.name} down`}
-                disabled={i === active.length - 1}
-                onClick={() => patch(g.id, { position: i + 1 })}
-                className={secondaryButtonCls}
-              >
-                ↓
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (window.confirm(`Archive ${g.name}? It will be hidden from this month onward.`)) {
-                    patch(g.id, { archived: true });
-                  }
-                }}
-                className={secondaryButtonCls}
-              >
-                Archive
-              </button>
-            </div>
-            <NoteInput goal={g} onSave={(note) => patch(g.id, { note }).then(() => {})} />
-          </li>
+          <GoalRow
+            key={g.id}
+            goal={g}
+            index={i}
+            total={active.length}
+            onSave={patch}
+            onMove={(id, position) => patch(id, { position })}
+            onArchive={(goal) => {
+              if (window.confirm(`Archive ${goal.name}? It will be hidden from this month onward.`)) {
+                patch(goal.id, { archived: true });
+              }
+            }}
+          />
         ))}
       </ul>
 

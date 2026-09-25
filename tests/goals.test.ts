@@ -17,7 +17,7 @@ import { goals } from "@/db/schema";
 import { insertUserWithPassword, signInResponse } from "@/lib/accounts";
 import { call, cookieOf, joinAsMember, setupOwner } from "./helpers";
 
-type GoalLine = { id: string; name: string; type: string; amountCents: number; checked: boolean };
+type GoalLine = { id: string; name: string; type: string; note: string | null; amountCents: number; checked: boolean };
 
 async function goalsMonth(cookie: string, month = "2026-09") {
   const r = await call(goalMonthRoute.GET, `/api/goals/month/${month}`, { cookie, params: { month } });
@@ -70,7 +70,7 @@ describe("setup", () => {
     const cookie = await setupOwner();
     const { lines } = await goalsMonth(cookie, "2026-09");
     expect(lines).toEqual([
-      { id: expect.any(String), name: "Savings", type: "saving", amountCents: 0, checked: false },
+      { id: expect.any(String), name: "Savings", type: "saving", note: null, amountCents: 0, checked: false },
     ]);
   });
 });

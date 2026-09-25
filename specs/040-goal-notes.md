@@ -16,28 +16,35 @@ funded/checked).
   200 chars — same cap and trim behavior as Bills' `note` and Expenses'
   `description`.
 - Editable from the Goals page's metadata editor (`GoalManager.tsx`),
-  alongside the existing rename/type/reorder/archive controls, using the
-  same blur-to-save convention as the existing rename field
-  (`RenameInput`). Given the row is already dense (name, type select, ↑/↓,
-  Archive), the note input sits on its own line under the row rather than
-  competing for horizontal space.
+  alongside the existing rename/type/reorder/archive controls. Name, type
+  and note are drafted locally and committed together with one explicit
+  **Save** button per row (enabled only while the row has unsaved
+  changes), instead of each field auto-saving individually on blur/change
+  — the original per-field auto-save (spec 040 v1) made it unclear whether
+  an edit had actually been committed. Reordering (↑/↓) and Archive stay
+  instant, unconfirmed-by-Save actions, since they're structural/list
+  operations, not drafted text.
+- Shown read-only in `GoalEditor`'s month-by-month checklist (`GoalEditor.tsx`,
+  spec 014) as a small muted line under the goal's name, truncated to one
+  line — the checklist is where a household actually works month to month,
+  and a note like "auto-transfers the 3rd" is exactly the context that
+  belongs there.
 - Archived goals' collapsed summary line (`{name} · {TYPE_LABELS[type]}`)
   appends the note when present, matching Bills' `{name} · Paid with X ·
   note}` inline-summary convention.
 - Any household member can set/clear a goal's note — same authorization as
   the rest of `GoalManager` (`requireHousehold` only, no owner restriction;
   spec 014).
-- Clearing the field (blur with empty text) removes the note (stored as
-  `null`), not an empty string.
+- Clearing the field and saving removes the note (stored as `null`), not
+  an empty string.
 
 ## Out of scope
 - Setting a note at goal *creation* — the "Add goal" form stays
   name+type only; a note is added via the edit row afterward, same as
   today's flow for anything beyond the two required fields.
-- Surfacing the note anywhere read-only goals appear outside
-  `GoalManager` — the Hub's `GoalsCard`, `GoalEditor`'s month-by-month
-  amount/checkoff view, and `PlanSummary`/Tasks stay unchanged. A goal's
-  note is editor-only context, not a dashboard figure.
+- Surfacing the note on the Hub's `GoalsCard` or in `PlanSummary`/Tasks —
+  those stay dashboard-level figures; the note is checklist/editor
+  context (`GoalEditor`, `GoalManager`), not a headline number.
 - Rich text, attachments, or a note history — plain text, current value
   only, like every other free-text field in this app.
 - A dedicated notes API endpoint — reuses the existing
@@ -54,17 +61,22 @@ funded/checked).
 - [x] `updateGoal`'s `GoalPatch` type includes `note?: string | null`, and
       `listGoals` (or wherever `GoalManager` gets its goal rows) returns
       `note` so the editor can show the current value.
-- [x] `GoalManager.tsx`: each active goal row has a note input (blur-to-save,
-      `maxLength=200`, placeholder "Add a note (optional)") on its own line
-      under the existing controls; saving follows the same `patch()` /
-      `router.refresh()` convention as rename/type/position/archive.
+- [x] `GoalManager.tsx`: each active goal row drafts name/type/note locally
+      and commits them together via one **Save** button, `maxLength=200`
+      on the note, placeholder "Add a note (optional)"; Save is disabled
+      until the row has unsaved changes. Reorder (↑/↓) and Archive stay
+      instant, matching pre-existing behavior.
+- [x] `getGoalsMonth`'s `GoalLine` includes `note`, and `GoalEditor.tsx`
+      shows it as a muted, truncated line under the goal's name when
+      present.
 - [x] Archived goals' summary line shows the note when present.
-- [x] Clearing the input persists `null`, not `""`.
+- [x] Clearing the note and saving persists `null`, not `""`.
 - [x] `npm run lint`, `npm test`, `npm run build` pass; a Vitest case in
       `tests/goals.test.ts` covers set/clear/trim/200-char-cap on
-      `updateGoal`, and a UI case (rendered via `renderToStaticMarkup`,
-      matching this codebase's no-browser UI test convention) confirms the
-      note input and archived-summary rendering.
+      `updateGoal`, and UI cases (rendered via `renderToStaticMarkup`,
+      matching this codebase's no-browser UI test convention) confirm the
+      Save-button draft/commit behavior, the archived-summary rendering,
+      and `GoalEditor`'s note line.
 - [x] Documentation updated (see Documentation).
 
 ## Technical notes
@@ -80,24 +92,40 @@ funded/checked).
 - `src/app/api/goals/[id]/route.ts`: `PATCH` body parsing adds
   `note: parseLabel(body.note, "note", 200)`.
 - `src/components/GoalManager.tsx`: `Goal` type gains `note: string | null`.
-  New `NoteInput` component mirrors `RenameInput` (controlled value, blur
-  commits via `onSave`, Enter blurs) but full-width and capped at 200 vs
-  60. Active `<li>` becomes a two-line layout: existing `flex flex-wrap`
-  controls row, then the note input below it. Archived list's summary
-  span appends `{g.note && ` · ${g.note}`}`.
-- No change to `getGoalsMonth`, `GoalEditor.tsx`, `GoalsCard.tsx`, or
-  `Overview`'s goals projection — see Out of scope.
+  A new `GoalRow` component replaces the old per-field `RenameInput`: it
+  holds local `name`/`type`/`note` draft state plus a `saved` baseline set
+  at mount and updated only after a successful save (not re-derived from
+  the `goal` prop — same non-reactive-to-prop-drift pattern the old
+  `RenameInput` already relied on, since `router.refresh()` updates the
+  prop but the row isn't remounted). `dirty` compares drafts to `saved`;
+  the row's Save button is `disabled={!dirty || saving}` and PATCHes only
+  the fields that actually changed. Reorder/Archive call `patch()`
+  directly, unchanged from before. Archived list's summary span appends
+  `{g.note && ` · ${g.note}`}`.
+- `src/lib/goals.ts`: `GoalLine` gains `note: string | null`;
+  `getGoalsMonth`'s select adds `note: goals.note`.
+- `src/components/GoalEditor.tsx`: local `Line` type gains
+  `note: string | null`; the goal's `<label>` becomes a two-line stack
+  (name, then `{l.note && <span className="block truncate text-xs
+  text-muted">{l.note}</span>}`) instead of a single inline span, so the
+  checkbox aligns to the top of a two-line label.
+- No change to `GoalsCard.tsx` or `Overview`'s goals projection — see
+  Out of scope.
 
 ## Documentation
 `CLAUDE.md`'s Goals architecture bullet gets a short addendum noting the
-optional `note` field, its 200-char cap via `parseLabel`, and that it's
-editable only from `GoalManager` (not surfaced on the Hub or in
-`GoalEditor`). No `README.md` change — no new route, config, or top-level
+optional `note` field, its 200-char cap via `parseLabel`, that it's edited
+via an explicit Save button in `GoalManager` (not per-field auto-save), and
+that it's shown read-only in `GoalEditor`'s checklist but not on the Hub's
+`GoalsCard`. No `README.md` change — no new route, config, or top-level
 feature, just a field on an existing one.
 
 ## Verification
-- `npx vitest run tests/goals.test.ts`
-- `npm run dev`, open `/goals`, add a note to a goal, reload — the note
-  persists. Clear it — it's gone (not showing as empty text). Archive a
+- `npx vitest run tests/goals.test.ts tests/goals-ui.test.tsx`
+- `npm run dev`, open `/goals`: edit a goal's name/type/note in
+  `GoalManager` — Save stays disabled until something changes, then
+  commits all three together; the same note shows read-only under the
+  goal's name in the checklist above. Reload — everything persists. Clear
+  the note and Save — it's gone (not showing as empty text). Archive a
   goal with a note — the archived summary line shows it.
 - Confirm a second household member (non-owner) can also set/clear a note.
