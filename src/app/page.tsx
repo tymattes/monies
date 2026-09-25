@@ -57,17 +57,17 @@ export default async function OverviewPage(props: PageProps<"/">) {
       {o.categories.length > 0 && (
         <CategoryTable rows={o.categories} currency={o.currency} editHref={`/budget${q}`} />
       )}
-      <div className="grid items-start gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        <IncomeCard income={o.income} currency={o.currency} href={`/income${q}`} />
-        <BillsCard bills={o.bills} currency={o.currency} href={`/bills${q}`} />
-        <GoalsCard goals={o.goals} currency={o.currency} href={`/goals${q}`} />
-      </div>
       <ExpensesList
         expenses={o.expenses}
         totalCents={o.cashFlow.expensesCents}
         currency={o.currency}
         href={`/expenses${q}`}
       />
+      <div className="grid items-start gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <IncomeCard income={o.income} currency={o.currency} href={`/income${q}`} />
+        <BillsCard bills={o.bills} currency={o.currency} href={`/bills${q}`} />
+        <GoalsCard goals={o.goals} currency={o.currency} href={`/goals${q}`} />
+      </div>
     </main>
   );
 }
