@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import BillsCard from "@/components/overview/BillsCard";
 import CashFlowCard from "@/components/overview/CashFlowCard";
 import CategoryTable from "@/components/overview/CategoryTable";
-import ExpensesCard from "@/components/overview/ExpensesCard";
+import ExpensesList from "@/components/overview/ExpensesList";
 import GetStarted from "@/components/overview/GetStarted";
 import GoalsCard from "@/components/overview/GoalsCard";
 import IncomeCard from "@/components/overview/IncomeCard";
@@ -205,7 +205,7 @@ describe("CategoryTable", () => {
   });
 
   it("is headed 'Budget' with an Edit budget link", () => {
-    expect(html).toMatch(/<h2[^>]*>\s*Budget\s*<\/h2>/);
+    expect(html).toMatch(/<h2[^>]*>[\s\S]*?>Budget<\/h2>/);
     expect(html).toMatch(/<a[^>]*href="\/budget"[^>]*>Edit budget<\/a>/);
   });
 
@@ -354,16 +354,66 @@ describe("GoalsCard (spec 015)", () => {
   });
 });
 
-describe("ExpensesCard", () => {
-  it("shows the month's total and a Log expense link", () => {
-    const html = renderToStaticMarkup(<ExpensesCard totalCents={12500} currency="USD" href="/expenses" />);
-    expect(html).toContain("$125.00");
+describe("ExpensesList (spec 034)", () => {
+  const line = (id: string, spentOn: string, categoryName: string, amountCents: number, description: string | null = null) => ({
+    id, categoryId: `c-${id}`, categoryName, spentOn, amountCents, description,
+  });
+
+  it("groups rows by day, newest first, showing category, description and amount", () => {
+    const expenses = {
+      recent: [
+        line("1", "2026-09-22", "Groceries", 8412, "Trader Joe's"),
+        line("2", "2026-09-22", "Entertainment", 4200),
+        line("3", "2026-09-18", "Utilities", 3850),
+      ],
+      count: 3,
+    };
+    const html = renderToStaticMarkup(
+      <ExpensesList expenses={expenses} totalCents={12662} currency="USD" href="/expenses" />,
+    );
+    expect(html).toContain("Sep 22");
+    expect(html).toContain("Sep 18");
+    expect(html).toContain("Groceries");
+    expect(html).toContain("Trader Joe&#x27;s");
+    expect(html).toContain("$84.12");
+    expect(html).toContain("Entertainment");
+    expect(html).toContain("$42.00");
+    expect(html).toContain("Utilities");
+    expect(html).toContain("$38.50");
     expect(html).toMatch(/<a[^>]*href="\/expenses"[^>]*>Log expense<\/a>/);
   });
 
-  it("explains a month with no expenses logged", () => {
-    const html = renderToStaticMarkup(<ExpensesCard totalCents={0} currency="USD" href="/expenses" />);
+  it("shows a Total row from the given totalCents, not a sum of the displayed rows", () => {
+    // The total (cashFlow.expensesCents) reflects the whole month even when
+    // the row list is capped — here the rows sum to less than the total.
+    const expenses = { recent: [line("1", "2026-09-22", "Groceries", 1000)], count: 1 };
+    const html = renderToStaticMarkup(
+      <ExpensesList expenses={expenses} totalCents={99999} currency="USD" href="/expenses" />,
+    );
+    expect(html).toContain("Total");
+    expect(html).toContain("$999.99");
+  });
+
+  it("shows a View all link only when more expenses exist than are shown", () => {
+    const capped = { recent: [line("1", "2026-09-22", "Groceries", 1000)], count: 12 };
+    const withCap = renderToStaticMarkup(
+      <ExpensesList expenses={capped} totalCents={1000} currency="USD" href="/expenses" />,
+    );
+    expect(withCap).toMatch(/<a[^>]*href="\/expenses"[^>]*>View all in Expenses<\/a>/);
+
+    const exact = { recent: [line("1", "2026-09-22", "Groceries", 1000)], count: 1 };
+    const withoutCap = renderToStaticMarkup(
+      <ExpensesList expenses={exact} totalCents={1000} currency="USD" href="/expenses" />,
+    );
+    expect(withoutCap).not.toContain("View all in Expenses");
+  });
+
+  it("explains a month with no expenses logged, with no Total row", () => {
+    const html = renderToStaticMarkup(
+      <ExpensesList expenses={{ recent: [], count: 0 }} totalCents={0} currency="USD" href="/expenses" />,
+    );
     expect(html).toContain("No expenses logged this month yet.");
+    expect(html).not.toContain("Total");
   });
 });
 

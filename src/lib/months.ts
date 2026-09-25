@@ -37,6 +37,17 @@ export function monthLabel(month: string): string {
   }).format(new Date(Date.UTC(y, m - 1, 1)));
 }
 
+// "Sep 22" — a day heading for a date-grouped list (spec 034). `date` is
+// "YYYY-MM-DD"; UTC keeps it in step with `parseDate`'s own validation.
+export function dayLabel(date: string): string {
+  const [y, m, d] = date.split("-").map(Number);
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(y, m - 1, d)));
+}
+
 // Validates a calendar date string "YYYY-MM-DD" (rejects e.g. 2026-02-30).
 export function parseDate(value: unknown): string {
   if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {

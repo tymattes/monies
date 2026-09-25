@@ -1,5 +1,6 @@
 import { getBillsMonth } from "./bills";
 import { getBudget } from "./budgets";
+import { getExpensesMonth, type ExpenseLine } from "./expenses";
 import type { GoalType } from "./goalTypes";
 import type { HouseholdContext } from "./household";
 import { getIncomeMonth } from "./income";
@@ -73,6 +74,12 @@ export type Overview = {
     debtPayoffCents: number;
   };
   categories: OverviewCategory[];
+  // The month's logged expenses for the bottom-of-page ledger (spec 034):
+  // `recent` is capped at RECENT_EXPENSES, newest first (same order
+  // `getExpensesMonth` already returns); `count` is the real number logged,
+  // so the UI knows whether a "View all" link is needed. The total stays
+  // `cashFlow.expensesCents` — never resummed from this capped list.
+  expenses: { recent: ExpenseLine[]; count: number };
   // Saving/Debt payoff goals for the month (spec 015 — Overview's Goals
   // card), same shape `getGoalsMonth`/`getBudget` already produce.
   goals: OverviewGoal[];
@@ -83,6 +90,7 @@ export type Overview = {
 };
 
 const LARGEST_BILLS = 5;
+const RECENT_EXPENSES = 10;
 
 // Everything the Overview page shows, composed from the budget, income and
 // bills queries so its numbers cannot drift from the Plan pages. Unallocated is
@@ -92,10 +100,11 @@ export async function getOverview(
   ctx: HouseholdContext,
   month: string,
 ): Promise<Overview> {
-  const [budget, income, bills] = await Promise.all([
+  const [budget, income, bills, expenses] = await Promise.all([
     getBudget(ctx, month),
     getIncomeMonth(ctx, month),
     getBillsMonth(ctx, month),
+    getExpensesMonth(ctx, month),
   ]);
   const currency = ctx.household.currency;
 
@@ -171,6 +180,7 @@ export async function getOverview(
       debtPayoffCents,
     },
     categories,
+    expenses: { recent: expenses.expenses.slice(0, RECENT_EXPENSES), count: expenses.expenses.length },
     goals: budget.goals,
     tasks,
   };
