@@ -119,31 +119,31 @@ test.describe("with a seeded household", () => {
     }
   });
 
-  test("Tasks names the over-budget category, the unallocated money, and the unchecked goal, with links (spec 032)", async ({ page }) => {
+  test("Tasks gives an inline toggle for the over-budget category, the unallocated money, and the unchecked goal (spec 035)", async ({ page }) => {
     const list = page.getByRole("region", { name: "Tasks" });
     const over = list.getByRole("listitem").filter({ hasText: "Utilities: is $70.00 over its budget." });
     await expect(over).toContainText("Warning:");
-    await expect(over.getByRole("link", { name: "Adjust budget" })).toHaveAttribute("href", "/budget");
+    await expect(over.getByRole("button", { name: "Adjust budget" })).toHaveAttribute("aria-expanded", "false");
 
     const free = list.getByRole("listitem").filter({ hasText: `${money(SEED.unallocatedCents)} is still unallocated` });
-    await expect(free.getByRole("link", { name: "Assign" })).toHaveAttribute("href", /\/goals(\?month=[\d-]+)?#assign$/);
+    await expect(free.getByRole("button", { name: "Assign" })).toHaveAttribute("aria-expanded", "false");
 
     // The seeded Savings goal is funded but unchecked this month (spec 015).
+    // Check off has no expand state — it's a single action, not a form.
     const goal = list.getByRole("listitem").filter({ hasText: "Savings hasn't been checked off yet this month." });
-    await expect(goal.getByRole("link", { name: "Check off" })).toHaveAttribute("href", "/goals");
-    // Plus the three permanent monthly reminders (spec 032).
-    await expect(list.getByRole("listitem").filter({ hasText: "Log this month's expenses as they happen." })).toBeVisible();
-    await expect(list.getByRole("listitem").filter({ hasText: "Keep this month's income up to date." })).toBeVisible();
-    await expect(list.getByRole("listitem").filter({ hasText: "Keep this month's recurring bills up to date." })).toBeVisible();
+    await expect(goal.getByRole("button", { name: "Check off" })).toBeVisible();
+    // Plus the three permanent monthly reminders (spec 032). Log expense is
+    // also inline (spec 035); Update income/bills still link to their page.
+    await expect(
+      list.getByRole("listitem").filter({ hasText: "Log this month's expenses as they happen." }).getByRole("button", { name: "Log expense" }),
+    ).toHaveAttribute("aria-expanded", "false");
+    await expect(
+      list.getByRole("listitem").filter({ hasText: "Keep this month's income up to date." }).getByRole("link", { name: "Update income" }),
+    ).toHaveAttribute("href", "/income");
+    await expect(
+      list.getByRole("listitem").filter({ hasText: "Keep this month's recurring bills up to date." }).getByRole("link", { name: "Update bills" }),
+    ).toHaveAttribute("href", "/bills");
     await expect(list.getByRole("listitem")).toHaveCount(6);
-  });
-
-  test("Assign from the Overview's Tasks reaches the Goals panel, focused (spec 032)", async ({ page }) => {
-    const list = page.getByRole("region", { name: "Tasks" });
-    await list.getByRole("listitem").filter({ hasText: "is still unallocated" }).getByRole("link", { name: "Assign" }).click();
-    await expect(page).toHaveURL(/\/goals.*#assign/);
-    await expect(page.locator("#assign select").first()).toBeFocused();
-    await expect(page.locator("#assign")).toBeInViewport();
   });
 
   test("the income and bills cards summarise the seeded data", async ({ page }) => {
@@ -206,10 +206,12 @@ test.describe("with a seeded household", () => {
     await expect(list).toContainText(`${money(SEED.salaryCents - SEED.billsCents)} is still unallocated`);
     // The Utilities item (bills past a category's own budget) is still a warning.
     await expect(list.getByRole("listitem").filter({ hasText: "Utilities: is" })).toContainText("Warning:");
-    await expect(list.getByRole("link", { name: "Adjust budget" })).toHaveAttribute("href", `/budget?month=${next}`);
+    // Adjust budget and Assign are inline toggles now (spec 035), not links,
+    // but still render for a future editable month.
+    await expect(list.getByRole("button", { name: "Adjust budget" })).toBeVisible();
     // Next month has unallocated income (not over-allocated), so Assign is offered.
     const free = list.getByRole("listitem").filter({ hasText: "is still unallocated" });
-    await expect(free.getByRole("link", { name: "Assign" })).toHaveAttribute("href", new RegExp(`/goals\\?month=${next}#assign`));
+    await expect(free.getByRole("button", { name: "Assign" })).toBeVisible();
     await expect(page.getByRole("region", { name: "Income", exact: true }).getByRole("link", { name: "Add income" })).toHaveAttribute("href", `/income?month=${next}`);
   });
 
@@ -266,6 +268,86 @@ test.describe("the expenses ledger (spec 034)", () => {
     await expect(expenses.getByRole("link", { name: "View all in Expenses" })).toHaveAttribute("href", /\/expenses/);
     // 100 + 200 + ... + 1100 = 6,600 — the full month's total, not just the ten shown rows.
     await expect(expenses).toContainText(`Total${money(6600)}`);
+  });
+});
+
+// Each test here actually submits, mutating the seeded household, so this
+// gets its own reset per test rather than sharing the read-only block above.
+test.describe("Tasks' inline actions (spec 035)", () => {
+  test.beforeEach(async ({ page }) => {
+    await resetAndSeed();
+    await signIn(page, OWNER);
+    await page.goto("/");
+  });
+
+  test("Check off completes a goal task immediately, with no navigation", async ({ page }) => {
+    const list = page.getByRole("region", { name: "Tasks" });
+    const item = list.getByRole("listitem").filter({ hasText: "Savings hasn't been checked off yet this month." });
+    await item.getByRole("button", { name: "Check off" }).click();
+    await expect(page).not.toHaveURL(/\/goals/);
+    await expect(list.getByRole("listitem").filter({ hasText: "Savings hasn't been checked off yet" })).toHaveCount(0);
+  });
+
+  test("Assign expands inline, preselecting the seeded Saving goal and the full unallocated amount", async ({ page }) => {
+    const list = page.getByRole("region", { name: "Tasks" });
+    const item = list.getByRole("listitem").filter({ hasText: "is still unallocated" });
+    const toggle = item.getByRole("button", { name: "Assign", exact: true }).first();
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    await expect(page).not.toHaveURL(/\/goals/);
+
+    const panel = page.locator("#assign");
+    await expect(panel).toBeVisible();
+    await expect(panel.getByLabel("Goal 1", { exact: true })).toHaveValue(/./);
+    await expect(panel.getByLabel("Amount for goal 1")).toHaveValue((SEED.unallocatedCents / 100).toFixed(2));
+  });
+
+  // Assign only plans a goal's amount; a goal claims against Unallocated only
+  // once it's checked off ("Check it off below when the money moves" is the
+  // panel's own confirmation text — spec 021/026), so submitting Assign alone
+  // never makes the unallocated task disappear.
+  test("submitting Assign shows a confirmation, but the unallocated task persists until the goal is checked off", async ({ page }) => {
+    const list = page.getByRole("region", { name: "Tasks" });
+    await list.getByRole("listitem").filter({ hasText: "is still unallocated" }).getByRole("button", { name: "Assign", exact: true }).first().click();
+    const panel = page.locator("#assign");
+    await panel.getByRole("button", { name: "Assign", exact: true }).click();
+    await expect(panel).toContainText("Added");
+    await expect(list.getByRole("listitem").filter({ hasText: "is still unallocated" })).toBeVisible();
+  });
+
+  test("assigning the rest to the already-funded goal, then checking it off, resolves Unallocated", async ({ page }) => {
+    const list = page.getByRole("region", { name: "Tasks" });
+    // The seeded Savings goal already holds $1,000.00, unchecked; Assign
+    // defaults to topping it up with the whole remaining unallocated amount,
+    // so checking it off next claims all of it at once.
+    await list.getByRole("listitem").filter({ hasText: "is still unallocated" }).getByRole("button", { name: "Assign", exact: true }).first().click();
+    await page.locator("#assign").getByRole("button", { name: "Assign", exact: true }).click();
+    await expect(list.getByRole("listitem").filter({ hasText: "is still unallocated" })).toBeVisible();
+
+    await list.getByRole("listitem").filter({ hasText: "Savings hasn't been checked off yet this month." }).getByRole("button", { name: "Check off" }).click();
+    await expect(list.getByRole("listitem").filter({ hasText: "is still unallocated" })).toHaveCount(0);
+  });
+
+  test("Log expense fills a compact form inline; the task stays since it is permanent", async ({ page }) => {
+    const list = page.getByRole("region", { name: "Tasks" });
+    const item = list.getByRole("listitem").filter({ hasText: "Log this month's expenses as they happen." });
+    await item.getByRole("button", { name: "Log expense" }).click();
+    await item.getByLabel("Category").selectOption({ label: "Groceries" });
+    await item.getByLabel("Amount").fill("12.34");
+    await item.getByRole("button", { name: "Add" }).click();
+    await expect(item).toContainText("Logged");
+    await expect(list.getByRole("listitem").filter({ hasText: "Log this month's expenses as they happen." })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Expenses", exact: true })).toContainText(money(1234));
+  });
+
+  test("Adjust budget is prefilled with the category's current budgeted amount and resolves the task when raised", async ({ page }) => {
+    const list = page.getByRole("region", { name: "Tasks" });
+    const item = list.getByRole("listitem").filter({ hasText: "Utilities: is $70.00 over its budget." });
+    await item.getByRole("button", { name: "Adjust budget" }).click();
+    await expect(item.getByLabel("New budgeted amount")).toHaveValue((SEED.budgets.Utilities / 100).toFixed(2));
+    await item.getByLabel("New budgeted amount").fill("500.00");
+    await item.getByRole("button", { name: "Save" }).click();
+    await expect(list.getByRole("listitem").filter({ hasText: "Utilities: is" })).toHaveCount(0);
   });
 });
 

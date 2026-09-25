@@ -42,7 +42,17 @@ export default async function OverviewPage(props: PageProps<"/">) {
       </div>
 
       {o.editable && <GetStarted overview={o} query={q} />}
-      <TaskList items={o.tasks} />
+      {/* Remounted whenever the month or tasks change so expand state never
+          carries over into a different month's tasks (spec 035). */}
+      <TaskList
+        key={JSON.stringify([month, o.tasks.length])}
+        items={o.tasks}
+        month={month}
+        currency={o.currency}
+        editable={o.editable}
+        categories={o.categories}
+        goals={o.goals}
+      />
       <CashFlowCard overview={o} monthName={monthLabel(month)} />
       {o.categories.length > 0 && (
         <CategoryTable rows={o.categories} currency={o.currency} editHref={`/budget${q}`} />
