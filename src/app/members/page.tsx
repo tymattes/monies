@@ -53,8 +53,10 @@ export default async function MembersPage() {
                 <MemberActions
                   userId={m.userId}
                   name={m.name}
+                  role={m.role}
                   isSelf={m.userId === ctx.user.id}
                   canRemove={isOwner || m.userId === ctx.user.id}
+                  canChangeRole={isOwner}
                 />
               </div>
             </li>
