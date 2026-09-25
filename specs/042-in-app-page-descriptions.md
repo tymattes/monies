@@ -1,6 +1,6 @@
 # 042: In-app page descriptions and a richer getting-started guide
 
-**Status:** approved
+**Status:** implemented
 
 ## Goal
 
@@ -28,7 +28,7 @@ Right now the only explanation of what Monies is and how it's meant to be used l
 - [x] The Expenses page's description mentions that logging can be as granular or as sparse as the user wants.
 - [x] `GetStarted` has an intro sentence above the step list clarifying the checklist is guidance, not a requirement.
 - [x] `npm run lint` and the relevant Vitest UI tests (`tests/plan-ui.test.tsx`, `tests/overview-ui.test.tsx`, `tests/theme.test.ts`) pass with the new copy; full `npm test` (379 tests) passes.
-- [ ] `npx playwright test` accessibility scans still pass (new text doesn't break contrast or heading order) — not run: a pre-existing `next dev` process already held port 3000 in this environment and Next's single-instance dev lock blocked Playwright's own server from starting. `tests/theme.test.ts` (WCAG AA contrast) passed, which covers the token/contrast risk, but the full axe scan still needs a run with that other dev server stopped.
+- [x] `npx playwright test` accessibility scans still pass (new text doesn't break contrast or heading order) — `npm run test:e2e -- e2e/a11y.spec.ts` run after freeing port 3000: 32/32 passed (every page, light and dark, desktop and phone).
 - [x] Documentation updated (see Documentation).
 
 ## Technical notes
