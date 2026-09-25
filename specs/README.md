@@ -56,4 +56,4 @@ Monies is built spec-first. `brief.md` is the source of truth for product intent
 | 039 | [Hub cards — honest bars, less duplication](039-hub-card-bar-cleanup.md) | implemented |
 | 040 | [Notes on Goals](040-goal-notes.md) | implemented |
 | 041 | [Support multiple owners](041-multiple-owners.md) | implemented |
-| 042 | [In-app page descriptions and a richer getting-started guide](042-in-app-page-descriptions.md) | approved |
+| 042 | [In-app page descriptions and a richer getting-started guide](042-in-app-page-descriptions.md) | implemented |
