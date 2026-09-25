@@ -132,7 +132,7 @@ export default function BudgetEditor({
           <div className="flex items-center gap-4">
             <span className="w-24 text-right">Bills</span>
             <span className="w-24 text-right">Expenses</span>
-            <span className="w-24 text-right">Left</span>
+            <span className="w-24 text-right">Remaining</span>
             <span className="w-32 text-right">Budgeted</span>
           </div>
         </li>
@@ -191,7 +191,7 @@ export default function BudgetEditor({
               >
                 <span className={`sm:hidden ${left < 0 ? "text-danger" : "text-muted"}`}>
                   Bills {formatMoney(l.billsCents, currency)} · Expenses{" "}
-                  {formatMoney(l.expensesCents, currency)} · Left{" "}
+                  {formatMoney(l.expensesCents, currency)} · Remaining{" "}
                   {formatMoney(left, currency)}
                 </span>
                 <span
