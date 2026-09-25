@@ -1,5 +1,11 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// TaskList (and its inline task panels) call useRouter for router.refresh();
+// outside the Next app-router runtime that throws "invariant expected app
+// router to be mounted" — same mock plan-ui.test.tsx/assign-ui.test.tsx use.
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: () => {} }) }));
+
 import BillsCard from "@/components/overview/BillsCard";
 import CashFlowCard from "@/components/overview/CashFlowCard";
 import CategoryTable from "@/components/overview/CategoryTable";
@@ -249,19 +255,57 @@ describe("CategoryTable", () => {
 const items: Task[] = [
   { code: "category_over_budget", severity: "warning", message: "Utilities: is $70.00 over its budget.", href: "/budget", actionLabel: "Adjust budget", categoryId: "c1", amountCents: 7000 },
   { code: "unallocated", severity: "info", message: "$900.00 is still unallocated — assign it to a goal.", href: "/goals#assign", actionLabel: "Assign", amountCents: 90000 },
+  { code: "goal_not_checked", severity: "info", message: "Savings hasn't been checked off yet this month.", href: "/goals", actionLabel: "Check off", goalId: "g1", amountCents: 5000, subject: "Savings" },
+  { code: "log_expenses", severity: "info", message: "Log this month's expenses as they happen.", href: "/expenses", actionLabel: "Log expense" },
+  { code: "over_allocated", severity: "warning", message: "Bills exceed your income by $100.00.", href: "/budget", actionLabel: "Review budget", amountCents: 10000 },
+  { code: "update_income", severity: "info", message: "Keep this month's income up to date.", href: "/income", actionLabel: "Update income" },
 ];
+const taskCategories = [{ id: "c1", name: "Utilities", budgetedCents: 50000 }];
+const taskGoals = [{ id: "g1", name: "Savings", type: "saving" as const, amountCents: 50000 }];
+const list = (editable: boolean) =>
+  renderToStaticMarkup(
+    <TaskList items={items} month="2026-09" currency="USD" editable={editable} categories={taskCategories} goals={taskGoals} />,
+  );
 
-describe("TaskList (spec 032)", () => {
+describe("TaskList (spec 032/035)", () => {
   it("renders nothing when there is nothing to say", () => {
-    expect(renderToStaticMarkup(<TaskList items={[]} />)).toBe("");
+    expect(
+      renderToStaticMarkup(
+        <TaskList items={[]} month="2026-09" currency="USD" editable categories={[]} goals={[]} />,
+      ),
+    ).toBe("");
   });
 
-  it("lists each item with its fix link and speaks a Warning prefix for warnings only", () => {
-    const html = renderToStaticMarkup(<TaskList items={items} />);
+  it("gives an inline toggle to the four completable task codes, collapsed by default", () => {
+    const html = list(true);
     expect(html).toContain("Tasks");
+    expect(html).toMatch(/<button[^>]*>Adjust budget<\/button>/);
+    expect(html).toMatch(/<button[^>]*aria-expanded="false"[^>]*>Assign<\/button>/);
+    expect(html).toMatch(/<button[^>]*>Check off<\/button>/);
+    expect(html).toMatch(/<button[^>]*>Log expense<\/button>/);
+    // Collapsed: no panel content leaks into the initial markup.
+    expect(html).not.toContain("New budgeted amount");
+    expect(html).not.toContain("Choose a category");
+  });
+
+  it("keeps plain links for tasks with no single completable action", () => {
+    const html = list(true);
+    expect(html).toMatch(/<a[^>]*href="\/budget"[^>]*>Review budget<\/a>/);
+    expect(html).toMatch(/<a[^>]*href="\/income"[^>]*>Update income<\/a>/);
+  });
+
+  it("falls back to plain links for Assign and Adjust budget on a non-editable (past) month", () => {
+    const html = list(false);
     expect(html).toMatch(/<a[^>]*href="\/budget"[^>]*>Adjust budget<\/a>/);
     expect(html).toMatch(/<a[^>]*href="\/goals#assign"[^>]*>Assign<\/a>/);
-    expect(html.match(/Warning: /g)?.length).toBe(1);
+    // Check off and Log expense stay inline regardless of editable.
+    expect(html).toMatch(/<button[^>]*>Check off<\/button>/);
+    expect(html).toMatch(/<button[^>]*>Log expense<\/button>/);
+  });
+
+  it("speaks a Warning prefix for warnings only, and marks the border", () => {
+    const html = list(true);
+    expect(html.match(/Warning: /g)?.length).toBe(2); // category_over_budget + over_allocated
     expect(html).toContain("border-l-danger");
   });
 });

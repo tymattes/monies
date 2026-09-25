@@ -45,12 +45,17 @@ export default function AssignUnallocated({
   currency,
   goals,
   unallocated,
+  bare = false,
 }: {
   month: string;
   monthName: string;
   currency: string;
   goals: Goal[];
   unallocated: number;
+  // Skips the outer card chrome when embedded inside another card that
+  // already provides it (Overview's Tasks, spec 035) — the Goals page's own
+  // usage keeps the default full card.
+  bare?: boolean;
 }) {
   const router = useRouter();
   const savings = goals.find((g) => g.type === "saving");
@@ -148,7 +153,10 @@ export default function AssignUnallocated({
   }
 
   return (
-    <section id="assign" className={`${cardCls} space-y-3 p-5`}>
+    <section
+      id="assign"
+      className={bare ? "w-full space-y-3 border-t border-border pt-3" : `${cardCls} space-y-3 p-5`}
+    >
       <p className="text-muted">
         Assign the unallocated {formatMoney(unallocated, currency)} to one or
         more goals:
