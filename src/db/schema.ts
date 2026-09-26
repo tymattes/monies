@@ -388,7 +388,12 @@ export const bills = pgTable(
       .notNull()
       .references(() => households.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
-    paidWith: text("paid_with"),
+    // The member who pays it, if any; optional from the start, so null means
+    // either "no payer chosen" or "that member was removed" — both render as
+    // no payer shown (unlike added_by below, there's no "Former member" case).
+    paidBy: text("paid_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
     note: text("note"),
     // The member who added it; null after that member is removed ("Former member").
     addedBy: text("added_by").references(() => user.id, {

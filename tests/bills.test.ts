@@ -17,6 +17,7 @@ import * as categoryRoute from "@/app/api/categories/[id]/route";
 import * as incomeAmountRoute from "@/app/api/income/[month]/sources/[id]/route";
 import * as incomeSourcesRoute from "@/app/api/income/sources/route";
 import * as memberRoute from "@/app/api/members/[userId]/route";
+import * as householdRoute from "@/app/api/household/route";
 import { getDb, getSql } from "@/db";
 import { insertUserWithPassword, signInResponse } from "@/lib/accounts";
 import { monthlyEquivalent } from "@/lib/bills";
@@ -30,7 +31,8 @@ type Bill = {
   monthlyCents: number;
   categoryId: string;
   categoryName: string;
-  paidWith: string | null;
+  paidById: string | null;
+  paidBy: string | null;
   note: string | null;
   addedBy: string;
   addedById: string | null;
@@ -51,6 +53,11 @@ async function budget(cookie: string, m = "2026-09") {
 
 const categoryId = async (cookie: string, name: string, m = "2026-09") =>
   (await budget(cookie, m)).lines.find((l) => l.name === name)!.id;
+
+async function meId(cookie: string) {
+  const r = await call(householdRoute.GET, "/api/household", { cookie });
+  return (r.json.me as { id: string }).id;
+}
 
 async function addBill(cookie: string, body: Record<string, unknown>) {
   return call(billsRoute.POST, "/api/bills", { method: "POST", cookie, body });
@@ -147,11 +154,12 @@ describe("adding a bill", () => {
 
   it("creates a bill with the adder's name and its details", async () => {
     const owner = await setupOwner();
+    const ownerId = await meId(owner);
     const r = await addBill(owner, {
       name: "Netflix",
       amountCents: 1599,
       categoryId: await categoryId(owner, "Entertainment"),
-      paidWith: "Amazon card",
+      paidBy: ownerId,
       note: "Family plan",
     });
     expect(r.status).toBe(201);
@@ -160,7 +168,8 @@ describe("adding a bill", () => {
     expect(bill).toMatchObject({
       name: "Netflix",
       categoryName: "Entertainment",
-      paidWith: "Amazon card",
+      paidById: ownerId,
+      paidBy: "Olive Owner",
       note: "Family plan",
       addedBy: "Olive Owner",
     });
@@ -177,7 +186,8 @@ describe("adding a bill", () => {
     ["a zero period", { intervalMonths: 0 }],
     ["an empty name", { name: "  " }],
     ["a long note", { note: "x".repeat(201) }],
-    ["a long paid-with", { paidWith: "x".repeat(61) }],
+    ["a malformed paidBy", { paidBy: "not-a-uuid" }],
+    ["a non-member paidBy", { paidBy: "00000000-0000-0000-0000-000000000000" }],
   ])("rejects %s", async (_label, overrides) => {
     const owner = await setupOwner();
     const r = await addBill(owner, {
@@ -293,13 +303,21 @@ describe("how a bill counts over time", () => {
 
   it("renames and edits labels without touching amounts", async () => {
     const owner = await setupOwner();
-    const id = await makeBill(owner, "Phone", 8000, "Utilities", { paidWith: "Checking", note: "old" });
-    expect((await patchBill(owner, id, { name: "Cell plan", paidWith: null, note: "Two lines" })).status).toBe(204);
+    const ownerId = await meId(owner);
+    const id = await makeBill(owner, "Phone", 8000, "Utilities", { paidBy: ownerId, note: "old" });
+    expect((await patchBill(owner, id, { name: "Cell plan", paidBy: null, note: "Two lines" })).status).toBe(204);
     const [bill] = (await month(owner)).bills;
-    expect(bill).toMatchObject({ name: "Cell plan", paidWith: null, note: "Two lines", monthlyCents: 8000 });
+    expect(bill).toMatchObject({ name: "Cell plan", paidById: null, paidBy: null, note: "Two lines", monthlyCents: 8000 });
     expect((await patchBill(owner, id, {})).status).toBe(400);
     expect((await patchBill(owner, id, { archived: "yes" })).status).toBe(400);
     expect((await patchBill(owner, id, { name: " " })).status).toBe(400);
+  });
+
+  it("rejects a non-member or malformed paidBy on edit", async () => {
+    const owner = await setupOwner();
+    const id = await makeBill(owner, "Phone", 8000, "Utilities");
+    expect((await patchBill(owner, id, { paidBy: "not-a-uuid" })).status).toBe(400);
+    expect((await patchBill(owner, id, { paidBy: "00000000-0000-0000-0000-000000000000" })).status).toBe(400);
   });
 });
 
@@ -334,14 +352,29 @@ describe("who added it", () => {
     expect(view.bills[0]).toMatchObject({ name: "Phone", addedBy: "Former member", addedById: null });
     expect(view.json.totalCents).toBe(8000);
   });
+
+  it("a removed payer's bill shows no payer, not 'Former member'", async () => {
+    const owner = await setupOwner();
+    const payer = await joinAsMember(owner);
+    const id = await makeBill(owner, "Phone", 8000, "Utilities", { paidBy: payer.userId });
+    expect((await month(owner)).bills[0]).toMatchObject({ paidById: payer.userId, paidBy: "Mia Member" });
+
+    await call(memberRoute.DELETE, `/api/members/${payer.userId}`, {
+      method: "DELETE",
+      cookie: owner,
+      params: { userId: payer.userId },
+    });
+    expect((await month(owner)).bills[0]).toMatchObject({ id, paidById: null, paidBy: null });
+  });
 });
 
 describe("month view", () => {
-  it("groups by category with subtotals, a total, and paid-with suggestions", async () => {
+  it("groups by category with subtotals and a total", async () => {
     const owner = await setupOwner();
-    await makeBill(owner, "Rent", 250000, "Housing", { paidWith: "Checking" });
-    await makeBill(owner, "Phone", 8000, "Utilities", { paidWith: "Amazon card" });
-    await makeBill(owner, "Water", 4000, "Utilities", { paidWith: "Checking" });
+    const ownerId = await meId(owner);
+    await makeBill(owner, "Rent", 250000, "Housing", { paidBy: ownerId });
+    await makeBill(owner, "Phone", 8000, "Utilities");
+    await makeBill(owner, "Water", 4000, "Utilities");
     await makeBill(owner, "Domain", 12000, "Utilities", { intervalMonths: 12 });
 
     const view = await month(owner);
@@ -350,7 +383,6 @@ describe("month view", () => {
       expect.objectContaining({ name: "Utilities", totalCents: 13000 }),
     ]);
     expect(view.json.totalCents).toBe(263000);
-    expect(view.json.paidWithOptions).toEqual(["Amazon card", "Checking"]);
     expect(view.json.currency).toBe("USD");
   });
 });

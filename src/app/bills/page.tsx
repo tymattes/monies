@@ -5,6 +5,7 @@ import PlanHeader from "@/components/PlanHeader";
 import { getBillsMonth } from "@/lib/bills";
 import { listCategories } from "@/lib/categories";
 import { getHouseholdContext } from "@/lib/household";
+import { listMembers } from "@/lib/members";
 import { getPlanSummary } from "@/lib/plan";
 import { currentMonth, isMonth, monthLabel } from "@/lib/months";
 
@@ -19,10 +20,11 @@ export default async function BillsPage(props: PageProps<"/bills">) {
   const month =
     typeof requested === "string" && isMonth(requested) ? requested : now;
 
-  const [data, all, summary] = await Promise.all([
+  const [data, all, summary, members] = await Promise.all([
     getBillsMonth(ctx, month),
     listCategories(ctx.household.id),
     getPlanSummary(ctx, month),
+    listMembers(ctx.household.id),
   ]);
 
   return (
@@ -38,6 +40,7 @@ export default async function BillsPage(props: PageProps<"/bills">) {
         categories={all
           .filter((c) => c.archivedFrom === null)
           .map((c) => ({ id: c.id, name: c.name }))}
+        members={members.map((m) => ({ id: m.userId, name: m.name }))}
       />
     </main>
   );

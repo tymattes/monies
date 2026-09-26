@@ -1,7 +1,7 @@
 import { createBill, isInterval } from "@/lib/bills";
 import { requireHousehold } from "@/lib/household";
 import { HttpError, readJson, route, str } from "@/lib/http";
-import { parseAmount, parseLabel } from "@/lib/validate";
+import { parseAmount, parseLabel, parseMemberId } from "@/lib/validate";
 
 // Adds a recurring bill, effective from the current month. The category is
 // required (the user chooses it; there is no default).
@@ -20,7 +20,7 @@ export const POST = route(async (request) => {
     amountCents: parseAmount(body.amountCents, 0),
     intervalMonths,
     categoryId: body.categoryId,
-    paidWith: parseLabel(body.paidWith, "paidWith", 60) ?? null,
+    paidBy: parseMemberId(body.paidBy, "paidBy") ?? null,
     note: parseLabel(body.note, "note", 200) ?? null,
   });
   return Response.json({ bill: created }, { status: 201 });
