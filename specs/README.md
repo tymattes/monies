@@ -41,7 +41,7 @@ Monies is built spec-first. `brief.md` is the source of truth for product intent
 | 024 | [Goals page refreshes the Plan summary after check-off and amount edits](024-goals-refresh-plan-summary.md) | implemented |
 | 025 | [Unallocated wording and a goals step in the get-started checklist](025-unallocated-wording-and-goals-onboarding.md) | implemented |
 | 026 | [Assign confirms what happened and that money is claimed at check-off](026-assign-claims-on-checkoff-copy.md) | implemented |
-| 027 | [Expense description belongs inside the entry form](027-expense-description-in-form.md) | draft |
+| 027 | [Expense description belongs inside the entry form](027-expense-description-in-form.md) | implemented |
 | 028 | [Common currencies first in the setup currency picker](028-currency-picker-common-first.md) | implemented |
 | 029 | [Plan tabs match the onboarding order](029-plan-tabs-match-onboarding-order.md) | implemented |
 | 030 | [Set a fixed source's amount when you add it](030-income-amount-on-creation.md) | implemented |
@@ -57,3 +57,4 @@ Monies is built spec-first. `brief.md` is the source of truth for product intent
 | 040 | [Notes on Goals](040-goal-notes.md) | implemented |
 | 041 | [Support multiple owners](041-multiple-owners.md) | implemented |
 | 042 | [In-app page descriptions and a richer getting-started guide](042-in-app-page-descriptions.md) | implemented |
+| 043 | [Bills "Paid with" becomes a household member](043-bills-paid-with-member.md) | draft |
