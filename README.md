@@ -2,7 +2,7 @@
 
 A self-hosted, household-centric budgeting app. Web first, with a companion iOS app planned.
 
-**Status:** early development. Specs 001–023 are implemented — households, sign-in and invites, categories and monthly budgets, income, bills, saving and debt-payoff goals, expenses, and the Hub are all working; the remaining roadmap (receipt capture, trends, iOS app) lands one spec at a time (see [`specs/`](specs/)).
+**Status:** in active development. Specs 001–043 are implemented — households, members and invites, categories and monthly budgets, income, bills, saving and debt-payoff goals, expenses, and the Hub are all working; the remaining roadmap (receipt capture, trends, iOS app) lands one spec at a time (see [`specs/`](specs/)).
 
 ## Philosophy
 
