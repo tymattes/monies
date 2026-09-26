@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { OWNER, SEED, resetAndSeed } from "./support/seed";
+import { MEMBER, OWNER, SEED, resetAndSeed } from "./support/seed";
 import { signIn, waitHydrated } from "./support/page";
 
 test.beforeEach(async ({ page }) => {
@@ -43,6 +43,18 @@ test.describe("adding a bill", () => {
     await expect(row).toContainText("$120.00 / year");
     await expect(row).toContainText("about $10.00 / month");
     await expect(row).toContainText(`Added by ${OWNER.name}`);
+  });
+
+  test("choosing a payer from the member picker round-trips", async ({ page }) => {
+    const f = form(page);
+    await f.getByLabel("Name", { exact: true }).fill("Gym");
+    await f.getByLabel("Amount", { exact: true }).fill("40");
+    await f.getByLabel("Category", { exact: true }).selectOption({ label: "Health" });
+    await f.getByLabel("Paid with (optional)", { exact: true }).selectOption({ label: MEMBER.name });
+    await f.getByRole("button", { name: "Add bill" }).click();
+
+    const row = page.getByRole("listitem").filter({ hasText: "Gym" });
+    await expect(row).toContainText(`Paid with ${MEMBER.name}`);
   });
 });
 

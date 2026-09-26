@@ -44,7 +44,7 @@ export const SEED = {
   // it is 600,000 − 194,599 = 405,401.
   unallocatedCents: 405401,
   bills: [
-    { name: "Rent", amountCents: 150000, category: "Housing", paidWith: "Checking" },
+    { name: "Rent", amountCents: 150000, category: "Housing", paidBy: "owner" as const },
     { name: "Phone", amountCents: 8000, category: "Utilities" },
     { name: "Electric", amountCents: 19000, category: "Utilities" },
     { name: "Water", amountCents: 6000, category: "Utilities" },
@@ -133,6 +133,9 @@ async function seedHousehold(withVariable: boolean) {
     const invite = (await (await ok(await owner.post("/api/invites", { data: {} }), "invite")).json()) as { token: string };
     await ok(await member.post(`/api/join/${invite.token}`, { data: MEMBER }), "join");
 
+    const ownerMe = (await (await ok(await owner.get("/api/household"), "me")).json()) as { me: { id: string } };
+    const ownerId = ownerMe.me.id;
+
     const M = monthKey();
     const budget = (await (await ok(await owner.get(`/api/budgets/${M}`), "budget")).json()) as {
       categories: { id: string; name: string }[];
@@ -170,7 +173,12 @@ async function seedHousehold(withVariable: boolean) {
     for (const b of SEED.bills) {
       await ok(
         await owner.post("/api/bills", {
-          data: { ...b, categoryId: category(b.category), category: undefined },
+          data: {
+            ...b,
+            categoryId: category(b.category),
+            category: undefined,
+            paidBy: b.paidBy === "owner" ? ownerId : undefined,
+          },
         }),
         `bill ${b.name}`,
       );

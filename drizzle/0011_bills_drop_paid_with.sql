@@ -1,0 +1,1 @@
+ALTER TABLE "bills" DROP COLUMN "paid_with";

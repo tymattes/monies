@@ -62,6 +62,18 @@ export function parseNote(value: unknown): string | null {
   return value.trim();
 }
 
+// Optional household-member id: undefined = not provided (leave unchanged on
+// a patch); null or "" = no payer. Only checks the shape — membership in the
+// household is a DB check the caller makes separately.
+export function parseMemberId(value: unknown, what: string): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null || value === "") return null;
+  if (typeof value !== "string" || !UUID.test(value)) {
+    throw new HttpError(400, `${what} must be a household member`);
+  }
+  return value;
+}
+
 // Optional short text label. undefined = not provided; null or "" = clear it.
 export function parseLabel(
   value: unknown,
