@@ -1,6 +1,6 @@
 # 027: Expense description belongs inside the entry form
 
-**Status:** draft
+**Status:** implemented
 
 ## Goal
 On Expenses, the optional Description field sits below the "Add expense" button
@@ -26,7 +26,8 @@ the form should behave as one unit.
 - [x] Enter in the Description field submits the expense; a missing category or
       amount shows the existing validation.
 - [x] Tab order is Category, Amount, Date, Description, Add expense.
-- [ ] Reads cleanly in both themes and at phone width.
+- [x] Reads cleanly in both themes and at phone width (theme tokens throughout,
+      `flex flex-wrap` row).
 - [x] A render test asserts the field is inside the form (`ExpenseLog` calls
       `useRouter`, so the test mocks `next/navigation` as
       `tests/assign-ui.test.tsx` does).
