@@ -4,6 +4,10 @@ A self-hosted, household-centric budgeting app. Web first, with a companion iOS 
 
 **Status:** in active development. Specs 001–043 are implemented — households, members and invites, categories and monthly budgets, income, bills, saving and debt-payoff goals, expenses, and the Hub are all working; the remaining roadmap (receipt capture, trends, iOS app) lands one spec at a time (see [`specs/`](specs/)).
 
+## About this project
+
+Monies started as a learning experiment in an AI-driven development workflow built on spec-driven development. Every feature begins as a numbered spec in [`specs/`](specs/) — a short document that captures the product intent and its acceptance criteria — and is then implemented with the help of AI coding assistants working from that spec, with the author reviewing and merging each change. [`specs/brief.md`](specs/brief.md) is the source of truth for the product, and the spec files are the complete record of how the app came together, one numbered spec per feature. If you're as curious about the process as the product, that directory is the whole story.
+
 ## Philosophy
 
 Monies is organised around a monthly rhythm: plan the month, record what happens, then check in and act.
@@ -123,11 +127,74 @@ Migrations live in `drizzle/` and are committed. The app applies pending migrati
 
 ### Docker Compose
 
-On your server: clone the repo, create `.env` as above with a strong password, then `docker compose up -d --build`. Put a reverse proxy with TLS in front of the app port for anything beyond your LAN. The DB port is bound to localhost only.
+On your server: clone the repo, create `.env` as above with a strong password, then `docker compose up -d --build`. Put a reverse proxy with TLS in front of the app port for anything beyond your LAN — see *Exposing the app* below. The DB port is bound to localhost only.
 
 ### Portainer
 
-Create a stack from this Git repository (Repository build method) using `docker-compose.yml`, and set the variables from the table above in the stack's environment section. `POSTGRES_PASSWORD` and `BETTER_AUTH_SECRET` are required; the stack will not start without them. Set `BETTER_AUTH_URL` to the address you will browse to, and `TZ` to your timezone.
+Deploy from the repository: create a stack → *Repository*, point it at this Git repository, and use the committed `docker-compose.yml` as the Compose file. `POSTGRES_PASSWORD` and `BETTER_AUTH_SECRET` are required — the stack refuses to start without them. Also set `BETTER_AUTH_URL` to the address you will browse to, and `TZ` to your timezone.
+
+For reference, here is that stack with its variables inlined — replace every `change-me` value:
+
+```yaml
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: monies
+      POSTGRES_DB: monies
+      POSTGRES_PASSWORD: change-me-to-a-strong-password
+    volumes:
+      - monies-db:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U monies -d monies"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    image: monies:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://monies:change-me-to-a-strong-password@db:5432/monies
+      TZ: America/Chicago
+      BETTER_AUTH_SECRET: change-me-to-a-long-random-string
+      BETTER_AUTH_URL: https://monies.example.com
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  monies-db:
+```
+
+`build: .` builds the image from the repository, so this example deploys via the *Repository* method (which supplies the build context). Once a pre-built image is published to a registry, swap `build: .` for an `image:` reference and the same file works as a plain pasted stack.
+
+### Exposing the app
+
+Out of the box the app listens on the host's port 3000 and is reachable on your local network; the database port is bound to `127.0.0.1` only and is never exposed.
+
+**Staying private with Tailscale (recommended).** The simplest way to reach Monies from outside your home without opening it to the internet is to put both the server and your devices on a [Tailscale](https://tailscale.com/) tailnet (WireGuard, Headscale, and other private meshes work too). Install Tailscale on the host and browse to `http://<host>:3000` over the tailnet — traffic is encrypted by the mesh, no ports are forwarded, and the app itself needs no TLS certificate. Set `BETTER_AUTH_URL` to the address your devices actually use (e.g. `http://my-server:3000`).
+
+**Opening it to the public internet is at your own risk.** Monies holds your household's financial data, and sign-in is a single email + password (rate-limited, but there is no two-factor auth). If you expose it, treat it as a hardened public service:
+
+- Put a reverse proxy with TLS in front of it — [Caddy](https://caddyserver.com/), [Nginx Proxy Manager](https://nginxproxymanager.com/), or [Traefik](https://traefik.io/) all work and handle certificates for you.
+- Set `BETTER_AUTH_URL` to the public URL, or sign-in requests are rejected.
+- Use strong, unique passwords and keep the app updated.
+- For an extra layer without opening any inbound ports, a [Cloudflare Tunnel](https://www.cloudflare.com/products/tunnel/) (`cloudflared`) can expose the app, optionally behind Cloudflare Access so there's an identity check before Monies' own login.
+
+If access is just for you and your household, prefer Tailscale (or a reverse proxy on a private network) over a public port-forward.
 
 ## Backup and restore
 
