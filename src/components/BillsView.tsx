@@ -8,6 +8,7 @@ import { formatMoney, parseMoney, toInputString } from "@/lib/money";
 import { buttonCls, inputCls, labelCls, secondaryButtonCls } from "./ui";
 
 type CategoryOption = { id: string; name: string };
+type MemberOption = { id: string; name: string };
 
 const INTERVALS = [
   { value: 1, label: "Month" },
@@ -59,6 +60,34 @@ function CategorySelect({
   );
 }
 
+function PaidBySelect({
+  id,
+  value,
+  onChange,
+  members,
+}: {
+  id: string;
+  value: string;
+  onChange: (v: string) => void;
+  members: MemberOption[];
+}) {
+  return (
+    <select
+      id={id}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className={`${inputCls} w-auto! min-w-40`}
+    >
+      <option value="">—</option>
+      {members.map((m) => (
+        <option key={m.id} value={m.id}>
+          {m.name}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 function IntervalSelect({
   id,
   value,
@@ -99,12 +128,12 @@ function Preview({ amount, interval, currency }: { amount: string; interval: num
 function AddBillForm({
   currency,
   categories,
-  paidWithOptions,
+  members,
   startMonthName,
 }: {
   currency: string;
   categories: CategoryOption[];
-  paidWithOptions: string[];
+  members: MemberOption[];
   startMonthName: string;
 }) {
   const router = useRouter();
@@ -114,7 +143,7 @@ function AddBillForm({
   const [interval, setInterval] = useState(1);
   // Starts empty on purpose: the user always chooses the category.
   const [categoryId, setCategoryId] = useState("");
-  const [paidWith, setPaidWith] = useState("");
+  const [paidBy, setPaidBy] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -131,7 +160,7 @@ function AddBillForm({
       amountCents: minor,
       intervalMonths: interval,
       categoryId,
-      paidWith,
+      paidBy,
       note,
     });
     setBusy(false);
@@ -140,7 +169,7 @@ function AddBillForm({
     setAmount("");
     setInterval(1);
     setCategoryId("");
-    setPaidWith("");
+    setPaidBy("");
     setNote("");
     router.refresh();
   }
@@ -197,19 +226,12 @@ function AddBillForm({
           <label htmlFor={`${uid}-paid`} className="block text-xs text-muted">
             Paid with (optional)
           </label>
-          <input
+          <PaidBySelect
             id={`${uid}-paid`}
-            list={`${uid}-paid-options`}
-            maxLength={60}
-            value={paidWith}
-            onChange={(e) => setPaidWith(e.target.value)}
-            className={inputCls}
+            value={paidBy}
+            onChange={setPaidBy}
+            members={members}
           />
-          <datalist id={`${uid}-paid-options`}>
-            {paidWithOptions.map((o) => (
-              <option key={o} value={o} />
-            ))}
-          </datalist>
         </div>
         <div className="min-w-48 flex-1 space-y-1">
           <label htmlFor={`${uid}-note`} className="block text-xs text-muted">
@@ -247,7 +269,7 @@ function BillRow({
   currency,
   editable,
   categories,
-  paidWithOptions,
+  members,
 }: {
   bill: BillItem;
   month: string;
@@ -255,7 +277,7 @@ function BillRow({
   currency: string;
   editable: boolean;
   categories: CategoryOption[];
-  paidWithOptions: string[];
+  members: MemberOption[];
 }) {
   const router = useRouter();
   const uid = useId();
@@ -264,7 +286,7 @@ function BillRow({
   const [amount, setAmount] = useState(toInputString(bill.amountCents, currency));
   const [interval, setInterval] = useState<number>(bill.intervalMonths);
   const [categoryId, setCategoryId] = useState(bill.categoryId);
-  const [paidWith, setPaidWith] = useState(bill.paidWith ?? "");
+  const [paidBy, setPaidBy] = useState(bill.paidById ?? "");
   const [note, setNote] = useState(bill.note ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -283,10 +305,10 @@ function BillRow({
 
     const labelsChanged =
       name.trim() !== bill.name ||
-      paidWith.trim() !== (bill.paidWith ?? "") ||
+      paidBy !== (bill.paidById ?? "") ||
       note.trim() !== (bill.note ?? "");
     if (labelsChanged) {
-      const r = await api(`/api/bills/items/${bill.id}`, "PATCH", { name, paidWith, note });
+      const r = await api(`/api/bills/items/${bill.id}`, "PATCH", { name, paidBy, note });
       if (!r.ok) {
         setBusy(false);
         return setError(r.error ?? "Could not save");
@@ -370,19 +392,12 @@ function BillRow({
           <div className="flex flex-wrap items-end gap-3">
             <div className="min-w-40 space-y-1">
               <label htmlFor={`${uid}-paid`} className="block text-xs text-muted">Paid with</label>
-              <input
+              <PaidBySelect
                 id={`${uid}-paid`}
-                list={`${uid}-paid-options`}
-                maxLength={60}
-                value={paidWith}
-                onChange={(e) => setPaidWith(e.target.value)}
-                className={inputCls}
+                value={paidBy}
+                onChange={setPaidBy}
+                members={members}
               />
-              <datalist id={`${uid}-paid-options`}>
-                {paidWithOptions.map((o) => (
-                  <option key={o} value={o} />
-                ))}
-              </datalist>
             </div>
             <div className="min-w-48 flex-1 space-y-1">
               <label htmlFor={`${uid}-note`} className="block text-xs text-muted">Note</label>
@@ -420,7 +435,7 @@ function BillRow({
           <p className="truncate font-medium">{bill.name}</p>
           <p className="text-xs text-muted">
             Added by {bill.addedBy}
-            {bill.paidWith && ` · Paid with ${bill.paidWith}`}
+            {bill.paidBy && ` · Paid with ${bill.paidBy}`}
             {bill.note && ` · ${bill.note}`}
           </p>
         </div>
@@ -460,12 +475,14 @@ export default function BillsView({
   startMonthName,
   data,
   categories,
+  members,
 }: {
   month: string;
   monthName: string;
   startMonthName: string;
   data: BillsMonth;
   categories: CategoryOption[];
+  members: MemberOption[];
 }) {
   const { currency, editable } = data;
 
@@ -493,7 +510,7 @@ export default function BillsView({
         <AddBillForm
           currency={currency}
           categories={categories}
-          paidWithOptions={data.paidWithOptions}
+          members={members}
           startMonthName={startMonthName}
         />
       )}
@@ -524,7 +541,7 @@ export default function BillsView({
                     currency={currency}
                     editable={editable}
                     categories={categories}
-                    paidWithOptions={data.paidWithOptions}
+                    members={members}
                   />
                 ))}
             </ul>

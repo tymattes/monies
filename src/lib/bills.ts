@@ -1,6 +1,6 @@
 import { and, eq, lte, sql } from "drizzle-orm";
 import { getDb } from "@/db";
-import { bills, billVersions, categories } from "@/db/schema";
+import { bills, billVersions, categories, householdMembers } from "@/db/schema";
 import type { HouseholdContext } from "./household";
 import { HttpError } from "./http";
 import { currentMonth, monthStart } from "./months";
@@ -32,7 +32,8 @@ export type BillItem = {
   monthlyCents: number;
   categoryId: string;
   categoryName: string;
-  paidWith: string | null;
+  paidById: string | null;
+  paidBy: string | null;
   note: string | null;
   addedById: string | null;
   addedBy: string;
@@ -41,7 +42,8 @@ export type BillItem = {
 type BillRow = {
   id: string;
   name: string;
-  paid_with: string | null;
+  paid_by: string | null;
+  paid_by_name: string | null;
   note: string | null;
   added_by: string | null;
   added_by_name: string | null;
@@ -60,7 +62,8 @@ async function activeBills(
 ): Promise<BillItem[]> {
   const start = monthStart(month);
   const rows = await getDb().execute<BillRow>(sql`
-    select b.id, b.name, b.paid_with, b.note, b.added_by,
+    select b.id, b.name, b.paid_by, b.note, b.added_by,
+           p.name as paid_by_name,
            u.name as added_by_name,
            v.amount_cents, v.interval_months, v.category_id,
            c.name as category_name,
@@ -73,6 +76,7 @@ async function activeBills(
     ) v on true
     join categories c on c.id = v.category_id
     left join "user" u on u.id = b.added_by
+    left join "user" p on p.id = b.paid_by
     where b.household_id = ${householdId}
       and b.start_month <= ${start}::date
       and (b.archived_from is null or ${start}::date < b.archived_from)
@@ -86,7 +90,10 @@ async function activeBills(
     monthlyCents: r.monthly_cents,
     categoryId: r.category_id,
     categoryName: r.category_name,
-    paidWith: r.paid_with,
+    // A null paid_by is ambiguous (never chosen vs. payer removed), so both
+    // just render as no payer — unlike added_by, there's no "Former member".
+    paidById: r.paid_by,
+    paidBy: r.paid_by_name,
     note: r.note,
     addedById: r.added_by,
     addedBy: r.added_by_name ?? "Former member",
@@ -100,7 +107,6 @@ export type BillsMonth = {
   bills: BillItem[];
   categories: { categoryId: string; name: string; totalCents: number }[];
   totalCents: number;
-  paidWithOptions: string[];
 };
 
 export async function getBillsMonth(
@@ -119,12 +125,6 @@ export async function getBillsMonth(
     groups.set(b.categoryId, g);
   }
 
-  const used = await getDb().execute<{ paid_with: string }>(sql`
-    select distinct paid_with from bills
-    where household_id = ${ctx.household.id} and paid_with is not null
-    order by paid_with
-  `);
-
   return {
     month,
     currency: ctx.household.currency,
@@ -132,7 +132,6 @@ export async function getBillsMonth(
     bills: items,
     categories: [...groups.values()],
     totalCents: items.reduce((sum, b) => sum + b.monthlyCents, 0),
-    paidWithOptions: used.map((r) => r.paid_with),
   };
 }
 
@@ -172,6 +171,21 @@ async function assertCategoryActive(
   if (!category) throw new HttpError(400, "Choose an active category");
 }
 
+// A non-member or malformed id is a 400, not a silent foreign-key error.
+async function assertMember(ctx: HouseholdContext, userId: string) {
+  if (!UUID.test(userId)) throw new HttpError(400, "paidBy must be a household member");
+  const [row] = await getDb()
+    .select({ userId: householdMembers.userId })
+    .from(householdMembers)
+    .where(
+      and(
+        eq(householdMembers.userId, userId),
+        eq(householdMembers.householdId, ctx.household.id),
+      ),
+    );
+  if (!row) throw new HttpError(400, "paidBy must be a household member");
+}
+
 export async function createBill(
   ctx: HouseholdContext,
   input: {
@@ -179,19 +193,20 @@ export async function createBill(
     amountCents: number;
     intervalMonths: BillingInterval;
     categoryId: string;
-    paidWith: string | null;
+    paidBy: string | null;
     note: string | null;
   },
 ) {
   const month = currentMonth();
   await assertCategoryActive(ctx, input.categoryId, month);
+  if (input.paidBy !== null) await assertMember(ctx, input.paidBy);
   const bill = await getDb().transaction(async (tx) => {
     const [row] = await tx
       .insert(bills)
       .values({
         householdId: ctx.household.id,
         name: input.name,
-        paidWith: input.paidWith,
+        paidBy: input.paidBy,
         note: input.note,
         addedBy: ctx.user.id,
         startMonth: monthStart(month),
@@ -232,7 +247,7 @@ export async function updateBill(
   id: string,
   patch: {
     name?: string;
-    paidWith?: string | null;
+    paidBy?: string | null;
     note?: string | null;
     archived?: boolean;
   },
@@ -240,7 +255,10 @@ export async function updateBill(
   const bill = await loadBill(ctx, id);
   const set: Partial<typeof bills.$inferInsert> = {};
   if (patch.name !== undefined) set.name = patch.name;
-  if (patch.paidWith !== undefined) set.paidWith = patch.paidWith;
+  if (patch.paidBy !== undefined) {
+    if (patch.paidBy !== null) await assertMember(ctx, patch.paidBy);
+    set.paidBy = patch.paidBy;
+  }
   if (patch.note !== undefined) set.note = patch.note;
   if (patch.archived === true && bill.archivedFrom === null) {
     set.archivedFrom = monthStart(currentMonth());

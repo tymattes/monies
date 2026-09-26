@@ -73,7 +73,7 @@ export type GoalPatch = {
   name?: string;
   type?: GoalType;
   // undefined = leave unchanged, null = clear, string = set (parseLabel's
-  // three-way semantics, same as bills' note/paidWith).
+  // three-way semantics, same as bills' note).
   note?: string | null;
   archived?: boolean;
   position?: number;
