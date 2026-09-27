@@ -75,9 +75,9 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Open http://localhost:3000. The database schema is migrated automatically when the app starts. On first visit you are taken to a setup page that creates your household and the first (owner) account. Add others from **Members** by creating an invite link and sharing it; there is no open sign-up and no email is sent.
+Open http://localhost:1717. The database schema is migrated automatically when the app starts. On first visit you are taken to a setup page that creates your household and the first (owner) account. Add others from **Members** by creating an invite link and sharing it; there is no open sign-up and no email is sent.
 
-Check health: `curl localhost:3000/api/health` returns `{"status":"ok","db":"ok"}`, or HTTP 503 if the database is unreachable.
+Check health: `curl localhost:1717/api/health` returns `{"status":"ok","db":"ok"}`, or HTTP 503 if the database is unreachable.
 
 ## Local development
 
@@ -116,7 +116,7 @@ Migrations live in `drizzle/` and are committed. The app applies pending migrati
 | `POSTGRES_PASSWORD` | none (required) | Database password. Avoid URL-special characters (`@ : / ? #`). |
 | `POSTGRES_USER` | `monies` | Database user. |
 | `POSTGRES_DB` | `monies` | Database name. |
-| `APP_PORT` | `3000` | Host port the app is published on. |
+| `APP_PORT` | `1717` | Host port the app is published on. |
 | `DB_PORT` | `5432` | Host port for Postgres, bound to `127.0.0.1` only. |
 | `BETTER_AUTH_SECRET` | none (required) | Secret used to sign sessions. Generate with `openssl rand -base64 32` and keep it stable; changing it signs everyone out. |
 | `BETTER_AUTH_URL` | `http://localhost:${APP_PORT}` | The public URL people open the app at (scheme, host, port). Set it when serving behind a domain or reverse proxy, or sign-in requests are rejected. |
@@ -167,7 +167,7 @@ services:
       BETTER_AUTH_SECRET: change-me-to-a-long-random-string
       BETTER_AUTH_URL: https://monies.example.com
     ports:
-      - "3000:3000"
+      - "1717:3000"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
       interval: 30s
@@ -183,9 +183,9 @@ volumes:
 
 ### Exposing the app
 
-Out of the box the app listens on the host's port 3000 and is reachable on your local network; the database port is bound to `127.0.0.1` only and is never exposed.
+Out of the box the app listens on the host's port 1717 and is reachable on your local network; the database port is bound to `127.0.0.1` only and is never exposed.
 
-**Staying private with Tailscale (recommended).** The simplest way to reach Monies from outside your home without opening it to the internet is to put both the server and your devices on a [Tailscale](https://tailscale.com/) tailnet (WireGuard, Headscale, and other private meshes work too). Install Tailscale on the host and browse to `http://<host>:3000` over the tailnet — traffic is encrypted by the mesh, no ports are forwarded, and the app itself needs no TLS certificate. Set `BETTER_AUTH_URL` to the address your devices actually use (e.g. `http://my-server:3000`).
+**Staying private with Tailscale (recommended).** The simplest way to reach Monies from outside your home without opening it to the internet is to put both the server and your devices on a [Tailscale](https://tailscale.com/) tailnet (WireGuard, Headscale, and other private meshes work too). Install Tailscale on the host and browse to `http://<host>:1717` over the tailnet — traffic is encrypted by the mesh, no ports are forwarded, and the app itself needs no TLS certificate. Set `BETTER_AUTH_URL` to the address your devices actually use (e.g. `http://my-server:1717`).
 
 **Opening it to the public internet is at your own risk.** Monies holds your household's financial data, and sign-in is a single email + password (rate-limited, but there is no two-factor auth). If you expose it, treat it as a hardened public service:
 
