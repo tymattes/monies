@@ -64,7 +64,8 @@ are committed SQL files in `drizzle/`.
 - Don't push directly to `main`; open a PR instead.
 - Include documentation updates (`README.md` and `specs/` status) in the same
   PR — docs are part of the definition of done.
-- Keep commits small and descriptive.
+- Keep commits small and descriptive. PRs are squash-merged, so the PR title
+  becomes the commit on `main`; write it like a commit subject.
 
 ## Style
 
