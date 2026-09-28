@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import AuthCard from "@/components/AuthCard";
-import CredentialsForm from "@/components/CredentialsForm";
+import SetupChoice from "@/components/SetupChoice";
 import { isSetupNeeded } from "@/lib/setup";
 
 export const dynamic = "force-dynamic";
@@ -10,9 +10,9 @@ export default async function SetupPage() {
   return (
     <AuthCard
       title="Set up Monies"
-      description="Create your household and the first account. You'll be its owner and can invite others afterwards."
+      description="Create your household and the first account, or restore a backup from a previous instance."
     >
-      <CredentialsForm mode="setup" />
+      <SetupChoice />
     </AuthCard>
   );
 }

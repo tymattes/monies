@@ -53,7 +53,7 @@ test("the header's controls are all on screen and reachable on a phone", async (
   const targets = [
     page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Hub" }),
     page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Plan" }),
-    page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Members" }),
+    page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Household" }),
     page.getByRole("button", { name: "Sign out" }),
     page.getByRole("group", { name: "Theme" }),
   ];
