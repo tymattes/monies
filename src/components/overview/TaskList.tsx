@@ -79,13 +79,15 @@ export default function TaskList({
       <h2 id="tasks-heading" className="text-lg font-semibold tracking-tight">
         Tasks
       </h2>
-      {/* A CSS multi-column layout, not a grid: cards stack top-to-bottom
-          within their own column, so a tall expanded panel only pushes down
-          the cards below it in that same column — it can't leave a gap of
-          dead space in the row next to it, or stretch/shift unrelated cards
-          in other columns (spec 035). break-inside-avoid keeps a single card
-          from being split across two columns. */}
-      <ul className="columns-1 gap-3 sm:columns-2 lg:columns-3">
+      {/* A real CSS grid, not CSS multi-column (spec 045 — multi-column let
+          the browser rebalance which card landed in which column as content
+          height changed, so expanding one card could shift unrelated cards
+          into a different column, which read as confusing). Every card gets
+          a fixed row/column slot for its lifetime: a tall expanded panel only
+          grows the height of its own row, pushing later rows down without
+          ever moving a card sideways. items-start keeps a shorter card in the
+          same row at its own height instead of stretching to match. */}
+      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 items-start">
         {items.map((item) => {
           const key = keyOf(item);
           // unallocated and category_over_budget only get an inline form
@@ -100,15 +102,15 @@ export default function TaskList({
           return (
             <li
               key={key}
-              className={`mb-3 flex break-inside-avoid flex-col items-start gap-3 rounded-xl border border-border bg-background shadow-sm border-l-4 p-4 text-sm ${
+              className={`flex flex-col items-start gap-3 rounded-xl border border-border bg-background shadow-sm border-l-4 p-4 text-sm ${
                 item.severity === "warning" ? "border-l-danger" : "border-l-border-strong"
-              }`}
+              } ${open ? "ring-2 ring-accent" : ""}`}
             >
               {/* min-h-10 reserves two lines' worth of height (text-sm's
                   line-height is 1.25rem) so every collapsed card lines up
-                  regardless of message length — the masonry columns below
-                  size each card to its own content, so without this a
-                  one-line message and a two-line one look uneven. */}
+                  regardless of message length — each card sizes to its own
+                  content, so without this a one-line message and a two-line
+                  one look uneven. */}
               <span className="min-h-10">
                 {item.severity === "warning" && <span className="sr-only">Warning: </span>}
                 {item.message}
