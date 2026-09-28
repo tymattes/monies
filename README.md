@@ -1,8 +1,28 @@
 # Monies
 
+[![CI](https://github.com/tymattes/monies/actions/workflows/ci.yml/badge.svg)](https://github.com/tymattes/monies/actions/workflows/ci.yml)
+
 A self-hosted, household-centric budgeting app. Web first, with a companion iOS app planned.
 
 **Status:** in active development. Specs 001–043 are implemented — households, members and invites, categories and monthly budgets, income, bills, saving and debt-payoff goals, expenses, and the Hub are all working; the remaining roadmap (receipt capture, trends, iOS app) lands one spec at a time (see [`specs/`](specs/)).
+
+## Screenshots
+
+The Hub is where you land: how the month is going, and what still needs doing. Dark is Dracula, light is Alucard.
+
+| Dark | Light |
+| --- | --- |
+| [![The Hub in dark theme](docs/screenshots/hub-dark.png)](docs/screenshots/hub-dark.png) | [![The Hub in light theme](docs/screenshots/hub-light.png)](docs/screenshots/hub-light.png) |
+
+The Budget tab, where each category's plan meets its bills and what has actually been spent:
+
+![The Budget page](docs/screenshots/budget.png)
+
+And on a phone:
+
+<img src="docs/screenshots/hub-phone.png" alt="The Hub on a phone" width="300">
+
+*Screenshots show the seeded demo household from the browser tests, not real data. Regenerate them with `npm run e2e:screenshots`.*
 
 ## About this project
 
@@ -105,7 +125,7 @@ npm run dev                   # http://localhost:3000 (applies pending migration
 - `npm run test:e2e` runs the browser tests in real Chromium with Playwright: themes (follows the OS, live change, no flash, keyboard), the Plan pages and Assign panel, Bills, phone layout, and accessibility scans (axe) of every page in both themes at desktop and phone size. It uses a throwaway `monies_e2e` database and its own port (3100), never your real data, and refuses to run against any database whose name does not end in `_e2e`. One-time setup: `npx playwright install chromium`.
 - `E2E_PROD=1 npm run test:e2e` runs them against the production build (the standalone server, as in Docker) instead of the dev server. It also runs the error-page checks, which only apply to production builds. `E2E_WEBKIT=1` adds a rough Safari stand-in (`npx playwright install webkit` first).
 - `npm run test:e2e:docker` builds the Docker image, runs it as a container against its own throwaway database on port 3200, and runs the sign-in and sign-out browser tests against it. It catches problems that only appear in the container (needs Docker and `docker compose up -d db`).
-- `npm run e2e:screenshots` writes a screenshot of every page in light and dark, at desktop and phone size, to `e2e-screenshots/` (git-ignored, with an `INDEX.md`) for visual review.
+- `npm run e2e:screenshots` writes a screenshot of every page in light and dark, at desktop and phone size, to `e2e-screenshots/` (git-ignored, with an `INDEX.md`) for visual review. It also shoots a month with expenses logged (the shared seed has none), which is where the committed `docs/screenshots/` images come from.
 
 Migrations live in `drizzle/` and are committed. The app applies pending migrations at startup (`src/instrumentation.ts`), both in dev and in the container.
 
