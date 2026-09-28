@@ -14,7 +14,7 @@ jobs:
       packages: write
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       # arm64 is emulated here, so a release build is slow. Worth it: much of
       # this app's audience self-hosts on a Pi or other ARM box.
