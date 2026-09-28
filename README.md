@@ -4,7 +4,7 @@
 
 A self-hosted, household-centric budgeting app. Web first, with a companion iOS app planned.
 
-**Status:** in active development. Specs 001–044 are implemented — households, members and invites, categories and monthly budgets, income, bills, saving and debt-payoff goals, expenses, backup/restore, and the Hub are all working; the remaining roadmap (receipt capture, trends, iOS app) lands one spec at a time (see [`specs/`](specs/)).
+**Status:** in active development. Specs 001–045 are implemented — households, members and invites, categories and monthly budgets, income, bills, saving and debt-payoff goals, expenses, backup/restore, and the Hub are all working; the remaining roadmap (receipt capture, trends, iOS app) lands one spec at a time (see [`specs/`](specs/)).
 
 ## Screenshots
 
@@ -275,6 +275,15 @@ That same file restores two ways:
   (a full reset, not a merge), gated behind typing the household's exact
   name to confirm. It signs everyone out, including whoever ran it — sign
   back in with any account from the backup afterward.
+
+## Feedback and contributing
+
+Feedback is very welcome, especially on how the monthly flow (plan, log, check in) feels in real use and on anything rough about self-hosting.
+
+- Questions, ideas and general feedback: [Discussions](https://github.com/tymattes/monies/discussions)
+- Bugs and concrete feature requests: [Issues](https://github.com/tymattes/monies/issues/new/choose)
+- Security issues: privately, per [`SECURITY.md`](SECURITY.md)
+- Code: see [`CONTRIBUTING.md`](CONTRIBUTING.md)
 
 ## Development workflow
 

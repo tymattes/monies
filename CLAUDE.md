@@ -25,7 +25,7 @@ Stack: Next.js (App Router) + TypeScript + Tailwind, `src/` layout, npm.
 
 ## Architecture
 
-Specs 001-023 are done. Business logic goes behind API route handlers (`src/app/api/`) so a future iOS app can reuse them. Per-feature rationale lives in the spec files under `specs/`; read the relevant spec before changing that area.
+Specs are listed with their status in `specs/README.md`. Business logic goes behind API route handlers (`src/app/api/`) so a future iOS app can reuse them. Per-feature rationale lives in the spec files under `specs/`; read the relevant spec before changing that area.
 
 Invariants (these must always hold):
 
