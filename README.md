@@ -149,21 +149,13 @@ On your server: clone the repo, create `.env` as above with a strong password, t
 
 ### Portainer
 
-Deploy from the repository:
+Two ways to deploy via Portainer: pull the published image (no build step), or build from source. Either way you need the same environment variables — see Configuration above for the full list, defaults, and optional overrides like `POSTGRES_USER`, `POSTGRES_DB`, `APP_PORT` and `DB_PORT`. Portainer is just the example — the same compose file pastes verbatim into any other Compose-based stack manager (Unraid's Compose Manager, Dockge, CasaOS, etc.), or runs with the plain `docker compose` CLI.
 
-1. In Portainer, go to **Stacks → Add stack**.
-2. Give it a name (e.g. `monies`) and set **Build method** to **Repository**.
-3. Enter this repository's URL and the branch to deploy (e.g. `main`) in the **Repository URL** / **Reference** fields.
-4. Set **Compose path** to `docker-compose.yml` — the file already committed at the repo root; no need to write your own.
-5. Under **Environment variables**, add each of the following as a name/value pair (this is where the stack's required dependencies are supplied — the Compose file references them but does not set them):
-   - `POSTGRES_PASSWORD` — **required**; the stack refuses to start without it. A strong database password.
-   - `BETTER_AUTH_SECRET` — **required**; the stack refuses to start without it. Generate one with `openssl rand -base64 32` and keep it stable — changing it signs everyone out.
-   - `BETTER_AUTH_URL` — the address you will browse to (e.g. `https://monies.example.com`, or `http://my-server:1717` on a tailnet). Without it, sign-in requests are rejected once you're not on `localhost`.
-   - `TZ` — your IANA timezone (e.g. `America/Chicago`). Decides which calendar month is "this month" for budgets.
-   See Configuration above for the full variable list, defaults, and optional overrides like `POSTGRES_USER`, `POSTGRES_DB`, `APP_PORT` and `DB_PORT`.
-6. Click **Deploy the stack**. Portainer builds the image from the repository and starts both services; the app becomes healthy once its `/api/health` check passes against the database.
+**Using the published image (recommended).** [`ghcr.io/tymattes/monies`](https://github.com/tymattes/monies/pkgs/container/monies) is a public, multi-arch (amd64/arm64) image built from tagged releases — nothing to build, no repository link needed.
 
-For reference, here is that stack with its variables inlined — replace every `change-me` value:
+1. In Portainer, go to **Stacks → Add stack**, name it (e.g. `monies`), and use the **Web editor**.
+2. Paste the compose file below, replacing every `change-me` value.
+3. Click **Deploy the stack**. Portainer pulls the image and starts both services; the app becomes healthy once its `/api/health` check passes against the database.
 
 ```yaml
 services:
@@ -185,8 +177,7 @@ services:
       retries: 10
 
   app:
-    build: .
-    image: monies:latest
+    image: ghcr.io/tymattes/monies:latest
     restart: unless-stopped
     depends_on:
       db:
@@ -209,14 +200,28 @@ volumes:
   monies-db:
 ```
 
-`build: .` builds the image from the repository, so this example deploys via the *Repository* method (which supplies the build context). Once a pre-built image is published to a registry, swap `build: .` for an `image:` reference and the same file works as a plain pasted stack.
+Pin to a specific version instead of `latest` (e.g. `ghcr.io/tymattes/monies:0.1.0`) if you'd rather upgrade deliberately — see *Upgrading* below either way.
+
+**Building from source instead.** Useful for running an unreleased change from `main`:
+
+1. In Portainer, go to **Stacks → Add stack**.
+2. Give it a name (e.g. `monies`) and set **Build method** to **Repository**.
+3. Enter this repository's URL and the branch to deploy (e.g. `main`) in the **Repository URL** / **Reference** fields.
+4. Set **Compose path** to `docker-compose.yml` — the file already committed at the repo root, which builds from source (`build: .`); no need to write your own.
+5. Under **Environment variables**, add each of the following as a name/value pair (the Compose file references them but does not set them):
+   - `POSTGRES_PASSWORD` — **required**; the stack refuses to start without it. A strong database password.
+   - `BETTER_AUTH_SECRET` — **required**; the stack refuses to start without it. Generate one with `openssl rand -base64 32` and keep it stable — changing it signs everyone out.
+   - `BETTER_AUTH_URL` — the address you will browse to (e.g. `https://monies.example.com`, or `http://my-server:1717` on a tailnet). Without it, sign-in requests are rejected once you're not on `localhost`.
+   - `TZ` — your IANA timezone (e.g. `America/Chicago`). Decides which calendar month is "this month" for budgets.
+6. Click **Deploy the stack**. Portainer builds the image from the repository and starts both services.
 
 ### Upgrading
 
 Migrations apply automatically at container start (`src/instrumentation.ts`), so upgrading never needs a manual migration step — just get the new code running:
 
 - **Docker Compose:** `git pull`, then `docker compose up -d --build`.
-- **Portainer:** open the stack and use **Pull and redeploy** (re-clones the configured branch and rebuilds the image), or manually pull and redeploy if your Portainer version doesn't have that button.
+- **Portainer, building from source:** open the stack and use **Pull and redeploy** (re-clones the configured branch and rebuilds the image), or manually pull and redeploy if your Portainer version doesn't have that button.
+- **Portainer, published image:** pinned to `:latest`, **Pull and redeploy** re-pulls it. Pinned to a specific version (e.g. `:0.1.0`), bump the tag in the stack's `image:` line to the new release and redeploy.
 
 Back up first if you're skipping several versions — see *Backup and restore* below.
 
