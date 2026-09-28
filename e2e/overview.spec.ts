@@ -351,6 +351,36 @@ test.describe("Tasks' inline actions (spec 035)", () => {
   });
 });
 
+test.describe("Tasks list stays a stable grid when a card expands (spec 045)", () => {
+  test.beforeEach(async ({ page }) => {
+    await resetAndSeed();
+    await signIn(page, OWNER);
+    await page.goto("/");
+  });
+
+  test("expanding a later card never moves an earlier one, and highlights the open card", async ({ page }) => {
+    const list = page.getByRole("region", { name: "Tasks" });
+    const first = list.getByRole("listitem").filter({ hasText: "Utilities: is $70.00 over its budget." });
+    const sameRowSibling = list.getByRole("listitem").filter({ hasText: "Keep this month's income up to date." });
+    const toExpand = list.getByRole("listitem").filter({ hasText: "Log this month's expenses as they happen." });
+
+    const firstBefore = await first.boundingBox();
+    const siblingBefore = await sameRowSibling.boundingBox();
+
+    await toExpand.getByRole("button", { name: "Log expense" }).click();
+    await expect(toExpand.getByLabel("Category")).toBeVisible();
+
+    // An earlier card, and a card sharing the now-taller row, both keep
+    // their exact position and size — nothing stretches or shifts sideways.
+    await expect.poll(() => first.boundingBox()).toEqual(firstBefore);
+    await expect.poll(() => sameRowSibling.boundingBox()).toEqual(siblingBefore);
+
+    // The expanded card itself is clearly marked; a collapsed one isn't.
+    await expect(toExpand).toHaveClass(/ring-accent/);
+    await expect(first).not.toHaveClass(/ring-accent/);
+  });
+});
+
 test.describe("adding a Debt payoff goal (spec 014)", () => {
   test.beforeEach(async ({ page }) => {
     await resetAndSeed();

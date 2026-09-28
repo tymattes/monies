@@ -59,4 +59,4 @@ Monies is built spec-first. `brief.md` is the source of truth for product intent
 | 042 | [In-app page descriptions and a richer getting-started guide](042-in-app-page-descriptions.md) | implemented |
 | 043 | [Bills "Paid with" becomes a household member](043-bills-paid-with-member.md) | implemented |
 | 044 | [Backup and restore to a portable JSON file](044-backup-restore.md) | implemented |
-| 045 | [Task cards keep their position when one expands](045-tasks-stable-layout.md) | approved |
+| 045 | [Task cards keep their position when one expands](045-tasks-stable-layout.md) | implemented |

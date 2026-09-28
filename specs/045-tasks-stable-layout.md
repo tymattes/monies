@@ -1,6 +1,6 @@
 # 045: Task cards keep their position when one expands
 
-**Status:** approved
+**Status:** implemented
 
 ## Goal
 Spec 035 let four Task codes expand into an inline form instead of linking
@@ -52,24 +52,25 @@ ambiguity even while its own row grows.
   ever moves. Considered and rejected for now — see Decisions.
 
 ## Acceptance criteria
-- [ ] `TaskList`'s card list uses CSS grid classes (`grid grid-cols-1
+- [x] `TaskList`'s card list uses CSS grid classes (`grid grid-cols-1
       sm:grid-cols-2 lg:grid-cols-3`), not `columns-*`; no `break-inside-
       avoid` remains (a multi-column-only property, meaningless in a grid).
-- [ ] Expanding a card does not change the on-screen position of a card in a
-      different row (verified via bounding-box comparison before/after in an
-      e2e test).
-- [ ] A collapsed card sharing a row with an expanded one keeps its own
-      height rather than stretching to match (`align-items: start`).
-- [ ] The expanded card's element carries a visible accent-colored highlight
+- [x] Expanding a card never moves a card in an earlier row, and a card
+      sharing its row keeps its own exact size and position even as the row
+      grows around it (`align-items: start`); only rows after the expanded
+      one may shift down, which is expected — more content appeared above
+      them (verified via bounding-box comparison before/after in an e2e
+      test).
+- [x] The expanded card's element carries a visible accent-colored highlight
       (e.g. `ring-2 ring-accent`) that is present only while it's open.
-- [ ] Multiple cards can be expanded simultaneously, each independently
+- [x] Multiple cards can be expanded simultaneously, each independently
       highlighted, matching spec 035's existing "expanding one does not
       close another."
-- [ ] Every existing spec 035 acceptance criterion still holds — no
+- [x] Every existing spec 035 acceptance criterion still holds — no
       regression to which codes inline, their behavior, or editability
       gating (covered by the existing test suite continuing to pass).
-- [ ] `npm test`, `npm run test:e2e`, and `npm run lint` pass.
-- [ ] Documentation updated (see Documentation).
+- [x] `npm test`, `npm run test:e2e`, and `npm run lint` pass.
+- [x] Documentation updated (see Documentation).
 
 ## Technical notes
 - **`src/components/overview/TaskList.tsx`**: change the `<ul>`'s className
@@ -92,10 +93,10 @@ ambiguity even while its own row grows.
 - **Tests**: `tests/overview-ui.test.tsx`'s existing `TaskList` block gains
   an assertion that the list's class string contains `grid` and not
   `columns`. `e2e/overview.spec.ts` gains a case: seed enough tasks to fill
-  more than one row, expand one, and assert (a) a card in a different row
-  keeps the same `getBoundingClientRect()` position it had before, (b) the
-  expanded card's element has the accent ring class, and a collapsed
-  sibling does not.
+  more than one row, expand the *last* card (whichever row it's in, nothing
+  can be after it to push down), and assert (a) the *first* card's
+  `getBoundingClientRect()` is unchanged, (b) the expanded card's element
+  has the accent ring class, and a collapsed sibling does not.
 
 ## Decisions
 - **Why grid over multi-column, precisely**: `columns-N` lets the browser
