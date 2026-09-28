@@ -266,7 +266,14 @@ const list = (editable: boolean) =>
     <TaskList items={items} month="2026-09" currency="USD" editable={editable} categories={taskCategories} goals={taskGoals} />,
   );
 
-describe("TaskList (spec 032/035)", () => {
+describe("TaskList (spec 032/035/045)", () => {
+  it("lays cards out in a CSS grid, not multi-column", () => {
+    const html = list(true);
+    expect(html).toMatch(/<ul class="[^"]*\bgrid\b[^"]*">/);
+    expect(html).not.toMatch(/class="[^"]*\bcolumns-/);
+    expect(html).not.toContain("break-inside-avoid");
+  });
+
   it("renders nothing when there is nothing to say", () => {
     expect(
       renderToStaticMarkup(
