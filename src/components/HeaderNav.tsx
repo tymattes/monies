@@ -6,8 +6,9 @@ import { usePathname } from "next/navigation";
 const PLAN_PATHS = ["/budget", "/bills", "/income", "/goals"];
 
 // Top-level destinations: Hub, Plan (Income | Budget | Bills | Goals) and
-// Members (spec 015 — Goals moved into the Plan tab group; spec 036 — Hub
-// was Overview, appearance only, still the `/` route). Active state mirrors
+// Household (spec 015 — Goals moved into the Plan tab group; spec 036 — Hub
+// was Overview, appearance only, still the `/` route; spec 044 — Members
+// was renamed Household once backup/restore joined it). Active state mirrors
 // PlanTabs' accent underline (spec 037).
 export default function HeaderNav({ className = "" }: { className?: string }) {
   const pathname = usePathname();
@@ -15,7 +16,7 @@ export default function HeaderNav({ className = "" }: { className?: string }) {
     { href: "/", label: "Hub", active: pathname === "/" },
     { href: "/income", label: "Plan", hint: "▾", active: PLAN_PATHS.includes(pathname) },
     { href: "/expenses", label: "Expenses", active: pathname === "/expenses" },
-    { href: "/members", label: "Members", active: pathname === "/members" },
+    { href: "/household", label: "Household", active: pathname === "/household" },
   ];
   return (
     <nav aria-label="Main" className={`flex items-center ${className}`}>

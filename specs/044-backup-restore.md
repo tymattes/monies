@@ -1,6 +1,6 @@
 # 044: Backup and restore to a portable JSON file
 
-**Status:** approved
+**Status:** implemented
 
 ## Goal
 The README already documents a backup path — `pg_dump`/`pg_restore` against
@@ -75,54 +75,54 @@ covers the household as a whole, not just who's in it.
   that stays as-is, as the complete/low-level option.
 
 ## Acceptance criteria
-- [ ] `GET /api/backup` (owner-only) returns a JSON file (`Content-Disposition:
+- [x] `GET /api/backup` (owner-only) returns a JSON file (`Content-Disposition:
       attachment`, filename `monies-backup-<household-name-slug>-<date>.json`)
       containing the full shape described in Technical notes.
-- [ ] `POST /api/restore` (unauthenticated, setup-only) accepts a JSON body
+- [x] `POST /api/restore` (unauthenticated, setup-only) accepts a JSON body
       in the exported shape, rejects with 409 if a household already exists,
       rejects with 400 on a `schemaVersion` it doesn't understand or a
       structurally invalid file, and otherwise recreates the household, its
       members (original email + working original password), and every
       category/budget/bill/income/goal/expense row inside one transaction.
-- [ ] `POST /api/household/restore` (owner-only, live instance) accepts the
+- [x] `POST /api/household/restore` (owner-only, live instance) accepts the
       same JSON body plus a `confirmHouseholdName` field that must exactly
       match the *current* household's name; on a mismatch it rejects with
       400 and touches nothing. On a match, it deletes every current
       household-scoped row and every current user account, then runs the
       same restore logic `POST /api/restore` uses. Same validation and
       all-or-nothing transaction guarantees as the setup-only path.
-- [ ] A member restored from backup (either path) can sign in with their
+- [x] A member restored from backup (either path) can sign in with their
       original password immediately after restore completes — nothing about
       their credential changes.
-- [ ] After a live restore, every session that existed before it (including
+- [x] After a live restore, every session that existed before it (including
       the owner's own, mid-request) is invalid — restoring deletes the
       current user rows, which cascades their sessions. The client redirects
       to `/sign-in` rather than assuming anyone stays signed in.
-- [ ] All time-versioned history round-trips on both paths: every
+- [x] All time-versioned history round-trips on both paths: every
       `budget_allocations`, `bill_versions`, `income_amounts`, and
       `goal_amounts` row (not just the current month's) survives a
       backup/restore cycle, so past months read exactly as they did before.
-- [ ] `goal_checkins` and `expenses` (every logged expense, any past date)
+- [x] `goal_checkins` and `expenses` (every logged expense, any past date)
       round-trip completely, on both paths.
-- [ ] Archived categories/goals/income sources and ended bills round-trip
+- [x] Archived categories/goals/income sources and ended bills round-trip
       with their archived state intact — restoring doesn't un-archive
       anything.
-- [ ] A member's role (owner/member) round-trips; the "at least one owner"
+- [x] A member's role (owner/member) round-trips; the "at least one owner"
       invariant holds automatically since it's copying a state that already
       satisfied it.
-- [ ] The Household page (`/household`, renamed from Members/`/members`)
+- [x] The Household page (`/household`, renamed from Members/`/members`)
       shows "Download backup" for owners, and "Restore from a backup file"
       for owners, with the typed-confirmation step for the latter.
-- [ ] `/members` redirects to `/household`; `HeaderNav`'s label reads
+- [x] `/members` redirects to `/household`; `HeaderNav`'s label reads
       "Household" and is current on `/household`.
-- [ ] The setup screen (`/setup`) still shows "Restore from a backup file"
+- [x] The setup screen (`/setup`) still shows "Restore from a backup file"
       as an alternative to the create-household form, only when no household
       exists yet.
-- [ ] Restoring with a file from a different (but understood) `schemaVersion`
+- [x] Restoring with a file from a different (but understood) `schemaVersion`
       still succeeds if the shape is otherwise compatible; restoring with a
       newer `schemaVersion` than the running app understands fails with a
       readable error naming the mismatch, not a stack trace.
-- [ ] Documentation updated (see Documentation).
+- [x] Documentation updated (see Documentation).
 
 ## Technical notes
 - **`src/lib/backup.ts`** (new): `exportBackup(householdId): Promise<BackupFile>`

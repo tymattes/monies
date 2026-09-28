@@ -36,7 +36,7 @@ export const SIGNED_IN_PAGES = [
   { name: "income", path: "/income" },
   { name: "goals", path: "/goals" },
   { name: "expenses", path: "/expenses" },
-  { name: "members", path: "/members" },
+  { name: "household", path: "/household" },
 ];
 export const SIGNED_OUT_PAGES = [{ name: "sign-in", path: "/sign-in" }];
 
