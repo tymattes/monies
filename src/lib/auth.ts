@@ -3,11 +3,24 @@ import { betterAuth } from "better-auth";
 import { getDb } from "@/db";
 import * as schema from "@/db/schema";
 
+// Extra origins to accept sign-in requests from, alongside BETTER_AUTH_URL
+// (e.g. a LAN IP and a Tailscale address for the same instance). Links the
+// app generates (invites, etc.) always use BETTER_AUTH_URL regardless.
+function trustedOrigins() {
+  const extra = process.env.BETTER_AUTH_TRUSTED_ORIGINS?.split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  if (!extra?.length) return undefined;
+  const base = process.env.BETTER_AUTH_URL;
+  return base ? [base, ...extra] : extra;
+}
+
 function createAuth() {
   return betterAuth({
     database: drizzleAdapter(getDb(), { provider: "pg", schema }),
     secret: process.env.BETTER_AUTH_SECRET,
     baseURL: process.env.BETTER_AUTH_URL,
+    trustedOrigins: trustedOrigins(),
     emailAndPassword: {
       enabled: true,
       // Public sign-up stays closed. Accounts are only created by our own
