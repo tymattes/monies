@@ -211,6 +211,15 @@ volumes:
 
 `build: .` builds the image from the repository, so this example deploys via the *Repository* method (which supplies the build context). Once a pre-built image is published to a registry, swap `build: .` for an `image:` reference and the same file works as a plain pasted stack.
 
+### Upgrading
+
+Migrations apply automatically at container start (`src/instrumentation.ts`), so upgrading never needs a manual migration step — just get the new code running:
+
+- **Docker Compose:** `git pull`, then `docker compose up -d --build`.
+- **Portainer:** open the stack and use **Pull and redeploy** (re-clones the configured branch and rebuilds the image), or manually pull and redeploy if your Portainer version doesn't have that button.
+
+Back up first if you're skipping several versions — see *Backup and restore* below.
+
 ### Exposing the app
 
 Out of the box the app listens on the host's port 1717 and is reachable on your local network; the database port is bound to `127.0.0.1` only and is never exposed.
