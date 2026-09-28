@@ -138,6 +138,7 @@ Migrations live in `drizzle/` and are committed. The app applies pending migrati
 | `DB_PORT` | `5432` | Host port for Postgres, bound to `127.0.0.1` only. |
 | `BETTER_AUTH_SECRET` | none (required) | Secret used to sign sessions. Generate with `openssl rand -base64 32` and keep it stable; changing it signs everyone out. |
 | `BETTER_AUTH_URL` | `http://localhost:${APP_PORT}` | The public URL people open the app at (scheme, host, port). Set it when serving behind a domain or reverse proxy, or sign-in requests are rejected. |
+| `BETTER_AUTH_TRUSTED_ORIGINS` | none | Comma-separated extra addresses to also accept sign-in from — e.g. a LAN IP alongside a Tailscale address for the same instance. Links the app generates (invites, etc.) still always use `BETTER_AUTH_URL`. |
 | `TZ` | `UTC` | Server timezone (IANA name, e.g. `America/Chicago`). Decides which calendar month is "this month" for budgets, so set it to where you live. |
 | `DATABASE_URL` | none | Connection string for local development. In Compose it is set automatically to the `db` service. |
 
@@ -229,7 +230,7 @@ Back up first if you're skipping several versions — see *Backup and restore* b
 
 Out of the box the app listens on the host's port 1717 and is reachable on your local network; the database port is bound to `127.0.0.1` only and is never exposed.
 
-**Staying private with Tailscale (recommended).** The simplest way to reach Monies from outside your home without opening it to the internet is to put both the server and your devices on a [Tailscale](https://tailscale.com/) tailnet (WireGuard, Headscale, and other private meshes work too). Install Tailscale on the host and browse to `http://<host>:1717` over the tailnet — traffic is encrypted by the mesh, no ports are forwarded, and the app itself needs no TLS certificate. Set `BETTER_AUTH_URL` to the address your devices actually use (e.g. `http://my-server:1717`).
+**Staying private with Tailscale (recommended).** The simplest way to reach Monies from outside your home without opening it to the internet is to put both the server and your devices on a [Tailscale](https://tailscale.com/) tailnet (WireGuard, Headscale, and other private meshes work too). Install Tailscale on the host and browse to `http://<host>:1717` over the tailnet — traffic is encrypted by the mesh, no ports are forwarded, and the app itself needs no TLS certificate. Set `BETTER_AUTH_URL` to the address your devices actually use (e.g. `http://my-server:1717`). Want the LAN IP to also work when you're home (no tailnet hop)? Add it to `BETTER_AUTH_TRUSTED_ORIGINS` — otherwise sign-in is rejected from any address other than `BETTER_AUTH_URL`.
 
 **Opening it to the public internet is at your own risk.** Monies holds your household's financial data, and sign-in is a single email + password (rate-limited, but there is no two-factor auth). If you expose it, treat it as a hardened public service:
 

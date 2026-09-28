@@ -29,6 +29,7 @@ services:
       TZ: ${TZ:-UTC}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Set BETTER_AUTH_SECRET}
       BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:${APP_PORT:-1717}}
+      BETTER_AUTH_TRUSTED_ORIGINS: ${BETTER_AUTH_TRUSTED_ORIGINS:-}
     ports:
       - "${APP_PORT:-1717}:3000"
     healthcheck:
