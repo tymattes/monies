@@ -58,3 +58,4 @@ Monies is built spec-first. `brief.md` is the source of truth for product intent
 | 041 | [Support multiple owners](041-multiple-owners.md) | implemented |
 | 042 | [In-app page descriptions and a richer getting-started guide](042-in-app-page-descriptions.md) | implemented |
 | 043 | [Bills "Paid with" becomes a household member](043-bills-paid-with-member.md) | implemented |
+| 044 | [Backup and restore to a portable JSON file](044-backup-restore.md) | approved |
