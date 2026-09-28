@@ -149,7 +149,7 @@ On your server: clone the repo, create `.env` as above with a strong password, t
 
 ### Portainer
 
-Two ways to deploy via Portainer: pull the published image (no build step), or build from source. Either way you need the same environment variables — see Configuration above for the full list, defaults, and optional overrides like `POSTGRES_USER`, `POSTGRES_DB`, `APP_PORT` and `DB_PORT`.
+Two ways to deploy via Portainer: pull the published image (no build step), or build from source. Either way you need the same environment variables — see Configuration above for the full list, defaults, and optional overrides like `POSTGRES_USER`, `POSTGRES_DB`, `APP_PORT` and `DB_PORT`. Portainer is just the example — the same compose file pastes verbatim into any other Compose-based stack manager (Unraid's Compose Manager, Dockge, CasaOS, etc.), or runs with the plain `docker compose` CLI.
 
 **Using the published image (recommended).** [`ghcr.io/tymattes/monies`](https://github.com/tymattes/monies/pkgs/container/monies) is a public, multi-arch (amd64/arm64) image built from tagged releases — nothing to build, no repository link needed.
 
