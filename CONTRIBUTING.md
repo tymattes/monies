@@ -5,11 +5,31 @@ project — here's how it works.
 
 ## Before you start
 
+- **Questions, feedback and early ideas:** start a thread in
+  [Discussions](https://github.com/tymattes/monies/discussions). How you use
+  Monies, what's confusing about the monthly flow, and self-hosting rough
+  edges are all especially welcome.
 - **Bug reports and feature requests:** use the issue templates in
   [`.github/ISSUE_TEMPLATE/`](.github/ISSUE_TEMPLATE/). They ask for the
   details needed to reproduce or evaluate.
-- **Larger features:** open an issue to discuss first, so scope is agreed
-  before you invest time.
+- **Security issues:** report them privately, as described in
+  [`SECURITY.md`](SECURITY.md), not as a public issue.
+
+## Contributing code
+
+What you need depends on the size of the change:
+
+- **Bug fixes, docs, tests, small polish:** no spec needed. Open a PR
+  directly and describe the problem it fixes.
+- **New features or behavior changes:** open a feature request first so
+  scope is agreed before you invest time. Once it's agreed, the change gets a
+  numbered spec in [`specs/`](specs/) (copy `specs/_template.md`, Status
+  `draft`). You can draft it yourself as the first commit of your PR, or ask
+  the maintainer to write it. Code lands after the spec is approved.
+
+Every PR needs a passing CI run and a maintainer review before it's merged.
+CI on PRs from first-time contributors starts once a maintainer approves the
+run, so a short wait before checks appear is normal.
 
 ## Development setup
 

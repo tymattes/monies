@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and general feedback
+    url: https://github.com/tymattes/monies/discussions
+    about: Ask a question, share how you use Monies, or float an idea before it becomes a feature request.
+  - name: Report a security vulnerability
+    url: https://github.com/tymattes/monies/security/advisories/new
+    about: Please report security issues privately, not as a public issue.
