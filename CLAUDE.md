@@ -21,7 +21,7 @@ Stack: Next.js (App Router) + TypeScript + Tailwind, `src/` layout, npm.
 - `npm run test:e2e`: Playwright browser tests (real Chromium, axe accessibility scans) against a throwaway `monies_e2e` database on port 3100; one-time `npx playwright install chromium`; `E2E_PROD=1` runs the production build, `E2E_WEBKIT=1` adds WebKit. `npm run e2e:screenshots` writes light/dark, desktop/phone screenshots of every page to `e2e-screenshots/` (git-ignored). Its last block logs a month of expenses first and shoots the Hub, Expenses and Budget from that state (`*-spend-*`), plus a viewport-only phone Hub — the shared seed has no expenses on purpose (`SEED.unallocatedCents` depends on it), so without this the README's images would read $0.00 spent everywhere. The committed `docs/screenshots/` set is copied from those files by hand
 - `docker compose up --build`: run the full stack (app + Postgres). Needs `.env` copied from `.env.example` with `POSTGRES_PASSWORD` and `BETTER_AUTH_SECRET` set; healthcheck hits `/api/health`
 - `docker compose up -d db`: Postgres only, for native `npm run dev` (uses `DATABASE_URL` from `.env`)
-- `npm run db:generate` / `npm run db:migrate`: generate migrations from `src/db/schema.ts` / apply them manually
+- `npm run db:generate` / `npm run db:migrate`: generate migrations from `src/db/schema.ts` / apply them manually. `package.json`'s `overrides` pins the esbuild under drizzle-kit's unused, deprecated `@esbuild-kit/core-utils` to a patched version (GHSA-67mh-4wv8-2f99); drop it once drizzle-kit 1.0 is stable and removes that dependency
 
 ## Architecture
 
