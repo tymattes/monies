@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Lint, build and test
+    runs-on: ubuntu-latest
+
+    services:
+      db:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: monies
+          POSTGRES_PASSWORD: ci-postgres-password
+          POSTGRES_DB: monies
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U monies -d monies"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run lint
+
+      # No DATABASE_URL: the build must work without a database (lazy getDb()).
+      - run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+
+      # Creates and migrates its own monies_test database on the service above.
+      - run: npm test
+        env:
+          DATABASE_URL: postgres://monies:ci-postgres-password@localhost:5432/monies
