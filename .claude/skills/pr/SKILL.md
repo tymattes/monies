@@ -1,11 +1,11 @@
 ---
-name: ship
+name: pr
 description: Run the pre-commit gate, commit, push the branch and open a pull request. Stops at the PR; never merges.
 disable-model-invocation: true
 argument-hint: [PR title]
 ---
 
-Ship the current work as a pull request. Title, if given: $ARGUMENTS
+Open a pull request for the current work. Title, if given: $ARGUMENTS
 
 1. **Branch.** If on `main`, create `<type>/<short-name>` first (`feat/NNN-name` for a spec, else `fix/`, `docs/`, `chore/`).
 2. **Gate.** Skip this step for a docs-only change.
