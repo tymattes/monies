@@ -29,7 +29,7 @@ jobs:
 
       # latest=auto: a v0.1.0 tag publishes 0.1.0, 0.1 and latest.
       - id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |

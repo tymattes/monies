@@ -5,10 +5,10 @@ Monies is built spec-first. `brief.md` is the source of truth for product intent
 ## Workflow
 
 1. Copy `_template.md` to `NNN-short-name.md` (next unused number) and set Status to `draft`.
-2. Fill it in and review it. Once agreed, set Status to `approved`.
+2. Fill it in and review it. Once the owner agrees, set Status to `approved`.
 3. Implement against the acceptance criteria. Keep the spec updated if scope changes.
-4. Update the docs in the same PR: `README.md` (features, config, commands, deploy notes, tech stack) and `CLAUDE.md`. Each spec lists what changes under its Documentation section.
-5. When every acceptance box, including docs, is checked and verification passes, set Status to `implemented`.
+4. Update the docs in the same PR: `README.md` (features, config, commands, deploy notes, tech stack). Update agent guidance only when a rule changes: the matching `.claude/rules/` file for an area invariant, `AGENTS.md` for one that applies everywhere. Each spec lists what changes under its Documentation section.
+5. When every acceptance box, including docs, is checked and verification passes, set Status to `implemented` as the last commit before the merge.
 6. Deliver each spec on its own feature branch (e.g. `feat/003-households`) via a pull request; never commit directly to `main`.
 
 ## Index
