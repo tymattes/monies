@@ -15,7 +15,7 @@
     "test:e2e:docker": "bash scripts/e2e-docker.sh"
   },
   "dependencies": {
-    "@better-auth/drizzle-adapter": "^1.7.5",
+    "@better-auth/drizzle-adapter": "^1.7.7",
     "better-auth": "^1.7.5",
     "drizzle-orm": "^0.45.3",
     "next": "16.3.5",
