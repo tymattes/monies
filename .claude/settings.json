@@ -21,7 +21,12 @@
       "Bash(gh pr list:*)"
     ],
     "deny": [
-      "Read(./.env)"
+      "Read(./.env)",
+      "Read(./.env.local)",
+      "Read(./.env.*.local)",
+      "Read(./.env.fresh)",
+      "Read(./.env.study)",
+      "Read(./.env.uat)"
     ]
   }
 }

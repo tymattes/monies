@@ -6,7 +6,7 @@ Keep this file short: it is loaded into every session. It holds only what applie
 
 ## Workflow: spec-driven
 
-`specs/brief.md` is the source of truth for product intent. Every feature starts as a numbered spec in `specs/` (copy `specs/_template.md`; process in `specs/README.md`). Don't write feature code without an approved spec, and tick the spec's acceptance checkboxes as work lands. Bug fixes, docs, tests and small polish need no spec.
+`specs/brief.md` is the source of truth for product intent. Every feature starts as a numbered spec in `specs/` (copy `specs/_template.md`; process in `specs/README.md`). Don't write feature code without an approved spec, and tick the spec's acceptance checkboxes as work lands. Bug fixes, docs, tests and small polish need no spec. Finish the research before writing a spec, and cite a source for anything factual in it.
 
 Spec status is the owner's call. Never move a spec to `approved` yourself; wait for the owner to say so. Set `implemented` (in the spec file and the `specs/README.md` index) only as the last commit before a merge the owner has asked for.
 
@@ -51,18 +51,12 @@ Each file below holds the invariants for one area. Claude Code loads a file auto
 
 | File | Covers |
 | --- | --- |
+| `.claude/rules/budget.md` | Goals, expenses, bills, income and Assign unallocated |
+| `.claude/rules/hub.md` | Hub (Overview), Tasks, the Plan summary and navigation |
 | `.claude/rules/auth.md` | Auth, membership and roles |
-| `.claude/rules/goals.md` | Goals |
-| `.claude/rules/expenses.md` | Expenses |
-| `.claude/rules/bills.md` | Bills |
-| `.claude/rules/income.md` | Income and provisional income |
-| `.claude/rules/assign.md` | Assign unallocated |
-| `.claude/rules/navigation.md` | Navigation, Plan header and page descriptions |
 | `.claude/rules/backup.md` | Backup and restore |
-| `.claude/rules/hub.md` | Hub (Overview), Tasks and the Plan summary |
 | `.claude/rules/ui.md` | UI rules |
 | `.claude/rules/testing.md` | Testing and CI |
-| `.claude/rules/specs.md` | Writing specs |
 
 <!-- BEGIN:nextjs-agent-rules -->
 
