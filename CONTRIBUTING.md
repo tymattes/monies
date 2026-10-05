@@ -45,6 +45,11 @@ npm run dev
 Tests: `npm test` (Vitest, needs the `db` container), `npm run test:e2e`
 (Playwright), `npm run lint`.
 
+The `overrides` block in `package.json` pins the esbuild under drizzle-kit's
+unused, deprecated `@esbuild-kit/core-utils` to a patched version
+(GHSA-67mh-4wv8-2f99). Drop it once drizzle-kit 1.0 is stable and removes that
+dependency.
+
 ## How the project is organized
 
 Monies is built spec-first. `specs/brief.md` is the source of truth for

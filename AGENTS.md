@@ -10,7 +10,7 @@ Keep this file short: it is loaded into every session. It holds only what applie
 
 Spec status is the owner's call. Never move a spec to `approved` yourself; wait for the owner to say so. Set `implemented` (in the spec file and the `specs/README.md` index) only as the last commit before a merge the owner has asked for.
 
-Documentation is part of every spec: update `README.md` in the same PR, and list the changes in the spec's Documentation section. Touch this file only when a rule that applies everywhere changes; put area detail in the matching `.claude/rules/` file, and leave history and rationale in the spec.
+Documentation is part of every change: update `README.md` in the same PR, notably its tech stack and config tables when the stack or env vars change. A spec lists its doc changes in its Documentation section. Touch this file only when a rule that applies everywhere changes; put area detail in the matching `.claude/rules/` file, and leave history and rationale in the spec.
 
 ## Git workflow
 
@@ -24,11 +24,11 @@ Stack: Next.js (App Router) + TypeScript + Tailwind, `src/` layout, npm.
 - `npm run build` / `npm run start`: production build (`output: "standalone"`) and serve
 - `npm run lint`: ESLint
 - `npm test`: Vitest integration tests against a separate `monies_test` DB on the Compose Postgres (`docker compose up -d db` first; `tests/global-setup.ts` creates and migrates it)
-- `npm run test:e2e`: Playwright browser tests against a throwaway `monies_e2e` database on port 3100 (one-time `npx playwright install chromium`). A local gate, not in CI; details in `.claude/rules/testing.md`
+- `npm run test:e2e`: Playwright browser tests (one-time `npx playwright install chromium`). A local gate, not in CI; details in `.claude/rules/testing.md`
 - During iteration, run the targeted file (`npx vitest run tests/<name>.test.ts`) instead of the full `npm test` — the suite is one shared DB and takes ~35s; the full run is the pre-commit gate. Same for builds: don't run `npm run build` for a docs-only change.
 - `docker compose up --build`: run the full stack (app + Postgres). Needs `.env` copied from `.env.example` with `POSTGRES_PASSWORD` and `BETTER_AUTH_SECRET` set; healthcheck hits `/api/health`
 - `docker compose up -d db`: Postgres only, for native `npm run dev` (uses `DATABASE_URL` from `.env`)
-- `npm run db:generate` / `npm run db:migrate`: generate migrations from `src/db/schema.ts` / apply them manually. `package.json`'s `overrides` pins the esbuild under drizzle-kit's unused, deprecated `@esbuild-kit/core-utils` to a patched version (GHSA-67mh-4wv8-2f99); drop it once drizzle-kit 1.0 is stable and removes that dependency
+- `npm run db:generate` / `npm run db:migrate`: generate migrations from `src/db/schema.ts` / apply them manually. Leave the `overrides` block in `package.json` alone; `CONTRIBUTING.md` says why it is there
 
 ## Architecture
 
@@ -40,10 +40,9 @@ Invariants (these must always hold):
 - Authorization: every household-scoped route handler calls `requireHousehold(request.headers, { role? })` from `src/lib/household.ts` first; wrap handlers in `route()` from `src/lib/http.ts` for JSON errors. `src/proxy.ts` only does an optimistic cookie check and redirect; it is not authorization.
 - Money and months: money is integer minor units; the API field is `amountCents` for every currency (`src/lib/money.ts`). Months are `YYYY-MM` in the API and `YYYY-MM-01` `date` values in the DB (`src/lib/months.ts`); "current month" uses the server `TZ`.
 - Time-versioning (budgets, goals, bills, fixed income): amounts are rows effective from a month onward, and a month's amount is the row with the latest `effective_month` on or before it. Never update or delete past rows — past months are read-only. Categories and goals archive via `archived_from`, never deleted.
-- Unallocated = income − bills − expenses − checked-off goals, everywhere, sourced from `getBudget` (`Budget.unallocatedCents`) / `planSummaryFromBudget` (`src/lib/plan.ts`); never recompute it client-side. A category's budgeted amount and an unchecked goal's target are *plans* and reserve nothing — only a Bill, a logged Expense, or a checked-off Goal claims real income (spec 022). The display label is "Unallocated Income"; the `unallocated` task code and `unallocatedCents` fields are unchanged (spec 015).
+- Unallocated = income − bills − expenses − checked-off goals, everywhere, sourced from `getBudget` (`Budget.unallocatedCents`) / `planSummaryFromBudget` (`src/lib/plan.ts`). A category's budgeted amount and an unchecked goal's target are *plans* and reserve nothing — only a Bill, a logged Expense, or a checked-off Goal claims real income (spec 022). The display label is "Unallocated Income"; the `unallocated` task code and `unallocatedCents` fields are unchanged (spec 015).
 - Removing a member deletes their user row (cascades to sessions and membership). Later tables referencing users must use `ON DELETE SET NULL` or soft-delete to keep history.
-- Keep `README.md` (notably its tech stack and config tables) current when the stack or env vars change.
-- Derived numbers have one source: `getBudget` (`src/lib/budgets.ts`) and `getOverview` (`src/lib/overview.ts`) compute them for both pages and API. Never recompute a total in a component.
+- Derived numbers have one source: `getBudget` (`src/lib/budgets.ts`) and `getOverview` (`src/lib/overview.ts`) compute them for both pages and API. Never recompute a total, Unallocated included, in a component or on the client.
 
 ## Area rules
 
