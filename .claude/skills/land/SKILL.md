@@ -13,7 +13,7 @@ Land PR $ARGUMENTS (default: the PR for the current branch). Running this skill 
    - Set Status to `implemented` in the spec file and in its row of the `specs/README.md` index.
    - Commit as `docs: mark spec NNN implemented` and push.
 3. **Wait for CI.** `gh pr checks <n> --watch`. On a failure, stop and show it.
-4. **Merge.** `gh pr merge <n> --squash --delete-branch`. The ruleset on `main` is squash-only; never `--merge` or `--rebase`. If the only thing blocking is the code-owner review on the maintainer's own PR, rerun with `--admin`.
+4. **Merge.** `gh pr merge <n> --squash --delete-branch`. The ruleset on `main` is squash-only; never `--merge` or `--rebase`. If the only thing blocking is the code-owner review on the maintainer's own PR, rerun with `--admin`. GitHub only accepts that from a repository admin, so access control decides who can land. In auto mode the admin merge also needs `Bash(gh pr merge:*)` allowed in the maintainer's own `.claude/settings.local.json` (git-ignored); if it is denied, stop and say so.
 5. **Clean up.**
    - `git checkout main && git pull --ff-only && git fetch --prune`
    - Delete the local branch with `git branch -D <branch>`. A squash merge leaves it looking unmerged, so `-d` refuses; `-D` is safe once `gh pr view <n>` says `MERGED`.
