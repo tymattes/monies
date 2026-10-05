@@ -57,6 +57,10 @@ future iOS app can reuse them. Data access is Drizzle over PostgreSQL
 (`src/db/schema.ts`), auth is Better Auth (`src/lib/auth.ts`), and migrations
 are committed SQL files in `drizzle/`.
 
+If you work with an AI coding agent, `AGENTS.md` holds the rules that apply
+everywhere and `.claude/rules/` holds the per-area ones (`CLAUDE.md` imports
+`AGENTS.md`). `.claude/skills/` has the project's Claude Code skills.
+
 ## Pull requests
 
 - One concern per branch and PR, named `<type>/<short-name>` (e.g.

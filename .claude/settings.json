@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm test:*)",
+      "Bash(npm run lint:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run test:e2e:*)",
+      "Bash(npm run e2e:screenshots:*)",
+      "Bash(npx vitest run:*)",
+      "Bash(npx tsc --noEmit:*)",
+      "Bash(npx playwright test:*)",
+      "Bash(npx next typegen:*)",
+      "Bash(docker compose ps:*)",
+      "Bash(docker compose logs:*)",
+      "Bash(docker compose port:*)",
+      "Bash(docker compose up -d db:*)",
+      "Bash(git fetch:*)",
+      "Bash(git branch --show-current)",
+      "Bash(gh pr checks:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr list:*)"
+    ],
+    "deny": [
+      "Read(./.env)"
+    ]
+  }
+}
