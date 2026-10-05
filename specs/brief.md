@@ -1,6 +1,6 @@
 ## Overview
 
-Monies is a self-hosted, household-centric budgeting app, built as a web app first with a companion iOS app planned later. This brief asks for research and specification work only, not production code.
+Monies is a self-hosted, household-centric budgeting app, built as a web app first with a companion iOS app planned later.
 
 Guiding principles:
 
