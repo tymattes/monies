@@ -45,6 +45,11 @@ npm run dev
 Tests: `npm test` (Vitest, needs the `db` container), `npm run test:e2e`
 (Playwright), `npm run lint`.
 
+The `overrides` block in `package.json` pins the esbuild under drizzle-kit's
+unused, deprecated `@esbuild-kit/core-utils` to a patched version
+(GHSA-67mh-4wv8-2f99). Drop it once drizzle-kit 1.0 is stable and removes that
+dependency.
+
 ## How the project is organized
 
 Monies is built spec-first. `specs/brief.md` is the source of truth for
@@ -56,6 +61,22 @@ Business logic lives behind API route handlers under `src/app/api/` so a
 future iOS app can reuse them. Data access is Drizzle over PostgreSQL
 (`src/db/schema.ts`), auth is Better Auth (`src/lib/auth.ts`), and migrations
 are committed SQL files in `drizzle/`.
+
+If you work with an AI coding agent, `AGENTS.md` holds the rules that apply
+everywhere and `.claude/rules/` holds the per-area ones (`CLAUDE.md` imports
+`AGENTS.md`).
+
+`.claude/skills/` has Claude Code skills that automate the steps in
+[`specs/README.md`](specs/README.md) and under Pull requests below. They are
+optional: everything they do can be done by hand or with another agent.
+
+| Step | Command | Who |
+| --- | --- | --- |
+| Draft a spec | `/new-spec <idea>` | Anyone |
+| Check a spec is ready to build | `/review-spec <number>` | Anyone |
+| Run the checks and open the PR | `/pr [title]` | Anyone |
+| Merge, mark the spec implemented, clean up | `/land [PR]` | Maintainer |
+| Rebuild the local Docker stack | `/redeploy` | Anyone running the stack |
 
 ## Pull requests
 
